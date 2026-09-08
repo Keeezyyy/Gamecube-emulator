@@ -1,0 +1,23 @@
+# Build-Output
+build/
+*.o
+*.d
+*.a
+*.so
+*.dylib
+/build/gcemu
+
+# Tools / IDE
+compile_commands.json
+.cache/
+.clangd/
+.vscode/
+.idea/
+*.dSYM/
+
+# macOS
+.DS_Store
+
+# Sonstiges
+*.log
+core
