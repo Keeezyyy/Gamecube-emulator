@@ -1,4 +1,77 @@
 #pragma once
 
-#define ADD_OP 31
-#define ADD_EXT_RANGE 21, 30
+// settings :
+#define STATIC_CODE_BLOCK_BUFFER 512
+
+// opcodes OPC_...
+#define OPC_STMW 47
+#define OPC_LFD 50
+
+#define HOST_R0 0
+#define HOST_R1 1
+#define HOST_R2 2
+#define HOST_R3 3
+#define HOST_R4 4
+#define HOST_R5 5
+#define HOST_R6 6
+#define HOST_R7 7
+#define HOST_R8 8
+#define HOST_R9 9
+#define HOST_R10 10
+#define HOST_R11 11
+#define HOST_R12 12
+#define HOST_R13 13
+#define HOST_R14 14
+#define HOST_R15 15
+#define HOST_R16 16
+#define HOST_R17 17
+#define HOST_R18 18
+#define HOST_R19 19
+#define HOST_R20 20
+#define HOST_R21 21
+#define HOST_R22 22
+#define HOST_R23 23
+#define HOST_R24 24
+#define HOST_R25 25
+#define HOST_R26 26
+#define HOST_R27 27
+#define HOST_R28 28
+#define HOST_R29 29
+#define HOST_R30 30
+#define HOST_R31 31
+
+#define HOST_MAX 31
+#define GUEST_MIN 32
+
+#define GUEST_R0 0
+#define GUEST_R1 1
+#define GUEST_R2 2
+#define GUEST_R3 3
+#define GUEST_R4 4
+#define GUEST_R5 5
+#define GUEST_R6 6
+#define GUEST_R7 7
+#define GUEST_R8 8
+#define GUEST_R9 9
+#define GUEST_R10 10
+#define GUEST_R11 11
+#define GUEST_R12 12
+#define GUEST_R13 13
+#define GUEST_R14 14
+#define GUEST_R15 15
+#define GUEST_R16 16
+#define GUEST_R17 17
+#define GUEST_R18 18
+#define GUEST_R19 19
+#define GUEST_R20 20
+#define GUEST_R21 21
+#define GUEST_R22 22
+#define GUEST_R23 23
+#define GUEST_R24 24
+#define GUEST_R25 25
+#define GUEST_R26 26
+#define GUEST_R27 27
+#define GUEST_R28 28
+#define GUEST_R29 29
+#define GUEST_R30 62
+#define GUEST_R31 63

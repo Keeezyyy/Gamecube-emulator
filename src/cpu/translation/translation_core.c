@@ -1,4 +1,7 @@
 #include "core/config/config.h"
+#include "cpu/cpu_types.h"
+#include "cpu/translation/emit.h"
+#include "cpu/translation/translation_core_macros.h"
 #include "translation.h"
 #include "translation_core_defines.h"
 #include <_abort.h>
@@ -29,12 +32,24 @@ static inline u32 _get_ext_from_instruction(u32 instruction, u8 start, u8 end)
 // !!!!
 static HostArchOutput _translate_instruction(u32 instruction)
 {
+    EmitedBlock buffer[STATIC_CODE_BLOCK_BUFFER] = {0};
+    HostArchOutput out;
+    out.emmited_blocks_ptr = buffer;
+
     u8 op = _get_op_from_instruction(instruction);
+    printf("instuction : 0x%08x\n", instruction);
+    printf("op : %d\n", op);
+
     switch (op) {
-    case ADD_OP:
-        u32 ext = _get_ext_from_instruction(instruction, ADD_EXT_RANGE);
-        switch (ext) {
-        }
+    case OPC_STMW: {
+
+        break;
+    }
+    case OPC_LFD: {
+        emit_cbz(&out.emmited_blocks_ptr[0], &out.emmited_blocks_ptr[0].size,
+                 _get_ext_from_instruction(instruction, 11, 15), );
+        break;
+    }
     }
 }
 

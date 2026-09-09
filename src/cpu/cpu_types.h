@@ -2,6 +2,7 @@
 
 #include "bus/bus.h"
 #include "core/config/config.h"
+#include <stddef.h>
 
 typedef struct PACKED {
     u32 pc;
@@ -39,5 +40,26 @@ struct CPU {
 };
 
 typedef struct {
+    // TODO: do this
+    //  something like patch patch bits 0-31 in *void with offset to adr of emitted block[5] for the
+    //  jump instructions type ...
+
+} EmitPatch;
+
+#define MAX_PATCHES_PER_EMIT_BLOCK 8
+
+typedef struct {
+    void *block;
+    u32 size;
+
+    EmitPatch patch_ptr[MAX_PATCHES_PER_EMIT_BLOCK];
+    u32 num_of_patches;
+
+} PACKED EmitedBlock;
+
+typedef struct {
     bool is_terminating_instruction;
+
+    EmitedBlock *emmited_blocks_ptr;
+    u32 num_of_emmited_blocks;
 } HostArchOutput;
