@@ -3,6 +3,7 @@
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation.h"
+#include "disc/disc.h"
 #include <stdbool.h>
 
 static void deconstruct_cpu(CPU *self)
@@ -44,8 +45,8 @@ static const CPU CPU_TEMPLATE = {
     .get_current_cpu_mode = &get_current_cpu_mode,
 };
 
-void init_cpu(CPU *self)
+void init_cpu(CPU *self, Disc *disc)
 {
     *self = CPU_TEMPLATE;
-    init_translation();
+    init_translation(disc);
 }

@@ -1,5 +1,6 @@
 #include "cpu/translation/translation.h"
 #include "core/config/config.h"
+#include "disc/disc.h"
 #include <assert.h>
 #include <stdio.h>
 #include <zhash/zhash.h>
@@ -26,7 +27,7 @@ void *zhash_delete(struct ZHashTable *hash_table, char *key);
 bool zhash_exists(struct ZHashTable *hash_table, char *key);
 */
 
-void init_translation(void)
+void init_translation(Disc *disc)
 {
     t = zcreate_hash_table();
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cpu/cpu_types.h"
+#include "disc/disc.h"
 
 #include <stddef.h>
 
@@ -13,6 +14,8 @@ typedef struct {
     CpuState cpu_state;
 
     TranslationBlockCore core;
+
+    u64 result_pc;
     // for linking tb´s together
     /*
       uint16_t jmp_offset[2];
@@ -21,8 +24,9 @@ typedef struct {
     */
 } TranslationBlock;
 
-void init_translation(void);
+void init_translation(Disc *disc);
 
 void deconstruct_translation(void);
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode);
+TranslationBlock *tb_translate(CPU *cpu, CpuMode cpu_mode);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
@@ -26,6 +27,18 @@ typedef struct {
 
 } DiscHeader;
 
+typedef struct Disc Disc;
+
+struct Disc {
+    DiscHeader *header;
+    void *rom;
+    size_t rom_size;
+
+    int (*load_rom)(Disc *self, char *path);
+    void (*free)(Disc *self);
+    void (*print_header)(Disc *self);
+};
+
 /*
 Boot.bin (Data Header)
 Item No.	Offset	Length	Name
@@ -40,4 +53,5 @@ Item No.	Offset	Length	Name
     9	0x42C	0x4	Max Fst.bin size
 
 */
-int load_rom(char *path);
+
+void init_disc(Disc *self);
