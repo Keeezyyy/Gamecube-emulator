@@ -1,0 +1,7 @@
+zhash-c
+Upstream: https://github.com/zfletch/zhash-c.git
+Commit:   e3ea29c9826110969b5099b545fdeee6d75a3f3e
+
+Lokale Aenderungen:
+  - zhash.h: #include <stddef.h> ergaenzt (size_t wird im Header benutzt,
+    fehlt upstream -> Header war nicht eigenstaendig inkludierbar).

@@ -56,7 +56,17 @@ endif
 SRCS := $(shell find $(SRC_DIR) -type f -name '*.c')
 
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD)/obj/%.o)
-DEPS := $(OBJS:.o=.d)
+
+# ==== Vendor (Fremdcode in include/) =========================================
+# Fremdbibliotheken liegen als Quellen unter include/<lib>/ und werden mit
+# entschaerften Warnungen und ohne die globale config.h uebersetzt.
+VENDOR_SRCS := $(shell find $(INC_DIR) -type f -name '*.c')
+VENDOR_OBJS := $(VENDOR_SRCS:$(INC_DIR)/%.c=$(BUILD)/obj/vendor/%.o)
+
+VENDOR_CPPFLAGS := -I$(INC_DIR) -MMD -MP
+VENDOR_CFLAGS   := $(CSTD) -w
+
+DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Regeln =================================================================
 .PHONY: all run lsp clean distclean format compdb help
@@ -67,13 +77,17 @@ DEPS := $(OBJS:.o=.d)
 
 all: $(BIN) compile_flags.txt
 
-$(BIN): $(OBJS)
+$(BIN): $(OBJS) $(VENDOR_OBJS)
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(BUILD)/obj/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/obj/vendor/%.o: $(INC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(VENDOR_CPPFLAGS) $(VENDOR_CFLAGS) -c $< -o $@
 
 # ==== clangd (LSP) ===========================================================
 # compile_flags.txt gibt clangd exakt die Flags des echten Builds - inklusive
@@ -110,7 +124,7 @@ format:
 		echo "clang-format nicht gefunden"; \
 		exit 1; \
 	}
-	clang-format -i $(SRCS) $(shell find $(INC_DIR) -type f -name '*.h')
+	clang-format -i $(SRCS) $(shell find $(SRC_DIR) -type f -name '*.h')
 
 # ==== compile_commands.json ===================================================
 # Benötigt: brew install bear
