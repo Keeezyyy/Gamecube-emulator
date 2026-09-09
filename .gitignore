@@ -9,6 +9,7 @@ build/
 
 # Tools / IDE
 compile_commands.json
+compile_flags.txt
 .cache/
 .clangd/
 .vscode/

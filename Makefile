@@ -6,6 +6,11 @@ INC_DIR  := include
 BUILD    := build
 BIN      := $(BUILD)/$(TARGET)
 
+# Globale Konfiguration: wird ueber "-include" automatisch in jede
+# Uebersetzungseinheit eingefuegt, muss also nirgends von Hand inkludiert
+# werden. Aenderungen daran loesen ueber die .d-Dateien einen Rebuild aus.
+CONFIG_H := $(SRC_DIR)/core/config/config.h
+
 # ==== Toolchain ==============================================================
 CC       := cc
 
@@ -15,7 +20,7 @@ WARN     := -Wall -Wextra -Wpedantic -Wshadow -Wconversion \
             -Wstrict-prototypes -Wmissing-prototypes \
             -Wpointer-arith -Wcast-qual -Wno-unused-parameter
 
-CPPFLAGS := -I$(INC_DIR) -MMD -MP
+CPPFLAGS := -I$(INC_DIR) -I$(SRC_DIR) -include $(CONFIG_H) -MMD -MP
 CFLAGS   := $(CSTD) $(WARN)
 
 LDFLAGS  :=
@@ -54,13 +59,13 @@ OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD)/obj/%.o)
 DEPS := $(OBJS:.o=.d)
 
 # ==== Regeln =================================================================
-.PHONY: all run clean distclean format compdb help
+.PHONY: all run lsp clean distclean format compdb help
 
 .DEFAULT_GOAL := all
 
 # ==== Build ==================================================================
 
-all: $(BIN)
+all: $(BIN) compile_flags.txt
 
 $(BIN): $(OBJS)
 	@mkdir -p $(dir $@)
@@ -69,6 +74,21 @@ $(BIN): $(OBJS)
 $(BUILD)/obj/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# ==== clangd (LSP) ===========================================================
+# compile_flags.txt gibt clangd exakt die Flags des echten Builds - inklusive
+# "-include $(CONFIG_H)", damit die globalen Makros auch im Editor bekannt
+# sind. Ein Argument pro Zeile; relative Pfade loest clangd gegen das
+# Verzeichnis der compile_flags.txt auf, also gegen die Projektwurzel.
+#
+# Hinweis: existiert eine compile_commands.json (siehe "make compdb"), hat die
+# fuer clangd Vorrang.
+CLANGD_FLAGS := $(CPPFLAGS) $(CFLAGS) -Wno-unknown-warning-option
+
+lsp: compile_flags.txt
+
+compile_flags.txt: $(MAKEFILE_LIST)
+	@printf '%s\n' $(filter-out -MMD -MP,$(CLANGD_FLAGS)) > $@
 
 # ==== Run ====================================================================
 
@@ -80,8 +100,8 @@ run: $(BIN)
 clean:
 	$(RM) -r $(BUILD)/obj $(BIN)
 
-distclean:
-	$(RM) -r $(BUILD) compile_commands.json
+distclean: clean
+	$(RM) -r $(BUILD) compile_commands.json compile_flags.txt
 
 # ==== Format =================================================================
 
@@ -114,6 +134,7 @@ help:
 	@echo "make clean                 - Build-Dateien entfernen"
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
+	@echo "make lsp                   - compile_flags.txt fuer clangd erzeugen"
 	@echo "make compdb                - compile_commands.json erzeugen"
 
 # ==== Dependency Files =======================================================

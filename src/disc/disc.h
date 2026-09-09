@@ -25,4 +25,19 @@ typedef struct {
     uint8_t unused_043c[4];
 
 } DiscHeader;
+
+/*
+Boot.bin (Data Header)
+Item No.	Offset	Length	Name
+    1	0x0	0x4	ID
+    2	0x4	0x2	Maker Code
+    3	0x5	0x1	Disc No
+    4	0x6	0x1	Disc Version
+    5	0x20	0x40	Title
+    6	0x420	0x4	Main.dol location
+    7	0x424	0x4	Fst.bin location
+    8	0x428	0x4	Fst.bin size
+    9	0x42C	0x4	Max Fst.bin size
+
+*/
 int load_rom(char *path);

@@ -10,9 +10,7 @@ static DiscHeader *disc_header;
 
 static void _print_rom_header()
 {
-    for (int i = 0; i < sizeof(disc_header->game_name); i++) {
-        putchar(disc_header->game_name[i]);
-    }
+    printf("offset to fst : %x\n", disc_header->fst_offset);
 }
 
 int load_rom(char *path)
