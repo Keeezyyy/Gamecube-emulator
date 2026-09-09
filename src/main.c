@@ -7,32 +7,47 @@
 #include "cpu/cpu.h"
 #include "cpu/cpu_types.h"
 
-int main(int argc, char **argv)
+static Bus b;
+static Disc disc;
+static CPU cpu;
+
+static int _init(void)
 {
-
-    Bus b;
-    Disc disc;
-    CPU cpu;
-
     init_bus(&b);
     init_disc(&disc);
     if (disc.load_rom(&disc, "./roms/example.bin") != 0) {
         return 1;
     }
-    // load the encrypted rom
+    // load the decrypted rom
     // NOTE: might implement encryption
-    if (b.load_bios(&b, "./roms/ipl.bin") != 0) {
+    if (b.load_ipl(&b, "./roms/ipl.bin") != 0) {
         return 1;
     }
 
     disc.print_header(&disc);
 
-    init_cpu(&cpu, &disc);
+    init_cpu(&cpu, &disc, &b);
+    return 0;
+}
 
-    {
-        b.free(&b);
-        disc.free(&disc);
-        cpu.free(&cpu);
+static void _free(void)
+{
+    b.free(&b);
+    disc.free(&disc);
+    cpu.free(&cpu);
+}
+
+int main(int argc, char **argv)
+{
+
+    if (_init() != 0) {
+        _free();
+        return 1;
     }
+
+    cpu.boot(&cpu);
+
+    cpu.main(&cpu);
+
     return 0;
 }

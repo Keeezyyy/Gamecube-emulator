@@ -16,6 +16,7 @@ static CpuMode get_current_cpu_mode(CPU *self)
 {
     // TODO: implement
     CpuMode m;
+    m.val = self->state.msr;
     return m;
 }
 
@@ -32,9 +33,20 @@ static void main_loop(CPU *self)
         if (tb == NULL_PTR) {
             // TODO:
             // code block is not present in hash table and has to be translated
-            //
+
+            // NOTE: if I add thread make sure to use locks here
+            tb = tb_translate(self, m);
         }
     }
+}
+
+static void _boot(CPU *self)
+{
+    self->state.msr = 0;
+
+    self->state.msr = BIT_SET(self->state.msr, 25); // boot bit
+
+    self->state.pc = 0xfff00100;
 }
 
 static const CPU CPU_TEMPLATE = {
@@ -43,10 +55,12 @@ static const CPU CPU_TEMPLATE = {
     .free = &deconstruct_cpu,
     .main = &main_loop,
     .get_current_cpu_mode = &get_current_cpu_mode,
+    .boot = &_boot,
 };
 
-void init_cpu(CPU *self, Disc *disc)
+void init_cpu(CPU *self, Disc *disc, Bus *bus)
 {
     *self = CPU_TEMPLATE;
+    self->bus = bus;
     init_translation(disc);
 }
