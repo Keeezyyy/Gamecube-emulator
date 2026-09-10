@@ -1,7 +1,6 @@
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "cpu/translation/emit.h"
-#include "cpu/translation/translation_core_macros.h"
 #include "translation.h"
 #include "translation_core_defines.h"
 #include <_abort.h>
@@ -28,6 +27,15 @@ static inline u32 _get_ext_from_instruction(u32 instruction, u8 start, u8 end)
     return (instruction >> start) & mask;
 }
 
+static inline void _print_instruction(u32 v)
+{
+
+    printf("------\n");
+    printf("for hex editor instruction : 0x%08llx\n", _endian32(v, false));
+    printf("instruction : 0x%08llx\n", _endian32(v, true));
+    printf("------\n");
+}
+
 // NOTE: a instuction, that flips the 31st bit in the msr register is a therminating instruction
 // !!!!
 static HostArchOutput _translate_instruction(u32 instruction)
@@ -40,14 +48,18 @@ static HostArchOutput _translate_instruction(u32 instruction)
     printf("instuction : 0x%08x\n", instruction);
     printf("op : %d\n", op);
 
+    emit_cbz(&out.emmited_blocks_ptr[0], 1, 2);
+    PUSH(&out.emmited_blocks_ptr[1], 2);
+
+    _print_instruction(*out.emmited_blocks_ptr[1].block);
+    abort();
     switch (op) {
     case OPC_STMW: {
 
         break;
     }
     case OPC_LFD: {
-        emit_cbz(&out.emmited_blocks_ptr[0], &out.emmited_blocks_ptr[0].size,
-                 _get_ext_from_instruction(instruction, 11, 15), );
+
         break;
     }
     }

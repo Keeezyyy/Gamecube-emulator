@@ -39,17 +39,34 @@ struct CPU {
     CpuMode (*get_current_cpu_mode)(CPU *self);
 };
 
+enum PatchingType {
+    OFFSET_TO_EMITTED_BLOCK,
+    ADDRESS_TO_EMITTED_BLOCK
+
+};
+
+// NOTE: the offset is in 4 byte jumps
 typedef struct {
     // TODO: do this
     //  something like patch patch bits 0-31 in *void with offset to adr of emitted block[5] for the
     //  jump instructions type ...
 
+    enum PatchingType type;
+    u32 *instruction;
+
+    u32 bit_mask;
+    u16 emitted_block_index;
+    u8 bit_start;
+    u8 bit_end;
+    i8 bit_shift;
+
 } EmitPatch;
 
 #define MAX_PATCHES_PER_EMIT_BLOCK 8
+#define MAX_STATIC_INSTRUCTIONS_PER_EMIT_BLOCK 16
 
 typedef struct {
-    void *block;
+    u32 block[16];
     u32 size;
 
     EmitPatch patch_ptr[MAX_PATCHES_PER_EMIT_BLOCK];
