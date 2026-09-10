@@ -1,4 +1,5 @@
 #include "emit.h"
+#include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation_core_defines.h"
 #include <assert.h>
@@ -26,10 +27,14 @@ void emit_cbz(EmitedBlock *eb, u8 r1, u16 index_of_offset_emitted_block)
         p.instruction = &eb->block[eb->size];
 
         eb->patch_ptr[eb->num_of_patches++] = p;
+
         eb->block[eb->size++] = insn;
         return;
     } else {
-        PUSH(eb, r1);
+        // lsr x16, xr, #32
+        // cbz x16
+        emit_lsr(eb, 16, ((r1 - 32) - 1) / 2, true, 32);
+        emit_cbz(eb, 16, index_of_offset_emitted_block);
     }
 }
 
@@ -93,6 +98,25 @@ void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
         printf("%d", (insn >> i) & 1);
     }
     printf("\n");
+
+    eb->block[eb->size++] = insn;
+}
+
+void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 immr)
+{
+    u32 insn = 0x53000000u; /* UBFM Wd, Wn, #immr, #imms */
+    u32 imms = 31;
+
+    if (is64) {
+        insn |= (1u << 31); /* sf */
+        insn |= (1u << 22); /* N  */
+        imms = 63;
+    }
+
+    insn |= ((u32)(immr & 0x3F)) << 16;
+    insn |= (imms & 0x3F) << 10;
+    insn |= ((u32)(rn & 0x1F)) << 5;
+    insn |= ((u32)(rd & 0x1F)) << 0;
 
     eb->block[eb->size++] = insn;
 }

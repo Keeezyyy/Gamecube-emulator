@@ -48,10 +48,10 @@ static HostArchOutput _translate_instruction(u32 instruction)
     printf("instuction : 0x%08x\n", instruction);
     printf("op : %d\n", op);
 
-    emit_cbz(&out.emmited_blocks_ptr[0], 1, 2);
-    PUSH(&out.emmited_blocks_ptr[1], 2);
+    emit_cbz(&out.emmited_blocks_ptr[0], GUEST_R13, 2);
 
-    _print_instruction(*out.emmited_blocks_ptr[1].block);
+    _print_instruction(out.emmited_blocks_ptr[0].block[0]);
+    _print_instruction(out.emmited_blocks_ptr[0].block[1]);
     abort();
     switch (op) {
     case OPC_STMW: {

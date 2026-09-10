@@ -15,3 +15,5 @@ typedef enum {
 } str_mode;
 void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm);
 #define PUSH(eb, rt) (emit_str(eb, 31, rt, false, STR_POST_INDEX, -4))
+
+void emit_lsr(EmitedBlock *eb, u8 rd, u8 rs, bool is64, u8 imms);
