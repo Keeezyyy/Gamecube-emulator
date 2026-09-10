@@ -2,10 +2,13 @@
 
 // settings :
 #define STATIC_CODE_BLOCK_BUFFER 512
+#define MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK 1024
 
 // opcodes OPC_...
 #define OPC_STMW 47
 #define OPC_LFD 50
+
+#define OPC_BX 18
 
 #define GUEST_TO_HOST_CONVERSION_ACCUMILATOR 16
 #define HOST_R0 0

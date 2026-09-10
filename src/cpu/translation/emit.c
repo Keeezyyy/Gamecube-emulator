@@ -166,7 +166,7 @@ void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
     insn |= (type & 0b11) << 21;
     insn |= imm << 5;
 
-    if (reg % 2 == 0) {
+    if (reg < GUEST_MIN) {
         // host register
 
         insn |= (reg & 0b11111);
@@ -174,6 +174,15 @@ void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
         return;
     } else {
         // TODO: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
+        // BUG: implement
     }
 }
 
@@ -299,6 +308,63 @@ void emit_bfi(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
     insn |= (imms & 0x3Fu) << 10;
     insn |= ((u32)(rn & 0x1Fu)) << 5;
     insn |= ((u32)(rd & 0x1Fu));
+
+    WRITE_TO_EMIT_BLOCK;
+}
+void emit_ldr(EmitedBlock *eb, u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
+{
+    assert(rn < GUEST_MIN);
+
+    if (rt >= GUEST_MIN) {
+        assert(!is64);
+
+        emit_ldr(eb, rn, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, false, mode, imm);
+        emit_bfi(eb, phys_reg(rt), GUEST_TO_HOST_CONVERSION_ACCUMILATOR, true,
+                 (rt % 2 == 0) ? 0 : 32, 32);
+        return;
+    }
+
+    u32 insn = 0;
+    insn |= (is64 ? 0b11u : 0b10u) << 30;
+    insn |= BIT(22);
+    switch (mode) {
+    case LDR_POST_INDEX:
+        insn |= 0b111000u << 24;
+
+        assert(imm >= -256 && imm <= 255);
+        insn |= ((u32)imm & 0x1FFu) << 12;
+        insn |= 0b01u << 10;
+        break;
+
+    case LDR_PRE_INDEX:
+        insn |= 0b111000u << 24;
+
+        assert(imm >= -256 && imm <= 255);
+        insn |= ((u32)imm & 0x1FFu) << 12;
+        insn |= 0b11u << 10;
+        break;
+
+    case LDR_UNSIGNED_OFFSET: {
+        insn |= 0b111001u << 24;
+
+        u32 scale = is64 ? 8u : 4u;
+
+        assert(imm >= 0);
+        assert((u32)imm % scale == 0);
+
+        u32 imm12 = (u32)imm / scale;
+        assert(imm12 <= 0xFFF);
+
+        insn |= imm12 << 10;
+        break;
+    }
+
+    default:
+        assert(!"invalid LDR mode");
+    }
+
+    insn |= ((u32)rn & 0x1Fu) << 5;
+    insn |= ((u32)rt & 0x1Fu);
 
     WRITE_TO_EMIT_BLOCK;
 }

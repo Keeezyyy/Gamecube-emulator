@@ -24,12 +24,31 @@ typedef struct {
     u32 val;
 
 } CpuMode;
+typedef union {
+    struct {
+        u32 spr0_7[8];
+        u32 lr;
+        u32 spr9_919[911];
+        u32 hid2;
+        u32 spr921_1009[89];
+        u32 iabr;
+        u32 spr1011_1012[2];
+        u32 dabr;
+        u32 spr1014_1023[10];
+    };
+
+    u32 buf[1024];
+} CpuSpecialPurposeRegisters;
 
 typedef struct CPU CPU;
 
 struct CPU {
     CpuState state;
     CpuRegisters registers;
+    CpuSpecialPurposeRegisters special_purpose_registers;
+
+    CpuState state_on_start_of_tb;
+    CpuRegisters registers_on_start_of_tb;
 
     Bus *bus;
 
