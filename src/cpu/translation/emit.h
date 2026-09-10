@@ -1,5 +1,6 @@
 #pragma once
 #include "../cpu_types.h"
+#include <stdbool.h>
 
 // NOTE: importent it maps to the lower 32 bits
 //  guest registers r0 - r29 map to aarch64 x0 - x15 (upper and lower half of the 64 bit registers)
@@ -17,3 +18,12 @@ void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm);
 #define PUSH(eb, rt) (emit_str(eb, 31, rt, false, STR_POST_INDEX, -4))
 
 void emit_lsr(EmitedBlock *eb, u8 rd, u8 rs, bool is64, u8 imms);
+
+void emit_and(EmitedBlock *eb, u8 rd, u8 rs, u64 bitmask);
+
+#define SHIFT_TYPE_0 0
+#define SHIFT_TYPE_16 1
+#define SHIFT_TYPE_32 2
+#define SHIFT_TYPE_48 3
+
+void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 shift_type, bool is64);

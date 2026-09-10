@@ -1,6 +1,7 @@
 #include "emit.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "cpu/translation/emit_utils.h"
 #include "cpu/translation/translation_core_defines.h"
 #include <assert.h>
 #include <stdio.h>
@@ -33,8 +34,8 @@ void emit_cbz(EmitedBlock *eb, u8 r1, u16 index_of_offset_emitted_block)
     } else {
         // lsr x16, xr, #32
         // cbz x16
-        emit_lsr(eb, 16, ((r1 - 32) - 1) / 2, true, 32);
-        emit_cbz(eb, 16, index_of_offset_emitted_block);
+        emit_lsr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((r1 - 32) - 1) / 2, true, 32);
+        emit_cbz(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, index_of_offset_emitted_block);
     }
 }
 
@@ -104,12 +105,12 @@ void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
 
 void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 immr)
 {
-    u32 insn = 0x53000000u; /* UBFM Wd, Wn, #immr, #imms */
+    u32 insn = 0x53000000u;
     u32 imms = 31;
 
     if (is64) {
-        insn |= (1u << 31); /* sf */
-        insn |= (1u << 22); /* N  */
+        insn |= (1u << 31);
+        insn |= (1u << 22);
         imms = 63;
     }
 
@@ -119,4 +120,24 @@ void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 immr)
     insn |= ((u32)(rd & 0x1F)) << 0;
 
     eb->block[eb->size++] = insn;
+}
+
+void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
+{
+
+    u32 insn = 0;
+    if (is64) {
+        insn |= BIT(31);
+    }
+    insn |= 0b10100101 << 23;
+    insn |= (type & 0b11) << 21;
+    insn |= imm << 5;
+
+    if (reg % 2 == 0) {
+        // host register
+
+        insn |= (reg & 0b11111);
+        eb->block[eb->size++] = insn;
+        return;
+    }
 }

@@ -7,6 +7,7 @@
 #define OPC_STMW 47
 #define OPC_LFD 50
 
+#define GUEST_TO_HOST_CONVERSION_ACCUMILATOR 16
 #define HOST_R0 0
 #define HOST_R1 1
 #define HOST_R2 2
