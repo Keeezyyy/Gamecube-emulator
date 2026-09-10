@@ -4,16 +4,32 @@
 #include "cpu/translation/emit_utils.h"
 #include "cpu/translation/translation_core_defines.h"
 #include <assert.h>
+#include <stdbool.h>
+
 #include <stdio.h>
 
-void emit_cbz(EmitedBlock *eb, u8 r1, u16 index_of_offset_emitted_block)
+#define WRITE_TO_EMIT_BLOCK eb->block[eb->size++] = insn
+static u8 phys_reg(u8 r)
+{
+    return (r < GUEST_MIN) ? r : (u8)((r - GUEST_MIN) / 2);
+}
+
+void emit_cbz_cbnz(EmitedBlock *eb, u8 r1, bool is64, bool branch_on_zero,
+                   u16 index_of_offset_emitted_block)
 {
 
     // https://finkmartin.com/aarch64/cbz.html
-    if (r1 % 2 == 0) {
+    u32 insn = 0;
+    if (is64) {
+        insn |= BIT(31);
+    }
+    if (r1 % 2 == 0 || r1 < GUEST_MIN) {
         // host register
-        u32 insn = 0;
-        insn |= 0b00110100u << 24; // sf=0, op=0, fixed bits
+        insn |= 0b0011010u << 25; // sf=0, op=0, fixed bits
+
+        if (branch_on_zero) {
+            insn |= BIT(24);
+        }
         insn |= r1 & 0x1F;
 
         // NOTE: the offset is in 4 byte jumps
@@ -32,10 +48,12 @@ void emit_cbz(EmitedBlock *eb, u8 r1, u16 index_of_offset_emitted_block)
         eb->block[eb->size++] = insn;
         return;
     } else {
-        // lsr x16, xr, #32
-        // cbz x16
-        emit_lsr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((r1 - 32) - 1) / 2, true, 32);
-        emit_cbz(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, index_of_offset_emitted_block);
+        // NOTE: cb on guest registers only support 32 bit mode
+        //  lsr x16, xr, #32
+        //  cbz x16
+        emit_lsr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((r1 - 32) - 1) / 2, false, 32);
+        emit_cbz_cbnz(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, is64, branch_on_zero,
+                      index_of_offset_emitted_block);
     }
 }
 
@@ -103,25 +121,40 @@ void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
     eb->block[eb->size++] = insn;
 }
 
-void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 immr)
+void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u32 shift)
 {
-    u32 insn = 0x53000000u;
-    u32 imms = 31;
+
+    u32 insn;
+
+    assert(shift < (is64 ? 64u : 32u));
 
     if (is64) {
-        insn |= (1u << 31);
-        insn |= (1u << 22);
-        imms = 63;
+        insn = 0xD340FC00u;
+        insn |= ((u32)(shift & 0x3F)) << 16;
+    } else {
+        insn = 0x53007C00u;
+        insn |= ((u32)(shift & 0x1F)) << 16;
     }
 
-    insn |= ((u32)(immr & 0x3F)) << 16;
-    insn |= (imms & 0x3F) << 10;
     insn |= ((u32)(rn & 0x1F)) << 5;
-    insn |= ((u32)(rd & 0x1F)) << 0;
+    insn |= ((u32)(rd & 0x1F));
+
+    WRITE_TO_EMIT_BLOCK;
+}
+void emit_asr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 shift)
+{
+    u32 insn;
+
+    assert(shift < (is64 ? 64u : 32u));
+
+    insn = is64 ? 0x9340FC00u : 0x13007C00u;
+
+    insn |= ((u32)shift) << 16;
+    insn |= ((u32)(rn & 0x1F)) << 5;
+    insn |= ((u32)(rd & 0x1F));
 
     eb->block[eb->size++] = insn;
 }
-
 void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
 {
 
@@ -139,5 +172,133 @@ void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
         insn |= (reg & 0b11111);
         eb->block[eb->size++] = insn;
         return;
+    } else {
+        // TODO: implement
     }
+}
+
+void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
+{
+    u32 insn = 0;
+    if (is64) {
+        insn |= BIT(31);
+    }
+    insn |= 0b0101010000 << 21;
+    insn |= 0b00000011111 << 5;
+    // for cases:
+    // -> GUEST TO HOST
+    // -> HOST TO GUEST
+    if ((rs > HOST_MAX && rd < GUEST_MIN) || rs <= HOST_MAX && rd >= GUEST_MIN) {
+        assert(!is64);
+        // GUEST TO HOST OP CANNOT USE 64 bit reg
+
+        if (rs % 2 == 0) {
+            // GUEST reg can be accessed with wx host register
+
+            insn |= (0x3F & rs - 32) << 16; // source
+            insn |= (0x3F & rd);
+
+            WRITE_TO_EMIT_BLOCK;
+            return;
+
+        } else if ((rs > HOST_MAX && rd < GUEST_MIN)) {
+            // GUEST TO HOST (guest reg is in upper half)
+
+            emit_asr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((rs - 32) - 1) / 2, true, 32);
+
+            insn |= (0x3F & GUEST_TO_HOST_CONVERSION_ACCUMILATOR - 32) << 16;
+            insn |= (0x3F & rd);
+
+            WRITE_TO_EMIT_BLOCK;
+            return;
+        }
+    }
+
+    // -> GUEST TO GUEST
+    if (rs > HOST_MAX || rd > HOST_MAX) {
+        assert(!is64);
+
+        if (rs % 2 == 0 && rd % 2 == 0) {   // -> both in Wx registers
+            insn |= (0x3F & rs - 32) << 16; // source
+            insn |= (0x3F & rd - 32);
+
+        } else if (rs % 2 == 0 && rd % 2 != 0) { // -> rd is a upper reg
+
+            emit_bfi(eb, phys_reg(rd), phys_reg(rs), true, 32, 32);
+        } else if (rs % 2 != 0 && rd % 2 == 0) { // -> rs is a upper reg
+
+            emit_asr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((rs - 32) - 1) / 2, true, 32);
+            insn |= (0x3F & GUEST_TO_HOST_CONVERSION_ACCUMILATOR - 32) << 16;
+            insn |= (0x3F & rd);
+
+            WRITE_TO_EMIT_BLOCK;
+            // TODO:
+        } else { // both are upper registers
+
+            emit_asr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, phys_reg(rs), true, 32);
+            emit_bfi(eb, phys_reg(rd), GUEST_TO_HOST_CONVERSION_ACCUMILATOR, true, 32, 32);
+        }
+
+        return;
+    } else {
+
+        // -> HOST TO HOST
+        insn |= (0x3F & rs) << 16; // source
+        insn |= (0x3F & rd);
+    }
+    WRITE_TO_EMIT_BLOCK;
+    return;
+}
+
+void emit_movk(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
+{
+    u32 insn = 0;
+
+    if (reg < GUEST_MIN) {
+        assert(is64 || (type & 0b10) == 0);
+
+        if (is64) {
+            insn |= BIT(31);
+        }
+        insn |= 0b11100101u << 23; // opc = 11 -> MOVK
+        insn |= ((u32)type & 0b11u) << 21;
+        insn |= ((u32)imm) << 5;
+        insn |= ((u32)reg & 0x1Fu);
+
+        WRITE_TO_EMIT_BLOCK;
+        return;
+    }
+
+    assert(!is64);
+    assert((type & 0b10) == 0);
+
+    u8 host = (u8)((reg - GUEST_MIN) / 2);
+    u8 hw = (reg % 2 == 0) ? type : (u8)(type + 2);
+
+    insn |= BIT(31);
+    insn |= 0b11100101u << 23;
+    insn |= ((u32)hw & 0b11u) << 21;
+    insn |= ((u32)imm) << 5;
+    insn |= ((u32)host & 0x1Fu);
+
+    WRITE_TO_EMIT_BLOCK;
+}
+void emit_bfi(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
+{
+    u32 insn;
+    u32 datasize = is64 ? 64u : 32u;
+
+    assert(width >= 1);
+    assert((u32)lsb + (u32)width <= datasize);
+
+    u32 immr = ((u32)(datasize - lsb)) % datasize;
+    u32 imms = (u32)width - 1u;
+
+    insn = is64 ? 0xB3400000u : 0x33000000u;
+    insn |= (immr & 0x3Fu) << 16;
+    insn |= (imms & 0x3Fu) << 10;
+    insn |= ((u32)(rn & 0x1Fu)) << 5;
+    insn |= ((u32)(rd & 0x1Fu));
+
+    WRITE_TO_EMIT_BLOCK;
 }

@@ -24,16 +24,24 @@ static inline u8 _get_op_from_instruction(u32 i)
 static inline u32 _get_ext_from_instruction(u32 instruction, u8 start, u8 end)
 {
     u32 mask = (1u << (end - start + 1)) - 1u;
-    return (instruction >> start) & mask;
+    return ((instruction >> start) & mask) + 32;
 }
 
-static inline void _print_instruction(u32 v)
+static inline void _print_instruction(EmitedBlock *b)
 {
 
-    printf("------\n");
-    printf("for hex editor instruction : 0x%08llx\n", _endian32(v, false));
-    printf("instruction : 0x%08llx\n", _endian32(v, true));
-    printf("------\n");
+    char final_buffer[512] = {0};
+
+    for (int i = 0; i < b->size; i++) {
+        u32 v = b->block[i];
+        printf("------\n");
+        printf("for hex editor instruction : 0x%08llx\n", _endian32(v, false));
+        printf("instruction : 0x%08llx\n", _endian32(v, true));
+        printf("------\n");
+
+        sprintf(final_buffer + i * 8, "%08llx", _endian32(v, false));
+    }
+    printf("full hex list : %s\n", final_buffer);
 }
 
 // NOTE: a instuction, that flips the 31st bit in the msr register is a therminating instruction
@@ -49,9 +57,10 @@ static HostArchOutput _translate_instruction(u32 instruction)
     printf("op : %d\n", op);
 
     // emit_cbz(&out.emmited_blocks_ptr[0], GUEST_R13, 2);
-    emit_movz(&out.emmited_blocks_ptr[0], GUEST_R12, 0x10, SHIFT_TYPE_32, true);
+    // emit_movz(&out.emmited_blocks_ptr[0], GUEST_R12, 0x10, SHIFT_TYPE_32, true);
+    emit_mov(&out.emmited_blocks_ptr[0], GUEST_R17, GUEST_R1, false);
 
-    _print_instruction(out.emmited_blocks_ptr[0].block[0]);
+    _print_instruction(buffer);
     abort();
     switch (op) {
     case OPC_STMW: {
@@ -59,6 +68,8 @@ static HostArchOutput _translate_instruction(u32 instruction)
         break;
     }
     case OPC_LFD: {
+        emit_cbz_cbnz(&out.emmited_blocks_ptr[0], _get_ext_from_instruction(instruction, 11, 15),
+                      false, false, 2);
 
         break;
     }
