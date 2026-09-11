@@ -19,12 +19,16 @@ static inline uint32_t _endian32(uint32_t x, bool is_little_endian)
 }
 static inline u8 _get_op_from_instruction(u32 i)
 {
-    return i & 0x3f;
+    return (i >> 26) & 0x3f;
 }
-static inline u32 _get_ext_from_instruction(u32 instruction, u8 start, u8 end)
+static inline u32 _get_field(u32 insn, u8 start, u8 end)
 {
-    u32 mask = (1u << (end - start + 1)) - 1u;
-    return ((instruction >> start) & mask) + 32;
+    u32 width = end - start + 1;
+    return (insn >> (31 - end)) & ((1u << width) - 1u);
+}
+static inline bool _get_bit(u32 insn, u8 n)
+{
+    return (insn >> (31 - n)) & 1u;
 }
 
 static inline void _print_instruction(EmitedBlock *b)
@@ -33,8 +37,8 @@ static inline void _print_instruction(EmitedBlock *b)
     char hex[512] = {0};
     char spaced[16 * 512] = {0};
 
-    for (int i = 0; i < b->size; i++) {
-        u32 v = b->block[i];
+    for (int i = 0; i < b->num_of_host_instructions; i++) {
+        u32 v = b->host_code_buffer[i];
         /*
             printf("------\n");
             printf("for hex editor instruction : 0x%08x\n", _endian32(v, false));
@@ -73,49 +77,36 @@ static inline void _print_instruction(EmitedBlock *b)
 static HostArchOutput _translate_instruction(u32 instruction, CPU *cpu, u32 *pc_after_instruction,
                                              u32 *pc_buffer, u32 pc_buffer_counter)
 {
-    EmitedBlock buffer[STATIC_CODE_BLOCK_BUFFER] = {0};
-    HostArchOutput out;
-    out.emmited_blocks_ptr = buffer;
+    EmitedBlock emitted_block;
 
-    u32 emit_counter = 0;
     u8 op = _get_op_from_instruction(instruction);
     printf("instuction : 0x%08x\n", instruction);
     printf("op : %d\n", op);
 
-    _print_instruction(buffer);
     // NOTE: the after_instruction_pc must be set in every case
     switch (op) {
     case OPC_BX: {
-        u32 LI = _get_ext_from_instruction(instruction, 6, 29) << 2;
-        if (!BIT_CHECK(instruction, 30)) {
-            // AA is 1 -> LI + current instruction address
+        u32 LI = _get_field(instruction, 6, 29) << 2;
+        if (!_get_bit(instruction, 30)) {
             LI += pc_buffer[pc_buffer_counter]; // convert to host address
         }
-        if (BIT_CHECK(instruction, 31)) { // LK = 1
+        if (BIT_CHECK(instruction, 31)) {
 
-            LOAD_64_BIT_IMM(&out.emmited_blocks_ptr[emit_counter], emit_counter,
-                            (u64)&cpu->special_purpose_registers.lr,
+            LOAD_64_BIT_IMM(&emitted_block, emit_counter, (u64)&cpu->special_purpose_registers.lr,
                             HOST_R17) // save pointer to LR Register in HOST_R17
-            LOAD_64_BIT_IMM(&out.emmited_blocks_ptr[emit_counter], emit_counter,
-                            (u64)pc_buffer[pc_buffer_counter],
+            LOAD_64_BIT_IMM(&emitted_block, emit_counter, (u64)pc_buffer[pc_buffer_counter],
                             HOST_R18) // save current pc in r18
 
-            emit_ldr(&out.emmited_blocks_ptr[emit_counter], HOST_R18, HOST_R18, true,
-                     STR_POST_INDEX,
+            emit_ldr(&emitted_block, HOST_R18, HOST_R18, true, STR_POST_INDEX,
                      4); // save the pc in r18 and adds 4 after
 
-            emit_str(&out.emmited_blocks_ptr[emit_counter], HOST_R18, HOST_R17, false,
-                     STR_POST_INDEX, 0x0);
+            emit_str(&emitted_block, HOST_R18, HOST_R17, false, STR_POST_INDEX, 0x0);
         }
         *pc_after_instruction = LI;
 
         break;
     }
     case OPC_LFD: {
-        emit_cbz_cbnz(&out.emmited_blocks_ptr[0], _get_ext_from_instruction(instruction, 11, 15),
-                      false, false, 2);
-        emit_movz(&out.emmited_blocks_ptr[1], _get_ext_from_instruction(instruction, 11, 15), 0, 0,
-                  false);
         // jmp
 
         // else block
@@ -124,6 +115,8 @@ static HostArchOutput _translate_instruction(u32 instruction, CPU *cpu, u32 *pc_
         break;
     }
     }
+
+    _print_instruction(&emitted_block);
 }
 
 TranslationBlock *tb_translate(CPU *cpu, CpuMode cpu_mode)
@@ -146,7 +139,7 @@ TranslationBlock *tb_translate(CPU *cpu, CpuMode cpu_mode)
         out = _translate_instruction(CORRECT_ENDIAN(*current_instruction), cpu,
                                      &pc_after_instruction, pc_buffer, pc_buffer_counter);
 
-        printf("next pc : 0x%0x08x\n", pc_after_instruction);
+        printf("next pc : 0x%08x\n", pc_after_instruction);
         abort();
         pc_buffer_counter++;
 

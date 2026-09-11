@@ -8,7 +8,11 @@
 
 #include <stdio.h>
 
-#define WRITE_TO_EMIT_BLOCK eb->block[eb->size++] = insn
+static inline void _write_instruction_to_buffer(EmitedBlock *eb, u32 host_instruction)
+{
+    eb->host_code_buffer[eb->num_of_host_instructions++] = host_instruction;
+}
+
 static u8 phys_reg(u8 r)
 {
     return (r < GUEST_MIN) ? r : (u8)((r - GUEST_MIN) / 2);
@@ -41,11 +45,11 @@ void emit_cbz_cbnz(EmitedBlock *eb, u8 r1, bool is64, bool branch_on_zero,
         p.bit_end = 23;
         p.bit_mask = 0x7FFFF;
         p.bit_shift = 5;
-        p.instruction = &eb->block[eb->size];
+        p.instruction_ptr = &eb->host_code_buffer[eb->num_of_patches];
 
         eb->patch_ptr[eb->num_of_patches++] = p;
 
-        eb->block[eb->size++] = insn;
+        _write_instruction_to_buffer(eb, insn);
         return;
     } else {
         // NOTE: cb on guest registers only support 32 bit mode
@@ -118,7 +122,7 @@ void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
     }
     printf("\n");
 
-    eb->block[eb->size++] = insn;
+    _write_instruction_to_buffer(eb, insn);
 }
 
 void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u32 shift)
@@ -139,7 +143,7 @@ void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u32 shift)
     insn |= ((u32)(rn & 0x1F)) << 5;
     insn |= ((u32)(rd & 0x1F));
 
-    WRITE_TO_EMIT_BLOCK;
+    _write_instruction_to_buffer(eb, insn);
 }
 void emit_asr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 shift)
 {
@@ -153,7 +157,7 @@ void emit_asr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 shift)
     insn |= ((u32)(rn & 0x1F)) << 5;
     insn |= ((u32)(rd & 0x1F));
 
-    eb->block[eb->size++] = insn;
+    _write_instruction_to_buffer(eb, insn);
 }
 void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
 {
@@ -170,7 +174,8 @@ void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
         // host register
 
         insn |= (reg & 0b11111);
-        eb->block[eb->size++] = insn;
+
+        _write_instruction_to_buffer(eb, insn);
         return;
     } else {
         // TODO: implement
@@ -207,7 +212,7 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
             insn |= (0x3F & rs - 32) << 16; // source
             insn |= (0x3F & rd);
 
-            WRITE_TO_EMIT_BLOCK;
+            _write_instruction_to_buffer(eb, insn);
             return;
 
         } else if ((rs > HOST_MAX && rd < GUEST_MIN)) {
@@ -218,7 +223,7 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
             insn |= (0x3F & GUEST_TO_HOST_CONVERSION_ACCUMILATOR - 32) << 16;
             insn |= (0x3F & rd);
 
-            WRITE_TO_EMIT_BLOCK;
+            _write_instruction_to_buffer(eb, insn);
             return;
         }
     }
@@ -240,7 +245,7 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
             insn |= (0x3F & GUEST_TO_HOST_CONVERSION_ACCUMILATOR - 32) << 16;
             insn |= (0x3F & rd);
 
-            WRITE_TO_EMIT_BLOCK;
+            _write_instruction_to_buffer(eb, insn);
             // TODO:
         } else { // both are upper registers
 
@@ -255,7 +260,8 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
         insn |= (0x3F & rs) << 16; // source
         insn |= (0x3F & rd);
     }
-    WRITE_TO_EMIT_BLOCK;
+
+    _write_instruction_to_buffer(eb, insn);
     return;
 }
 
@@ -274,7 +280,7 @@ void emit_movk(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
         insn |= ((u32)imm) << 5;
         insn |= ((u32)reg & 0x1Fu);
 
-        WRITE_TO_EMIT_BLOCK;
+        _write_instruction_to_buffer(eb, insn);
         return;
     }
 
@@ -290,7 +296,7 @@ void emit_movk(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
     insn |= ((u32)imm) << 5;
     insn |= ((u32)host & 0x1Fu);
 
-    WRITE_TO_EMIT_BLOCK;
+    _write_instruction_to_buffer(eb, insn);
 }
 void emit_bfi(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
 {
@@ -309,7 +315,7 @@ void emit_bfi(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
     insn |= ((u32)(rn & 0x1Fu)) << 5;
     insn |= ((u32)(rd & 0x1Fu));
 
-    WRITE_TO_EMIT_BLOCK;
+    _write_instruction_to_buffer(eb, insn);
 }
 void emit_ldr(EmitedBlock *eb, u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
 {
@@ -366,5 +372,5 @@ void emit_ldr(EmitedBlock *eb, u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
     insn |= ((u32)rn & 0x1Fu) << 5;
     insn |= ((u32)rt & 0x1Fu);
 
-    WRITE_TO_EMIT_BLOCK;
+    _write_instruction_to_buffer(eb, insn);
 }

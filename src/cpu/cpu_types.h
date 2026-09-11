@@ -48,7 +48,6 @@ struct CPU {
     CpuSpecialPurposeRegisters special_purpose_registers;
 
     CpuState state_on_start_of_tb;
-    CpuRegisters registers_on_start_of_tb;
 
     Bus *bus;
 
@@ -71,7 +70,7 @@ typedef struct {
     //  jump instructions type ...
 
     enum PatchingType type;
-    u32 *instruction;
+    u32 *instruction_ptr;
 
     u32 bit_mask;
     u16 emitted_block_index;
@@ -82,11 +81,12 @@ typedef struct {
 } EmitPatch;
 
 #define MAX_PATCHES_PER_EMIT_BLOCK 8
-#define MAX_STATIC_INSTRUCTIONS_PER_EMIT_BLOCK 16
+#define MAX_STATIC_INSTRUCTIONS_PER_EMIT_BLOCK 64
 
+// the output of 1 translated guest instruction
 typedef struct {
-    u32 block[16];
-    u32 size;
+    u32 host_code_buffer[64];
+    u32 num_of_host_instructions;
 
     EmitPatch patch_ptr[MAX_PATCHES_PER_EMIT_BLOCK];
     u32 num_of_patches;
