@@ -45,6 +45,18 @@ void emit_mov(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
 
 void emit_bfi(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
               u8 rd, u8 rn, bool is64, u8 lsb, u8 width);
+
+void emit_b(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+            u64 id_of_instruction_to_branch_to);
+
+typedef enum {
+    ADD_SHIFT_LSL = 0b00,
+    ADD_SHIFT_LSR = 0b01,
+    ADD_SHIFT_ASR = 0b10,
+} add_shift_type;
+
+void emit_add(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rd, u8 rn, u8 rm, bool is64, add_shift_type shift_type, u8 shift_amount);
 #define LDR_POST_INDEX STR_POST_INDEX
 #define LDR_PRE_INDEX STR_PRE_INDEX
 #define LDR_UNSIGNED_OFFSET STR_UNSIGNED_OFFSET

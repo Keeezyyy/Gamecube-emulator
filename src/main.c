@@ -20,7 +20,7 @@ static int _init(void)
     }
     // load the decrypted rom
     // NOTE: might implement encryption
-    if (b.load_ipl(&b, "./roms/ngc_usa_ipl.dol") != 0) {
+    if (b.load_ipl(&b, "./roms/ngc_pal_ipl.dol") != 0) {
         return 1;
     }
 

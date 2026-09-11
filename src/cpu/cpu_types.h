@@ -58,8 +58,8 @@ struct CPU {
 };
 
 enum PatchingType {
-    OFFSET_TO_EMITTED_BLOCK,
-    ADDRESS_TO_EMITTED_BLOCK
+    PATCHING_TYPE_OFFSET_TO_EMITTED_BLOCK,
+    PATCHING_TYPE_ADDRESS_TO_EMITTED_BLOCK
 
 };
 
@@ -79,7 +79,7 @@ typedef struct {
     u64 emitted_block_id;
     u8 bit_start;
     u8 bit_end;
-    i8 bit_shift;
+    i8 bit_shift; // positiv -> right shift // negativ -> left shift
 
 } EmitPatch;
 

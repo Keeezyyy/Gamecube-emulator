@@ -8,6 +8,14 @@
 
 #include <stdio.h>
 
+// NOTE: importent it maps to the lower 32 bits
+//  guest registers r0 - r31 map to aarch64 x0 - x15 (upper and lower half of the 64 bit registers)
+
+static inline void _test_this_id_for_patchup(EmitedBlock *eb, HostInstructionsBlock *buffer,
+                                             u32 *host_instruction_counter, u64 id)
+{
+}
+
 static inline void _write_instruction_to_buffer(EmitedBlock *eb, u32 insn,
                                                 HostInstructionsBlock *buffer,
                                                 u32 *host_instruction_counter, u64 id)
@@ -20,10 +28,21 @@ static u8 phys_reg(u8 r)
 {
     return (r < GUEST_MIN) ? r : (u8)((r - GUEST_MIN) / 2);
 }
+static inline bool _is_guest(u8 r)
+{
+    return r >= GUEST_MIN;
+}
+
+static inline bool _is_upper(u8 r)
+{
+    return _is_guest(r) && (r % 2 != 0);
+}
 
 void emit_cbz_cbnz(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter,
                    u64 id, u8 r1, bool is64, bool branch_on_zero, u64 host_instruction_block_id)
 {
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
+
     // https://finkmartin.com/aarch64/cbz.html
     u32 insn = 0;
     if (is64) {
@@ -33,7 +52,7 @@ void emit_cbz_cbnz(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_ins
         // host register
         insn |= 0b0011010u << 25; // sf=0, op=0, fixed bits
 
-        if (branch_on_zero) {
+        if (!branch_on_zero) {
             insn |= BIT(24);
         }
         insn |= r1 & 0x1F;
@@ -48,6 +67,7 @@ void emit_cbz_cbnz(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_ins
         p.bit_mask = 0x7FFFF;
         p.bit_shift = 5;
         p.instruction_ptr = buffer->host_code_buffer;
+        p.type = PATCHING_TYPE_OFFSET_TO_EMITTED_BLOCK;
 
         eb->patch_ptr[eb->num_of_patches++] = p;
 
@@ -70,6 +90,7 @@ void emit_str(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
     // STR Wt/Xt, [Xn|SP], #imm
     // https://finkmartin.com/aarch64/str_imm_gen.html
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     printf("imm : %i\n", imm);
     assert(rn < GUEST_MIN || rt < GUEST_MIN);
 
@@ -133,6 +154,7 @@ void emit_lsr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
               u8 rd, u8 rn, bool is64, u32 shift)
 {
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     u32 insn;
 
     assert(shift < (is64 ? 64u : 32u));
@@ -154,6 +176,7 @@ void emit_asr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
               u8 rd, u8 rn, bool is64, u8 shift)
 {
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     u32 insn;
 
     assert(shift < (is64 ? 64u : 32u));
@@ -170,6 +193,7 @@ void emit_movz(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruc
                u64 id, u8 reg, u16 imm, u8 type, bool is64)
 {
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     if (reg < GUEST_MIN) {
         u32 insn = 0;
         if (is64)
@@ -199,6 +223,7 @@ void emit_mov(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
               u8 rd, u8 rs, bool is64)
 {
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     u32 insn = 0;
     if (is64) {
         insn |= BIT(31);
@@ -279,6 +304,8 @@ void emit_mov(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
 void emit_movk(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter,
                u64 id, u8 reg, u16 imm, u8 type, bool is64)
 {
+
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     printf("imm : 0x%04x\n", imm);
 
     u32 insn = 0;
@@ -316,6 +343,7 @@ void emit_bfi(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
               u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
 {
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     u32 insn;
     u32 datasize = is64 ? 64u : 32u;
 
@@ -337,6 +365,7 @@ void emit_ldr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
               u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
 {
 
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
     assert(rn < GUEST_MIN);
 
     if (rt >= GUEST_MIN) {
@@ -392,4 +421,101 @@ void emit_ldr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruct
     insn |= ((u32)rt & 0x1Fu);
 
     _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
+}
+
+void emit_b(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+            u64 id_of_instruction_to_branch_to)
+{
+
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
+    u32 insn = 0;
+    insn |= 0b000101 << 26;
+    insn |= 1234 >> 2 & 0x03FFFFFF;
+
+    EmitPatch p;
+    p.emitted_block_id = id_of_instruction_to_branch_to;
+    p.bit_start = 0;
+    p.bit_end = 25;
+    p.bit_mask = 0x03FFFFFF;
+    p.bit_shift = 2;
+    p.instruction_ptr = buffer->host_code_buffer;
+    p.type = PATCHING_TYPE_OFFSET_TO_EMITTED_BLOCK;
+
+    eb->patch_ptr[eb->num_of_patches++] = p;
+
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
+}
+static void _emit_add_raw(EmitedBlock *eb, HostInstructionsBlock *buffer,
+                          u32 *host_instruction_counter, u64 id, u8 rd, u8 rn, u8 rm, bool is64,
+                          u8 shift_type, u8 shift_amount)
+{
+    assert(shift_type != 0b11);
+    assert(shift_amount < (is64 ? 64u : 32u));
+
+    u32 insn = 0;
+    if (is64) {
+        insn |= BIT(31);
+    }
+    insn |= 0b0001011u << 24; // op=0, S=0, fixe Bits
+    insn |= ((u32)shift_type & 0b11u) << 22;
+    insn |= ((u32)rm & 0x1Fu) << 16;
+    insn |= ((u32)shift_amount & 0x3Fu) << 10;
+    insn |= ((u32)rn & 0x1Fu) << 5;
+    insn |= ((u32)rd & 0x1Fu);
+
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
+}
+
+void emit_add(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rd, u8 rn, u8 rm, bool is64, add_shift_type shift_type, u8 shift_amount)
+{
+    _test_this_id_for_patchup(eb, buffer, host_instruction_counter, id);
+
+    if (!_is_guest(rd) && !_is_guest(rn) && !_is_guest(rm)) {
+        _emit_add_raw(eb, buffer, host_instruction_counter, id, rd, rn, rm, is64, shift_type,
+                      shift_amount);
+        return;
+    }
+    assert(!is64);
+    assert(shift_amount < 32);
+
+    const u8 acc = GUEST_TO_HOST_CONVERSION_ACCUMILATOR;
+    const u8 scr2 = HOST_R18;
+
+    u8 n = phys_reg(rn);
+    u8 m = phys_reg(rm);
+    u8 st = (u8)shift_type;
+    u8 sa = shift_amount;
+    bool use64 = false;
+
+    if (_is_upper(rm)) {
+        if (st == ADD_SHIFT_LSR || st == ADD_SHIFT_ASR) {
+            sa = (u8)(sa + 32);
+            use64 = true;
+        } else if (sa == 0) {
+            st = ADD_SHIFT_LSR;
+            sa = 32;
+            use64 = true;
+        } else {
+            emit_lsr(eb, buffer, host_instruction_counter, id, scr2, phys_reg(rm), true, 32);
+            m = scr2;
+        }
+    }
+
+    if (_is_upper(rn)) {
+        emit_lsr(eb, buffer, host_instruction_counter, id, acc, phys_reg(rn), true, 32);
+        n = acc;
+    }
+
+    bool via_acc = _is_guest(rd) || use64;
+    u8 dst = via_acc ? acc : rd;
+
+    _emit_add_raw(eb, buffer, host_instruction_counter, id, dst, n, m, use64, st, sa);
+
+    if (_is_guest(rd)) {
+        emit_bfi(eb, buffer, host_instruction_counter, id, phys_reg(rd), acc, true,
+                 (rd % 2 == 0) ? 0 : 32, 32);
+    } else if (via_acc) {
+        emit_mov(eb, buffer, host_instruction_counter, id, rd, acc, false);
+    }
 }

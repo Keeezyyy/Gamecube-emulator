@@ -108,16 +108,24 @@ static HostArchOutput _translate_instruction(u32 instruction, CPU *cpu, u32 *pc_
         break;
     }
     case OPC_ADDIS: {
+        printf("!!!!!! val : 0x%08x\n", _get_field(instruction, 16, 31));
         emit_cbz_cbnz(EMIT_STANDART_PARAMS, 0, _get_field(instruction, 11, 15) + 32, false, false,
-                      3); // branch to the host instruction block with the id 3
+                      4); // branch to the host instruction block with the id 3
 
         // primary if  block
         GUEST_LOAD_32_BIT_IMM(EMIT_STANDART_PARAMS, 1, _get_field(instruction, 16, 31) << 16,
                               _get_field(instruction, 6, 10) + 32)
 
+        emit_b(EMIT_STANDART_PARAMS, 4, 7);
+
         // else  block
 
-        printf("host instruction counter : %d\n", emitted_block.num_of_host_instrucion_blocks);
+        emit_mov(EMIT_STANDART_PARAMS, 4, HOST_R19, _get_field(instruction, 11, 15) + 32, false);
+        GUEST_LOAD_32_BIT_IMM(EMIT_STANDART_PARAMS, 1, _get_field(instruction, 16, 31) << 16,
+                              HOST_R20)
+
+        emit_add(EMIT_STANDART_PARAMS, 6, _get_field(instruction, 6, 10) + 32, HOST_R19, HOST_R20,
+                 false, ADD_SHIFT_LSR, 0);
         break;
     }
     }
