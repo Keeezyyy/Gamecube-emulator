@@ -8,9 +8,12 @@
 
 #include <stdio.h>
 
-static inline void _write_instruction_to_buffer(EmitedBlock *eb, u32 host_instruction)
+static inline void _write_instruction_to_buffer(EmitedBlock *eb, u32 insn,
+                                                HostInstructionsBlock *buffer,
+                                                u32 *host_instruction_counter, u64 id)
 {
-    eb->host_code_buffer[eb->num_of_host_instructions++] = host_instruction;
+    buffer->host_code_buffer[buffer->num_of_instructions++] = insn;
+    buffer->id = id;
 }
 
 static u8 phys_reg(u8 r)
@@ -18,10 +21,9 @@ static u8 phys_reg(u8 r)
     return (r < GUEST_MIN) ? r : (u8)((r - GUEST_MIN) / 2);
 }
 
-void emit_cbz_cbnz(EmitedBlock *eb, u8 r1, bool is64, bool branch_on_zero,
-                   u16 index_of_offset_emitted_block)
+void emit_cbz_cbnz(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter,
+                   u64 id, u8 r1, bool is64, bool branch_on_zero, u64 host_instruction_block_id)
 {
-
     // https://finkmartin.com/aarch64/cbz.html
     u32 insn = 0;
     if (is64) {
@@ -37,31 +39,33 @@ void emit_cbz_cbnz(EmitedBlock *eb, u8 r1, bool is64, bool branch_on_zero,
         insn |= r1 & 0x1F;
 
         // NOTE: the offset is in 4 byte jumps
-        insn |= ((0x1000 >> 2) & 0x7FFFF) << 5;
+        insn |= ((0 >> 2) & 0x7FFFF) << 5;
 
         EmitPatch p;
-        p.emitted_block_index = index_of_offset_emitted_block;
+        p.emitted_block_id = host_instruction_block_id;
         p.bit_start = 5;
         p.bit_end = 23;
         p.bit_mask = 0x7FFFF;
         p.bit_shift = 5;
-        p.instruction_ptr = &eb->host_code_buffer[eb->num_of_patches];
+        p.instruction_ptr = buffer->host_code_buffer;
 
         eb->patch_ptr[eb->num_of_patches++] = p;
 
-        _write_instruction_to_buffer(eb, insn);
+        _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
         return;
     } else {
         // NOTE: cb on guest registers only support 32 bit mode
         //  lsr x16, xr, #32
         //  cbz x16
-        emit_lsr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((r1 - 32) - 1) / 2, false, 32);
-        emit_cbz_cbnz(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, is64, branch_on_zero,
-                      index_of_offset_emitted_block);
+        emit_lsr(eb, buffer, host_instruction_counter, id, GUEST_TO_HOST_CONVERSION_ACCUMILATOR,
+                 ((r1 - 32) - 1) / 2, false, 32);
+        emit_cbz_cbnz(eb, buffer, host_instruction_counter, id, r1, is64, branch_on_zero,
+                      host_instruction_block_id);
     }
 }
 
-void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
+void emit_str(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
 {
     // STR Wt/Xt, [Xn|SP], #imm
     // https://finkmartin.com/aarch64/str_imm_gen.html
@@ -122,10 +126,11 @@ void emit_str(EmitedBlock *eb, u8 rn, u8 rt, bool is64, str_mode mode, i32 imm)
     }
     printf("\n");
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
 }
 
-void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u32 shift)
+void emit_lsr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rd, u8 rn, bool is64, u32 shift)
 {
 
     u32 insn;
@@ -143,10 +148,12 @@ void emit_lsr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u32 shift)
     insn |= ((u32)(rn & 0x1F)) << 5;
     insn |= ((u32)(rd & 0x1F));
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
 }
-void emit_asr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 shift)
+void emit_asr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rd, u8 rn, bool is64, u8 shift)
 {
+
     u32 insn;
 
     assert(shift < (is64 ? 64u : 32u));
@@ -157,42 +164,41 @@ void emit_asr(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 shift)
     insn |= ((u32)(rn & 0x1F)) << 5;
     insn |= ((u32)(rd & 0x1F));
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
 }
-void emit_movz(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
+void emit_movz(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter,
+               u64 id, u8 reg, u16 imm, u8 type, bool is64)
 {
-
-    u32 insn = 0;
-    if (is64) {
-        insn |= BIT(31);
-    }
-    insn |= 0b10100101 << 23;
-    insn |= (type & 0b11) << 21;
-    insn |= imm << 5;
 
     if (reg < GUEST_MIN) {
-        // host register
-
-        insn |= (reg & 0b11111);
-
-        _write_instruction_to_buffer(eb, insn);
+        u32 insn = 0;
+        if (is64)
+            insn |= BIT(31);
+        assert(is64 || (type & 0b10) == 0);
+        insn |= 0b10100101u << 23;
+        insn |= ((u32)type & 0b11u) << 21;
+        insn |= ((u32)imm) << 5;
+        insn |= (reg & 0x1Fu);
+        _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
         return;
-    } else {
-        // TODO: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
-        // BUG: implement
     }
+
+    assert(!is64);
+    assert((type & 0b10) == 0);
+
+    u8 host = phys_reg(reg);
+    u8 lsb = (u8)((reg % 2 == 0 ? 0 : 32) + type * 16);
+
+    emit_movz(eb, buffer, host_instruction_counter, id, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, imm,
+              SHIFT_TYPE_0, false);
+    emit_bfi(eb, buffer, host_instruction_counter, id, host, GUEST_TO_HOST_CONVERSION_ACCUMILATOR,
+             true, lsb, 16);
 }
 
-void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
+void emit_mov(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rd, u8 rs, bool is64)
 {
+
     u32 insn = 0;
     if (is64) {
         insn |= BIT(31);
@@ -212,18 +218,19 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
             insn |= (0x3F & rs - 32) << 16; // source
             insn |= (0x3F & rd);
 
-            _write_instruction_to_buffer(eb, insn);
+            _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
             return;
 
         } else if ((rs > HOST_MAX && rd < GUEST_MIN)) {
             // GUEST TO HOST (guest reg is in upper half)
 
-            emit_asr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((rs - 32) - 1) / 2, true, 32);
+            emit_asr(eb, buffer, host_instruction_counter, id, GUEST_TO_HOST_CONVERSION_ACCUMILATOR,
+                     ((rs - 32) - 1) / 2, true, 32);
 
             insn |= (0x3F & GUEST_TO_HOST_CONVERSION_ACCUMILATOR - 32) << 16;
             insn |= (0x3F & rd);
 
-            _write_instruction_to_buffer(eb, insn);
+            _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
             return;
         }
     }
@@ -238,19 +245,23 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
 
         } else if (rs % 2 == 0 && rd % 2 != 0) { // -> rd is a upper reg
 
-            emit_bfi(eb, phys_reg(rd), phys_reg(rs), true, 32, 32);
+            emit_bfi(eb, buffer, host_instruction_counter, id, phys_reg(rd), phys_reg(rs), true, 32,
+                     32);
         } else if (rs % 2 != 0 && rd % 2 == 0) { // -> rs is a upper reg
 
-            emit_asr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, ((rs - 32) - 1) / 2, true, 32);
+            emit_asr(eb, buffer, host_instruction_counter, id, GUEST_TO_HOST_CONVERSION_ACCUMILATOR,
+                     ((rs - 32) - 1) / 2, true, 32);
             insn |= (0x3F & GUEST_TO_HOST_CONVERSION_ACCUMILATOR - 32) << 16;
             insn |= (0x3F & rd);
 
-            _write_instruction_to_buffer(eb, insn);
+            _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
             // TODO:
         } else { // both are upper registers
 
-            emit_asr(eb, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, phys_reg(rs), true, 32);
-            emit_bfi(eb, phys_reg(rd), GUEST_TO_HOST_CONVERSION_ACCUMILATOR, true, 32, 32);
+            emit_asr(eb, buffer, host_instruction_counter, id, GUEST_TO_HOST_CONVERSION_ACCUMILATOR,
+                     phys_reg(rs), true, 32);
+            emit_bfi(eb, buffer, host_instruction_counter, id, phys_reg(rd),
+                     GUEST_TO_HOST_CONVERSION_ACCUMILATOR, true, 32, 32);
         }
 
         return;
@@ -261,12 +272,15 @@ void emit_mov(EmitedBlock *eb, u8 rd, u8 rs, bool is64)
         insn |= (0x3F & rd);
     }
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
     return;
 }
 
-void emit_movk(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
+void emit_movk(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter,
+               u64 id, u8 reg, u16 imm, u8 type, bool is64)
 {
+    printf("imm : 0x%04x\n", imm);
+
     u32 insn = 0;
 
     if (reg < GUEST_MIN) {
@@ -280,7 +294,7 @@ void emit_movk(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
         insn |= ((u32)imm) << 5;
         insn |= ((u32)reg & 0x1Fu);
 
-        _write_instruction_to_buffer(eb, insn);
+        _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
         return;
     }
 
@@ -296,10 +310,12 @@ void emit_movk(EmitedBlock *eb, u8 reg, u16 imm, u8 type, bool is64)
     insn |= ((u32)imm) << 5;
     insn |= ((u32)host & 0x1Fu);
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
 }
-void emit_bfi(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
+void emit_bfi(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
 {
+
     u32 insn;
     u32 datasize = is64 ? 64u : 32u;
 
@@ -315,18 +331,21 @@ void emit_bfi(EmitedBlock *eb, u8 rd, u8 rn, bool is64, u8 lsb, u8 width)
     insn |= ((u32)(rn & 0x1Fu)) << 5;
     insn |= ((u32)(rd & 0x1Fu));
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
 }
-void emit_ldr(EmitedBlock *eb, u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
+void emit_ldr(EmitedBlock *eb, HostInstructionsBlock *buffer, u32 *host_instruction_counter, u64 id,
+              u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
 {
+
     assert(rn < GUEST_MIN);
 
     if (rt >= GUEST_MIN) {
         assert(!is64);
 
-        emit_ldr(eb, rn, GUEST_TO_HOST_CONVERSION_ACCUMILATOR, false, mode, imm);
-        emit_bfi(eb, phys_reg(rt), GUEST_TO_HOST_CONVERSION_ACCUMILATOR, true,
-                 (rt % 2 == 0) ? 0 : 32, 32);
+        emit_ldr(eb, buffer, host_instruction_counter, id, rn, GUEST_TO_HOST_CONVERSION_ACCUMILATOR,
+                 false, mode, imm);
+        emit_bfi(eb, buffer, host_instruction_counter, id, phys_reg(rt),
+                 GUEST_TO_HOST_CONVERSION_ACCUMILATOR, true, (rt % 2 == 0) ? 0 : 32, 32);
         return;
     }
 
@@ -372,5 +391,5 @@ void emit_ldr(EmitedBlock *eb, u8 rn, u8 rt, bool is64, ldr_mode mode, i32 imm)
     insn |= ((u32)rn & 0x1Fu) << 5;
     insn |= ((u32)rt & 0x1Fu);
 
-    _write_instruction_to_buffer(eb, insn);
+    _write_instruction_to_buffer(eb, insn, buffer, host_instruction_counter, id);
 }
