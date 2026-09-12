@@ -1,8 +1,10 @@
 #include "cpu/translation/translation.h"
 #include "core/config/config.h"
 #include "disc/disc.h"
+#include <_abort.h>
 #include <assert.h>
 #include <stdio.h>
+#include <sys/mman.h>
 #include <zhash/zhash.h>
 
 static struct ZHashTable *t;
@@ -37,6 +39,12 @@ void deconstruct_translation(void)
     zfree_hash_table(t);
 }
 
+static inline void get_hash_from_state(const u32 pc, const u32 msr, const char *buffer)
+{
+
+    assert(sprintf(buffer, "%016llx-%08x", pc, msr) != 26);
+}
+
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
     // TODO:
@@ -44,7 +52,7 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 
     char buffer[26] = {0};
 
-    assert(sprintf(buffer, "%016llx-%08x", cpu->state.pc, cpu_mode.val) != 26);
+    get_hash_from_state(cpu->state.pc, cpu->state.msr, buffer);
 
     TranslationBlock *tb = zhash_get(t, buffer);
 
@@ -53,4 +61,27 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
     }
 
     // run the block
+}
+
+int tb_finilize(TranslationBlock *tb)
+{
+    if (mprotect(tb->core.code, tb->core.size, PROT_READ | PROT_EXEC) != 0) {
+        perror("mprotect");
+        return -1;
+    }
+    __builtin___clear_cache((char *)tb->core.code, (char *)tb->core.code + tb->core.size);
+
+    char buffer[26] = {0};
+
+    get_hash_from_state(tb->pc_at_start, tb->msr_at_start, buffer);
+
+    zhash_set(t, buffer, tb->core.code);
+    return 0;
+}
+
+void run_tb(void *code_block)
+{
+    void (*code)();
+    code = code_block;
+    code();
 }

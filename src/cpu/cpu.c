@@ -4,8 +4,11 @@
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation.h"
 #include "disc/disc.h"
+#include <_abort.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <assert.h>
 
 static void deconstruct_cpu(CPU *self)
 {
@@ -36,7 +39,13 @@ static void main_loop(CPU *self)
             // code block is not present in hash table and has to be translated
 
             // NOTE: if I add thread make sure to use locks here
-            tb = tb_translate(self, m);
+            TranslationBlock new_tb = tb_translate(self, m);
+
+            assert(tb_finilize(&new_tb) == 0);
+
+            run_tb(new_tb.core.code);
+
+            abort();
         }
     }
 }

@@ -31,6 +31,11 @@ ASFLAGS  :=
 LDFLAGS  :=
 LDLIBS   :=
 
+# Debugger fuer "make debug". Standard ist gdb; per Kommandozeile
+# ueberschreibbar, z.B. "make debug DEBUGGER=lldb" (auf macOS meist der
+# einfachere Weg, da gdb dort signiert werden muss).
+DEBUGGER ?= gdb
+
 # ==== Build-Modus ============================================================
 # Verwendung:
 #   make
@@ -85,7 +90,7 @@ VENDOR_CFLAGS   := $(CSTD) -w
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Regeln =================================================================
-.PHONY: all asm run lsp clean distclean format compdb help
+.PHONY: all asm run debug lsp clean distclean format compdb help
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -139,6 +144,30 @@ compile_flags.txt: $(MAKEFILE_LIST)
 run: $(BIN)
 	./$(BIN) $(ARGS)
 
+# ==== Debug (gdb) ============================================================
+# Startet den Emulator unter dem Debugger. Erzwingt einen Debug-Build
+# (-O0 -g3), damit Symbole und Zeilennummern auch dann stimmen, wenn zuvor
+# ein Release-Build im Baum lag.
+#
+#   make debug
+#   make debug ARGS=rom.iso          - Argumente an den Emulator durchreichen
+#   make debug DEBUGGER=lldb         - anderen Debugger verwenden
+#
+# Hinweis macOS: gdb braucht ein Code-Signing-Zertifikat, sonst schlaegt das
+# Anhaengen an den Prozess fehl. Ohne ein solches Setup ist lldb die
+# unkompliziertere Wahl.
+
+debug:
+	@command -v $(DEBUGGER) >/dev/null || { \
+		echo "$(DEBUGGER) nicht gefunden"; \
+		exit 1; \
+	}
+	$(MAKE) BUILD_TYPE=debug $(BIN)
+	@case '$(DEBUGGER)' in \
+		*lldb*) $(DEBUGGER) -- ./$(BIN) $(ARGS) ;; \
+		*)      $(DEBUGGER) --args ./$(BIN) $(ARGS) ;; \
+	esac
+
 # ==== Clean ==================================================================
 
 clean:
@@ -175,6 +204,8 @@ help:
 	@echo "make BUILD_TYPE=release    - Release-Build"
 	@echo "make SANITIZE=1            - ASan/UBSan aktivieren"
 	@echo "make run ARGS=rom.iso      - Emulator starten"
+	@echo "make debug ARGS=rom.iso    - Debug-Build unter gdb starten"
+	@echo "make debug DEBUGGER=lldb   - stattdessen lldb verwenden"
 	@echo "make clean                 - Build-Dateien entfernen"
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
