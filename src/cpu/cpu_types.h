@@ -54,6 +54,7 @@ struct CPU {
     void (*main)(CPU *self);
     void (*boot)(CPU *self);
     void (*free)(CPU *self);
+    void (*print_state)(CPU *self);
     CpuMode (*get_current_cpu_mode)(CPU *self);
 };
 

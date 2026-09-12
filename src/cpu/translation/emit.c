@@ -81,3 +81,19 @@ u32 *emit_store_u32(u32 *out, u8 rt, u8 rn, s32 off)
         assert(0 && "emit_store_u32: offset needs scratch register");
     return out;
 }
+
+static inline u32 a64_str_w_reg(u8 rt, u8 rn, u8 rm, a64_extend ext, bool shift)
+{
+    return 0xB8200800u | ((u32)(rm & 31) << 16) | ((u32)ext << 13) | ((u32)shift << 12) |
+           ((u32)(rn & 31) << 5) | (rt & 31);
+}
+
+u32 *emit_store_u32_indexed(u32 *out, u8 rt, u8 rn, u8 rm, a64_extend ext, u8 shift)
+{
+    assert((shift == 0 || shift == 2) && "str w: Shift darf nur 0 oder 2 sein");
+    assert(
+        (ext == A64_EXT_UXTW || ext == A64_EXT_SXTW || ext == A64_EXT_LSL || ext == A64_EXT_SXTX) &&
+        "ungültige Extend-Option");
+    *out++ = a64_str_w_reg(rt, rn, rm, ext, shift == 2);
+    return out;
+}

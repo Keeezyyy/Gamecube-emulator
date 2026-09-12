@@ -133,16 +133,18 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         u32 *curr = code_buffer;
 
         if (rA_field == 0) {
-            curr = emit_load_u64(curr, 0, (u64)regD);
+
+            curr = emit_load_u32(curr, 0, (u32)rD_field * 4);
             curr = emit_load_u32(curr, 1, (i32)imm);
-            curr = emit_store_u32(curr, 1, 0, 0);
+            curr = emit_store_u32_indexed(curr, 1, GUEST_REGISTER_POINTER, 0, A64_EXT_LSL, 0);
         } else {
             const u32 *regA = &cpu->registers.gpio[rA_field];
             const u32 *blk, *blk_end;
-            emit_addi(&blk, &blk_end);
-            curr = emit_load_u64(curr, 0, (u64)regA);
-            curr = emit_load_u64(curr, 1, (u64)regD);
+            curr = emit_load_u32(curr, 0, (u64)rA_field);
+            curr = emit_load_u32(curr, 1, (u64)rD_field);
             curr = emit_load_u32(curr, 2, (i32)imm);
+
+            emit_addi(&blk, &blk_end);
             curr = write_to_buffer(curr, {blk, blk_end});
         }
         *pc_after_instruction += 4;
@@ -155,8 +157,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                _get_field(insn, 16, 31));
 
         u32 *curr_instruction = code_buffer;
-        const u32 *regS = &cpu->registers.gpio[_get_field(insn, 6, 10)];
-        const u32 *regA = &cpu->registers.gpio[_get_field(insn, 11, 15)];
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
         const u16 imm = _get_field(insn, 16, 31);
 
         curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regS);
@@ -200,24 +202,25 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31));
 
         u32 *curr_instruction = code_buffer;
-        const u32 *regD = &cpu->registers.gpio[_get_field(insn, 6, 10)];
-        const u32 *regA = &cpu->registers.gpio[_get_field(insn, 11, 15)];
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
         const i16 imm = _get_field(insn, 16, 31);
 
         if (_get_field(insn, 11, 15) == 0) {
 
-            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regD);
+            curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, (i32)(imm << 16));
-            curr_instruction = emit_store_u32(curr_instruction, 1, 0, 0);
+            curr_instruction = emit_store_u32_indexed(curr_instruction, 1, GUEST_REGISTER_POINTER,
+                                                      0, A64_EXT_UXTW, 2);
         } else {
 
-            const u32 *main_block;
-            const u32 *main_block_end;
-            emit_addi(&main_block, &main_block_end);
+            const u32 *main_block, *main_block_end;
 
-            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regA);
-            curr_instruction = emit_load_u64(curr_instruction, 1, (u64)regD);
+            curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regA);
+            curr_instruction = emit_load_u32(curr_instruction, 1, (u64)regD);
             curr_instruction = emit_load_u32(curr_instruction, 2, (i32)(imm << 16));
+
+            emit_addi(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
         }
         *pc_after_instruction += 4;
@@ -247,14 +250,14 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             printf("[0x%08x] : mfmsr r%d, \n", pc_buffer[pc_buffer_counter],
                    _get_field(insn, 6, 10));
 
-            const u32 *regD = &cpu->registers.gpio[_get_field(insn, 6, 10)];
+            const u32 regD = _get_field(insn, 6, 10);
 
             u32 *curr_instruction = code_buffer;
 
-            printf("regd : 0x%016x, msr : 0x%016x\n", (u64)regD, (u64)&cpu->state.msr);
-            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regD);
+            curr_instruction = emit_load_u32(curr_instruction, 0, (u32)regD);
             curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.msr);
-            curr_instruction = emit_store_u32(curr_instruction, 0, 1, 0);
+            curr_instruction = emit_store_u32_indexed(curr_instruction, 1, GUEST_REGISTER_POINTER,
+                                                      0, A64_EXT_UXTW, 2);
 
             *pc_after_instruction += 4;
 
@@ -264,13 +267,41 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             printf("[0x%08x] : mtmsr r%d, \n", pc_buffer[pc_buffer_counter],
                    _get_field(insn, 6, 10));
 
-            const u32 *regD = &cpu->registers.gpio[_get_field(insn, 6, 10)];
+            const u32 regD = _get_field(insn, 6, 10);
 
             u32 *curr_instruction = code_buffer;
 
-            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regD);
-            curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.msr);
-            curr_instruction = emit_store_u32(curr_instruction, 1, 0, 0);
+            printf("regd : 0x%016x, msr : 0x%016x\n", (u64)regD, (u64)&cpu->state.msr);
+            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)&cpu->state.msr);
+            curr_instruction = emit_load_u32(curr_instruction, 1, (u64)regD);
+
+            const u32 *main_block, *main_block_end;
+            emit_mtmsr(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+            *termination_type = TERMINATING_TYPE_MSR_CHANGE;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_MFSPR_EXT) {
+            printf("[0x%08x] : mfspr r%d, \n", pc_buffer[pc_buffer_counter],
+                   _get_field(insn, 6, 10));
+
+            const u8 regD = _get_field(insn, 6, 10);
+            const u8 spr = _get_field(insn, 11, 20);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
+            curr_instruction =
+                emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
+
+            curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
+
+            const u32 *main_block, *main_block_end;
+            emit_mtmsr(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
             *pc_after_instruction += 4;
 
@@ -323,7 +354,8 @@ TranslationBlock tb_translate(CPU *cpu, CpuMode cpu_mode)
     u16 pc_buffer_counter = 0;
     u16 host_instructions_pushed_counter = 0;
 
-    u32 *current_host_code_block_ptr = host_code_buffer;
+    u32 *current_host_code_block_ptr =
+        emit_load_u64(host_code_buffer, GUEST_REGISTER_POINTER, (u64)cpu->registers.gpio);
 
     u8 termination_type = 0;
     do {
