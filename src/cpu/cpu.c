@@ -5,6 +5,7 @@
 #include "cpu/translation/translation.h"
 #include "disc/disc.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 static void deconstruct_cpu(CPU *self)
 {

@@ -11,6 +11,7 @@
 #define i8 int8_t
 #define i16 int16_t
 #define i32 int32_t
+#define i64 int64_t
 
 #define s8 int8_t
 #define s16 int16_t

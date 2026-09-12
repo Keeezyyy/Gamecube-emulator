@@ -23,6 +23,11 @@ WARN     := -Wall -Wextra -Wpedantic -Wshadow -Wconversion \
 CPPFLAGS := -I$(INC_DIR) -I$(SRC_DIR) -include $(CONFIG_H) -MMD -MP
 CFLAGS   := $(CSTD) $(WARN)
 
+# Assembler: derselbe Treiber wie fuer C, damit Ziel-Architektur, Sysroot und
+# Linker-Konventionen automatisch zusammenpassen.
+AS       := $(CC)
+ASFLAGS  :=
+
 LDFLAGS  :=
 LDLIBS   :=
 
@@ -35,7 +40,8 @@ LDLIBS   :=
 BUILD_TYPE ?= debug
 
 ifeq ($(BUILD_TYPE),debug)
-    CFLAGS += -O0 -g3 -fno-omit-frame-pointer -DGCEMU_BUILD_DEBUG=1
+    CFLAGS  += -O0 -g3 -fno-omit-frame-pointer -DGCEMU_BUILD_DEBUG=1
+    ASFLAGS += -g
 else ifeq ($(BUILD_TYPE),release)
     CFLAGS += -O2 -DNDEBUG
 else
@@ -52,10 +58,20 @@ ifeq ($(SANITIZE),1)
 endif
 
 # ==== Quellen ================================================================
-# Nur C-Dateien werden kompiliert.
-SRCS := $(shell find $(SRC_DIR) -type f -name '*.c')
+# C-Dateien und handgeschriebener Assembler. Beides landet im selben
+# Objektverzeichnis und wird am Ende zusammen gelinkt.
+#
+#   *.s  - roher Assembler, wird NICHT vom Praeprozessor angefasst
+#   *.S  - Assembler mit Praeprozessor, kann also #include/#define nutzen
+#
+# Nicht eingebunden: *.asm (NASM-Syntax). Der Treiber "cc" kennt dieses
+# Format nicht; solche Dateien muessten erst nach *.s portiert werden.
+SRCS     := $(shell find $(SRC_DIR) -type f -name '*.c')
+ASM_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.s' -o -name '*.S' \))
 
-OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD)/obj/%.o)
+OBJS     := $(SRCS:$(SRC_DIR)/%.c=$(BUILD)/obj/%.o)
+ASM_OBJS := $(patsubst $(SRC_DIR)/%.s,$(BUILD)/obj/%.o, \
+              $(patsubst $(SRC_DIR)/%.S,$(BUILD)/obj/%.o,$(ASM_SRCS)))
 
 # ==== Vendor (Fremdcode in include/) =========================================
 # Fremdbibliotheken liegen als Quellen unter include/<lib>/ und werden mit
@@ -69,7 +85,10 @@ VENDOR_CFLAGS   := $(CSTD) -w
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Regeln =================================================================
-.PHONY: all run lsp clean distclean format compdb help
+.PHONY: all asm run lsp clean distclean format compdb help
+
+# Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
+asm: $(ASM_OBJS)
 
 .DEFAULT_GOAL := all
 
@@ -77,13 +96,24 @@ DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 all: $(BIN) compile_flags.txt
 
-$(BIN): $(OBJS) $(VENDOR_OBJS)
+$(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS)
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(BUILD)/obj/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# Assembler ohne Praeprozessor.
+$(BUILD)/obj/%.o: $(SRC_DIR)/%.s
+	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) -c $< -o $@
+
+# Assembler mit Praeprozessor: bekommt dieselben Include-Pfade wie C, damit
+# gemeinsame Header (Offsets, Konstanten) genutzt werden koennen.
+$(BUILD)/obj/%.o: $(SRC_DIR)/%.S
+	@mkdir -p $(dir $@)
+	$(AS) $(CPPFLAGS) $(ASFLAGS) -c $< -o $@
 
 $(BUILD)/obj/vendor/%.o: $(INC_DIR)/%.c
 	@mkdir -p $(dir $@)
@@ -148,6 +178,7 @@ help:
 	@echo "make clean                 - Build-Dateien entfernen"
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
+	@echo "make asm                   - nur die Assembler-Objekte bauen"
 	@echo "make lsp                   - compile_flags.txt fuer clangd erzeugen"
 	@echo "make compdb                - compile_commands.json erzeugen"
 

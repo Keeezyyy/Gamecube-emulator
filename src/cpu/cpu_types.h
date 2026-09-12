@@ -67,6 +67,7 @@ enum PatchingType {
 
 // NOTE: if the emitted_block_index is > num of host instructions the patched address should point
 // to the start of the tb of the next guest instruction !!!!
+
 typedef struct {
     // TODO: do this
     //  something like patch patch bits 0-31 in *void with offset to adr of emitted block[5] for the
@@ -95,11 +96,17 @@ typedef struct {
     u64 id;
     u32 host_code_buffer[32];
     u32 num_of_instructions;
+
+    u32 *ptr_to_final_location;
+
+    EmitPatch patch;
+    bool has_patch;
 } HostInstructionsBlock;
 
+#define MAX_HOST_INSTRUCTION_BLOCKS_PER_EMITTED_BLOCK 64
 // the output of 1 translated guest instruction
 typedef struct {
-    HostInstructionsBlock host_instruction_buffer[64];
+    HostInstructionsBlock host_instruction_buffer[MAX_HOST_INSTRUCTION_BLOCKS_PER_EMITTED_BLOCK];
     u32 num_of_host_instrucion_blocks;
 
     EmitPatch patch_ptr[MAX_PATCHES_PER_EMIT_BLOCK];
