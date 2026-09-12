@@ -186,6 +186,10 @@ static EmitedBlock _translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_inst
         break;
     }
     case OPC_ORI: {
+
+        printf("[0x%08x] : ori r%d, r%d, imm(%d)\n", pc_buffer[pc_buffer_counter],
+               _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31));
+
         const u32 *regS = &cpu->registers.gpio[_get_field(insn, 6, 10)];
         const u32 *regA = &cpu->registers.gpio[_get_field(insn, 11, 15)];
         const u16 imm = _get_field(insn, 16, 31);
@@ -205,9 +209,12 @@ static EmitedBlock _translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_inst
         break;
     }
     case OPC_BX: {
+
+        printf("[0x%08x] : bx  %d\n", pc_buffer[pc_buffer_counter], _get_field(insn, 6, 29));
+
         const u8 AA = _get_field(insn, 30, 30);
         const u8 LK = _get_field(insn, 31, 31);
-        const u32 LI = _get_field(insn, 6, 29);
+        const i32 LI = _get_field(insn, 6, 29);
 
         const u32 *main_block = 0;
         const u32 *main_block_end = 0;
@@ -259,8 +266,40 @@ static EmitedBlock _translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_inst
 
         break;
     }
+    case OPC_BCLR: {
+        if (_get_field(insn, 21, 30) == OPC_BCLR_EXT) {
+            if (insn == 0x4e800020) {
+                // uncodininial branch (ret)
+
+                printf("[0x%08x] : bclr  (RET)\n", pc_buffer[pc_buffer_counter]);
+
+                printf("pc after : [0x%08x]   (RET)\n", cpu->special_purpose_registers.lr);
+                *pc_after_instruction = cpu->special_purpose_registers.lr;
+                break;
+
+            } else {
+                assert(!"conditinial branch not implemented");
+            }
+        }
+    }
+    case OPC_MFMSR: {
+        printf("[0x%08x] : mfmsr r%d, \n", pc_buffer[pc_buffer_counter], _get_field(insn, 6, 10));
+
+        const u32 *regD = &cpu->registers.gpio[_get_field(insn, 6, 10)];
+
+        u32 *curr_instruction = code_buffer;
+
+        printf("regd : 0x%016x, msr : 0x%016x\n", (u64)regD, (u64)&cpu->state.msr);
+        curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regD);
+        curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.msr);
+        curr_instruction = emit_store_u32(curr_instruction, 0, 1, 0);
+
+        *pc_after_instruction += 4;
+        break;
+    }
     default:
-        abort();
+
+        assert(!"not implemented guest instruction");
     }
     _print_code_block(code_buffer, 128);
     return emitted_block;
