@@ -60,3 +60,24 @@ u32 *emit_load_u32(u32 *out, u8 rd, u32 v)
     }
     return out;
 }
+
+static inline u32 a64_str_w_uimm(u8 rt, u8 rn, u32 imm12)
+{
+    return 0xB9000000u | ((imm12 & 0xFFFu) << 10) | ((u32)(rn & 31) << 5) | (rt & 31);
+}
+
+static inline u32 a64_stur_w(u8 rt, u8 rn, s32 imm9)
+{
+    return 0xB8000000u | (((u32)imm9 & 0x1FFu) << 12) | ((u32)(rn & 31) << 5) | (rt & 31);
+}
+
+u32 *emit_store_u32(u32 *out, u8 rt, u8 rn, s32 off)
+{
+    if (off >= 0 && off <= 16380 && (off & 3) == 0)
+        *out++ = a64_str_w_uimm(rt, rn, (u32)off >> 2);
+    else if (off >= -256 && off <= 255)
+        *out++ = a64_stur_w(rt, rn, off);
+    else
+        assert(0 && "emit_store_u32: offset needs scratch register");
+    return out;
+}

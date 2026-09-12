@@ -148,12 +148,11 @@ void write_buffer_impl(u32 *buffer, const struct block *blocks, size_t n)
     write_buffer_impl((buffer), (const struct block[]){__VA_ARGS__},                               \
                       sizeof((const struct block[]){__VA_ARGS__}) / sizeof(struct block))
 
-static EmitedBlock _translate_instruction(u32 instruction, CPU *cpu, u32 *pc_after_instruction,
+static EmitedBlock _translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction,
                                           u32 *pc_buffer, u32 pc_buffer_counter)
 {
     EmitedBlock emitted_block = {0};
 
-    u32 insn = 0x3864000A;
     u32 host_instruction_counter = 0;
     const u8 op = _get_op_from_instruction(insn);
     printf("instuction : 0x%08x\n", insn);
@@ -165,11 +164,12 @@ static EmitedBlock _translate_instruction(u32 instruction, CPU *cpu, u32 *pc_aft
     switch (op) {
     case OPC_ADDI: {
 
-        printf("reg 0x%016x\n", cpu->registers.gpio);
-
         const u32 *regD = &cpu->registers.gpio[_get_field(insn, 6, 10)];
         const u32 *regA = &cpu->registers.gpio[_get_field(insn, 11, 15)];
         const i16 imm = _get_field(insn, 16, 31);
+
+        printf("[0x%08x] : addi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter],
+               _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31));
 
         const u32 *main_block;
         const u32 *main_block_end;
@@ -181,9 +181,86 @@ static EmitedBlock _translate_instruction(u32 instruction, CPU *cpu, u32 *pc_aft
         curr_instruction = emit_load_u64(curr_instruction, 1, (u64)regD);
         curr_instruction = emit_load_u32(curr_instruction, 2, (i32)imm);
         write_to_buffer(curr_instruction, {main_block, main_block_end});
+        *pc_after_instruction += 4;
 
         break;
     }
+    case OPC_ORI: {
+        const u32 *regS = &cpu->registers.gpio[_get_field(insn, 6, 10)];
+        const u32 *regA = &cpu->registers.gpio[_get_field(insn, 11, 15)];
+        const u16 imm = _get_field(insn, 16, 31);
+
+        const u32 *main_block;
+        const u32 *main_block_end;
+        emit_ori(&main_block, &main_block_end);
+
+        u32 *curr_instruction = code_buffer;
+
+        curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regS);
+        curr_instruction = emit_load_u64(curr_instruction, 1, (u64)regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (u32)imm);
+        write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+        break;
+    }
+    case OPC_BX: {
+        const u8 AA = _get_field(insn, 30, 30);
+        const u8 LK = _get_field(insn, 31, 31);
+        const u32 LI = _get_field(insn, 6, 29);
+
+        const u32 *main_block = 0;
+        const u32 *main_block_end = 0;
+
+        u32 *curr_instruction = code_buffer;
+
+        if (AA == 1) {
+
+            *pc_after_instruction = LI << 2;
+        } else {
+            *pc_after_instruction = pc_buffer[pc_buffer_counter] + (LI << 2);
+        }
+
+        if (LK == 1) {
+            cpu->special_purpose_registers.lr = pc_buffer[pc_buffer_counter] + 4;
+        }
+
+        write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        break;
+    }
+    case OPC_ADDIS: {
+
+        printf("[0x%08x] : addis r%d, r%d, %d\n", pc_buffer[pc_buffer_counter],
+               _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31));
+
+        u32 *curr_instruction = code_buffer;
+        const u32 *regD = &cpu->registers.gpio[_get_field(insn, 6, 10)];
+        const u32 *regA = &cpu->registers.gpio[_get_field(insn, 11, 15)];
+        const i16 imm = _get_field(insn, 16, 31);
+
+        if (_get_field(insn, 11, 15) == 0) {
+
+            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, (i32)(imm << 16));
+            emit_store_u32(curr_instruction, 1, 0, 0);
+        } else {
+
+            const u32 *main_block;
+            const u32 *main_block_end;
+            emit_addi(&main_block, &main_block_end);
+
+            curr_instruction = emit_load_u64(curr_instruction, 0, (u64)regA);
+            curr_instruction = emit_load_u64(curr_instruction, 1, (u64)regD);
+            curr_instruction = emit_load_u32(curr_instruction, 2, (i32)(imm << 16));
+            write_to_buffer(curr_instruction, {main_block, main_block_end});
+        }
+        *pc_after_instruction += 4;
+
+        break;
+    }
+    default:
+        abort();
     }
     _print_code_block(code_buffer, 128);
     return emitted_block;
@@ -337,8 +414,7 @@ TranslationBlock *tb_translate(CPU *cpu, CpuMode cpu_mode)
     memset(host_code_buffer, 0, 0x1000);
     u32 mmap_instructions_counter = 0;
 
-    // u32 pc = cpu->state.pc;
-    u32 pc = 0xfff00198;
+    u32 pc = cpu->state.pc;
 
     bool is_little_endian = BIT_CHECK(cpu_mode.val, 31);
 
@@ -350,17 +426,14 @@ TranslationBlock *tb_translate(CPU *cpu, CpuMode cpu_mode)
     do {
 
         pc_during_instruction = pc_after_instruction;
+        printf("current pc : 0x%016x\n", pc_during_instruction);
         pc_buffer[pc_buffer_counter] = pc_during_instruction;
         u32 *current_instruction = cpu->bus->read(cpu->bus, pc_during_instruction);
         EmitedBlock out =
             _translate_instruction(CORRECT_ENDIAN(*current_instruction), cpu, &pc_after_instruction,
                                    pc_buffer, pc_buffer_counter);
 
-        _write_emitted_block_into_mmap(host_code_buffer, &mmap_instructions_counter, &out);
-        printf("mmap instruction counter : %d\n", mmap_instructions_counter);
         pc_buffer_counter++;
-        _print_final_tb(host_code_buffer, mmap_instructions_counter);
-        abort();
 
     } while (pc_buffer_counter < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK);
 }

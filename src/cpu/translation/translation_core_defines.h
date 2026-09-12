@@ -12,6 +12,7 @@
 
 #define OPC_ADDIS 15
 #define OPC_ADDI 14
+#define OPC_ORI 24
 
 #define GUEST_TO_HOST_CONVERSION_ACCUMILATOR 16
 #define HOST_R0 0

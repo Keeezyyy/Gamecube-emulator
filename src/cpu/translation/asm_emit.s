@@ -32,13 +32,13 @@ _emit_ori:
           STR x22, [x0]
           STR x23, [x1]
 
-          //x0 regA_ptr
-          //x1 regS_ptr
+          //x0 regS_ptr
+          //x1 regA_ptr
           //x2 imm
           ret
         _emit_ori_start:
           mov w19, 0
           ldr w19, [x2]
-          orr w20, w19, w1
-          str w20, [x0]
+          orr w20, w19, w0
+          str w20, [x1]
         _emit_ori_after:
