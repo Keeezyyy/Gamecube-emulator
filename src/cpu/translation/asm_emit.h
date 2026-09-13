@@ -26,3 +26,10 @@ extern void emit_stw(u32 **start, u32 **end);
 // w1 rA_num
 // w2 d
 extern void emit_stwu(u32 **start, u32 **end);
+
+extern void emit_oris(u32 **start, u32 **end);
+
+extern void emit_mtspr(u32 **start, u32 **end);
+
+extern void emit_lwz(u32 **start, u32 **end);
+extern void emit_bx(u32 **start, u32 **end);

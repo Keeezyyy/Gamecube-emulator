@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define CORRECT_ENDIAN(x) (_endian32(x, is_little_endian))
+#define CORRECT_ENDIAN(x) (_endian32(x, false))
 
 #define TERMINATING_TYPE_CONDITINIAL_BRANCH 1
 #define TERMINATING_TYPE_MSR_CHANGE 2
@@ -126,6 +126,10 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     switch (op) {
     case OPC_ADDI: {
 
+        printf("[0x%08x] : addi r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+               _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
+               _get_field(insn, 16, 31));
+
         const u32 rD_field = _get_field(insn, 6, 10);
         const u32 rA_field = _get_field(insn, 11, 15);
         const u32 *regD = &cpu->registers.gpio[rD_field];
@@ -183,8 +187,19 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         printf("[0x%08x] : b%s%s  %d\n", pc_buffer[pc_buffer_counter], LK ? "l" : "", AA ? "a" : "",
                offset);
 
+        u32 *curr_instruction = code_buffer;
         if (LK) {
             cpu->special_purpose_registers.lr = pc_buffer[pc_buffer_counter] + 4;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, pc_buffer[pc_buffer_counter] + 4);
+            curr_instruction =
+                emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers.lr);
+
+            const u32 *main_block;
+            const u32 *main_block_end;
+            emit_bx(&main_block, &main_block_end);
+
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
         }
 
         if (AA) {
@@ -194,7 +209,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 pc_buffer[pc_buffer_counter] + (u32)offset; // relativ, wrapt korrekt in u32
         }
 
-        return code_buffer;
+        return curr_instruction;
     }
     case OPC_ADDIS: {
 
@@ -289,11 +304,13 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             return curr_instruction;
         }
         if (_get_field(insn, 21, 30) == OPC_MFSPR_EXT) {
-            printf("[0x%08x] : mfspr r%d, \n", pc_buffer[pc_buffer_counter],
-                   _get_field(insn, 6, 10));
+            const u32 lo = _get_field(insn, 11, 15);
+            const u32 hi = _get_field(insn, 16, 20);
+            const u32 spr = (hi << 5) | lo;
+            printf("[0x%08x] : mfspr r%d, spr%d\n", pc_buffer[pc_buffer_counter],
+                   _get_field(insn, 6, 10), spr);
 
             const u8 regD = _get_field(insn, 6, 10);
-            const u8 spr = _get_field(insn, 11, 20);
 
             u32 *curr_instruction = code_buffer;
 
@@ -309,22 +326,60 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             *pc_after_instruction += 4;
 
-            *termination_type = TERMINATING_TYPE_MSR_CHANGE;
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_MTSPR_EXT) {
+            const u32 lo = _get_field(insn, 11, 15);
+            const u32 hi = _get_field(insn, 16, 20);
+            const u32 spr = (hi << 5) | lo;
+            printf("[0x%08x] : mtspr spr%d, r%d, \n", pc_buffer[pc_buffer_counter], spr,
+                   _get_field(insn, 6, 10));
+
+            const u8 regD = _get_field(insn, 6, 10);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
+            curr_instruction =
+                emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
+
+            curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
+
+            const u32 *main_block, *main_block_end;
+            emit_mtspr(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+            // TODO: check if the spr are part of the machine state and have to be terminating the
+            // tb!!
+
+            if (spr == 8) {
+                *termination_type = TERMINATING_TYPE_MSR_CHANGE;
+            }
+            return curr_instruction;
+        }
+
+        // TODO: read inner specifications and if everything matches the specifications
+        if (_get_field(insn, 21, 30) == OPC_SYNC_EXT) {
+            printf("[0x%08x] : sync \n", pc_buffer[pc_buffer_counter]);
+            u32 *curr_instruction = code_buffer;
+            *pc_after_instruction += 4;
 
             return curr_instruction;
         }
+        printf("not implemented : %d\n", _get_field(insn, 21, 30));
+        assert(!"not implemented guest instruction");
     }
-    // TODO:check for MSB oder LSB!!!!!!!!
     case OPC_STW: {
         u32 *curr_instruction = code_buffer;
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
-        const u16 d = _get_field(insn, 16, 31);
+        const i16 d = _get_field(insn, 16, 31);
         printf("[0x%08x] : stw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
-        curr_instruction = emit_load_u32(curr_instruction, 2, d);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
 
         const u32 *main_block, *main_block_end;
         emit_stw(&main_block, &main_block_end);
@@ -339,7 +394,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         u32 *curr_instruction = code_buffer;
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
-        const u16 d = _get_field(insn, 16, 31);
+        const i16 d = _get_field(insn, 16, 31);
         printf("[0x%08x] : stwu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
@@ -357,13 +412,55 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         return curr_instruction;
         break;
     }
+    case OPC_ORIS: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const u16 uimm = _get_field(insn, 16, 31);
+        printf("[0x%08x] : oris r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA, uimm);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (u32)uimm << 16);
+
+        assert(regA != 0);
+
+        const u32 *main_block, *main_block_end;
+        emit_oris(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_LWZ: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        printf("[0x%08x] : lwz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lwz(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
     default:
 
         assert(!"not implemented guest instruction");
     }
 }
 
-static u32 *_push_pc_change_to_tb(u32 pc_to_push, u32 *code_buffer, CPU *cpu)
+static u32 *emit_pc_store(u32 pc_to_push, u32 *code_buffer, CPU *cpu)
 {
     u32 *curr_instruction = code_buffer;
     const u32 *pc_register_ptr = &cpu->state.pc;
@@ -374,81 +471,87 @@ static u32 *_push_pc_change_to_tb(u32 pc_to_push, u32 *code_buffer, CPU *cpu)
 
     return curr_instruction;
 }
-
-TranslationBlock tb_translate(CPU *cpu, CpuMode cpu_mode)
+static u32 *emit_prologue(u32 *out, const CPU *cpu)
 {
+    out = emit_load_u64(out, GUEST_REGISTER_POINTER, (u64)cpu->registers.gpio);
+    out = emit_load_u64(out, GUEST_HELPER_FUNCTIONS_POINTER, (u64)cpu->helper_functions);
+    return out;
+}
 
-    void *host_code_buffer =
-        mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
+{
+    const u32 pc_at_start = cpu->state.pc;
 
-    if (host_code_buffer == MAP_FAILED) {
-        perror("mmap");
-        abort();
+    printf("pc at start : 0x%08x\n", pc_at_start);
+
+    CodeBuffer cb;
+    if (!code_buffer_init(&cb, TB_INITIAL_CAPACITY)) {
+        return false;
     }
 
-    memset(host_code_buffer, 0, 0x1000);
-    u32 mmap_instructions_counter = 0;
-
-    u32 pc = cpu->state.pc;
-
-    bool is_little_endian = false;
-
-    u32 pc_during_instruction = pc;
-    u32 pc_after_instruction = pc;
+    u32 *out = emit_prologue((u32 *)cb.code, cpu);
+    cb.size = (u32)((u8 *)out - cb.code);
 
     u32 pc_buffer[MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK];
-    u16 pc_buffer_counter = 0;
-    u16 host_instructions_pushed_counter = 0;
+    u16 pc_count = 0;
 
-    _print_code_block(host_code_buffer, 100);
-
-    // loading static pointers to useful stuff (CPU *cpu, u32* gpio, void* helper_functions)
-    u32 *current_host_code_block_ptr =
-        emit_load_u64(host_code_buffer, GUEST_REGISTER_POINTER, (u64)cpu->registers.gpio);
-
-    _print_code_block(host_code_buffer, 100);
-
-    current_host_code_block_ptr = emit_load_u64(
-        current_host_code_block_ptr, GUEST_HELPER_FUNCTIONS_POINTER, (u64)cpu->helper_functions);
-
-    _print_code_block(host_code_buffer, 100);
-
+    u32 pc = cpu->state.pc;
     u8 termination_type = 0;
-    do {
 
-        pc_during_instruction = pc_after_instruction;
-        printf("current pc : 0x%016x\n", pc_during_instruction);
-        pc_buffer[pc_buffer_counter] = pc_during_instruction;
+    while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
 
-        u32 *host_code_ptr_before_translation = current_host_code_block_ptr;
-        u32 *current_instruction = cpu->bus->read(cpu->bus, pc_during_instruction);
-        current_host_code_block_ptr = _translate_instruction(
-            CORRECT_ENDIAN(*current_instruction), cpu, &pc_after_instruction, pc_buffer,
-            pc_buffer_counter, current_host_code_block_ptr, &termination_type);
-        _print_code_block(
-            host_code_ptr_before_translation,
-            ((u64)current_host_code_block_ptr - (u64)host_code_ptr_before_translation) / 4);
-        pc_buffer_counter += 1;
-        host_instructions_pushed_counter +=
-            (u64)current_host_code_block_ptr - (u64)host_code_ptr_before_translation;
+        if (!code_buffer_reserve(&cb, TB_MAX_BYTES_PER_GUEST_INSTRUCTION + TB_EPILOGUE_MAX_BYTES)) {
+            TB_TRACE("tb full after %u guest instructions\n", pc_count);
+            break;
+        }
 
-    } while (host_instructions_pushed_counter <
-                 MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK - 128 &&
-             termination_type == 0);
+        out = (u32 *)(cb.code + cb.size);
 
-    if (termination_type == TERMINATING_TYPE_MSR_CHANGE) {
-        // pc change has to be pushed to tb
+        const u32 *guest_instruction = cpu->bus->read(cpu->bus, pc);
+        if (guest_instruction == NULL) {
+            TB_TRACE("fetch fault at 0x%08x\n", pc);
+            code_buffer_destroy(&cb);
+            return false;
+        }
 
-        current_host_code_block_ptr =
-            _push_pc_change_to_tb(pc_after_instruction, current_host_code_block_ptr, cpu);
+        TB_TRACE("current pc: 0x%08x\n", pc);
+        pc_buffer[pc_count] = pc;
+
+        u32 *block_start = out;
+        out = _translate_instruction(CORRECT_ENDIAN(*guest_instruction), cpu, &pc, pc_buffer,
+                                     pc_count, out, &termination_type);
+        pc_count += 1;
+
+        assert((u64)((u8 *)out - (u8 *)block_start) <= TB_MAX_BYTES_PER_GUEST_INSTRUCTION);
+        TB_TRACE_CODE(block_start, (u32)(out - block_start));
+
+        cb.size = (u32)((u8 *)out - cb.code);
     }
 
-    *current_host_code_block_ptr = 0xD65F03C0;
-    _print_code_block(host_code_buffer, host_instructions_pushed_counter);
+    if (!code_buffer_reserve(&cb, TB_EPILOGUE_MAX_BYTES)) {
+        code_buffer_destroy(&cb);
+        return false;
+    }
+    out = (u32 *)(cb.code + cb.size);
 
-    TranslationBlock tb = {
-        .core = {.code = host_code_buffer, .size = host_instructions_pushed_counter},
-        .pc_at_start = cpu->state.pc,
-        .msr_at_start = cpu->state.msr};
-    return tb;
+    if (termination_type == TERMINATING_TYPE_MSR_CHANGE) {
+        out = emit_pc_store(pc, out, cpu);
+    }
+
+    *out++ = HOST_INSTRUCTION_RET;
+    cb.size = (u32)((u8 *)out - cb.code);
+
+    if (!code_buffer_make_executable(&cb)) {
+        code_buffer_destroy(&cb);
+        return false;
+    }
+
+    TB_TRACE_CODE((u32 *)cb.code, cb.size / 4);
+
+    *out_tb = (TranslationBlock){
+        .core = {.code = cb.code, .size = cb.size},
+        .pc_at_start = pc_at_start,
+        .msr_at_start = cpu->state.msr,
+    };
+    return true;
 }

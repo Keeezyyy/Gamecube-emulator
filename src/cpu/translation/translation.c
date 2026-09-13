@@ -60,6 +60,10 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
         return tb;
     }
 
+    printf("run tb block for pc : 0x%08x\n", cpu->state.pc);
+
+    assert(!"not implemented!");
+
     // run the block
 }
 
@@ -75,13 +79,15 @@ int tb_finilize(TranslationBlock *tb)
 
     get_hash_from_state(tb->pc_at_start, tb->msr_at_start, buffer);
 
+    printf("added tb [0x%08x]\n", tb->pc_at_start);
     zhash_set(t, buffer, tb->core.code);
     return 0;
 }
 
-void run_tb(void *code_block)
+void run_tb(TranslationBlock *block)
 {
+    printf("[RUN TB] now running : 0x%08x\n", block->pc_at_start);
     void (*code)();
-    code = code_block;
+    code = block->core.code;
     code();
 }

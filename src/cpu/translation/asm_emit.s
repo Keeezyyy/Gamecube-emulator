@@ -23,7 +23,16 @@ FUNCTION_ARRAY_POINTER .req x15
 .endm
 
 
+.macro STORE_REGISTER reg_num_hold, reg_val
+    str \reg_val, [GUEST_REGISTER_POINTER, \reg_num_hold, uxtw 2] 
+.endm
+
+
+
 .macro CALL_HELPER_FUNCTION function_num_register
+
+
+  PUSH_64 GUEST_REGISTER_POINTER
   PUSH_64 FUNCTION_ARRAY_POINTER
   stp  x29, x30, [sp, #-16]!   
   mov  x29, sp
@@ -36,6 +45,7 @@ FUNCTION_ARRAY_POINTER .req x15
   ldp x29, x30, [sp], #16
 
   POP_64 FUNCTION_ARRAY_POINTER
+  POP_64 GUEST_REGISTER_POINTER
 .endm
 
 
@@ -106,6 +116,7 @@ _emit_mtmsr:
         _emit_mtmsr_after:
 
 
+// w0 -> reg_num
 // x1 -> spr_ptr
 // w2 -> spr_num
 .globl _emit_mfspr
@@ -142,9 +153,6 @@ _emit_stw:
         _emit_stw_finaly:
         add w5, w4, w2
         ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
-        rev w6, w6
-        mov x0, 0
-        mov x1, 0
         mov w0, w5
         mov w1, w6
 
@@ -174,12 +182,12 @@ _emit_stwu:
         add w5, w4, w2
 
         ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
-        rev w6, w6
 
         mov w8, w1
 
         mov w0, w5
         mov w1, w6
+
         PUSH_32 w5
         PUSH_32 w8
         CALL_HELPER_FUNCTION w7 // _write( u32 adr, u32 val) // str    w6, [FUNCTION_ARRAY_POINTER, w5, uxtw]
@@ -188,4 +196,86 @@ _emit_stwu:
 
         str w5, [GUEST_REGISTER_POINTER, w8, uxtw 2]
         _emit_stwu_after:
+
+
+// w0 rS_num
+// w1 rA_num
+// w2 uimm
+.globl _emit_oris
+_emit_oris:
+          adr x2, _emit_oris_start
+          adr x3, _emit_oris_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_oris_start:
+        LOAD_REGISTER w0, w4
+        orr w5, w4, w2
+        STORE_REGISTER w1, w5
+        _emit_oris_after:
+
+
+
+
+// w0 -> reg_num
+// x1 -> spr_ptr
+// w2 -> spr_num
+.globl _emit_mtspr
+_emit_mtspr:
+          adr x2, _emit_mtspr_start
+          adr x3, _emit_mtspr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_mtspr_start:
+          LOAD_REGISTER w0, w4
+          str w4, [x1, w2, uxtw 2] 
+        _emit_mtspr_after:
+
+
+
+
+.globl _emit_lwz
+_emit_lwz:
+          adr x2, _emit_lwz_start
+          adr x3, _emit_lwz_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_lwz_start:
+        cbnz w1, _emit_lwz_else
+        mov w3, 0
+        b _emit_lwz_finally
+      _emit_lwz_else:
+        LOAD_REGISTER w1, w3
+      _emit_lwz_finally:
+
+      mov w5, w0
+      add w0, w3, w2
+
+      mov w1, 1
+      PUSH_32 w0
+      PUSH_32 w5
+      CALL_HELPER_FUNCTION w1 // return val is in w8
+      mov w8, w0
+      POP_32 w5
+      POP_32 w0
+      STORE_REGISTER w5, w8
+      _emit_lwz_after:
+
+
+
+
+.globl _emit_bx
+_emit_bx:
+          adr x2, _emit_bx_start
+          adr x3, _emit_bx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_bx_start:
+        str w0, [x1]
+
+      _emit_bx_after:
+
 

@@ -56,21 +56,58 @@ static void *_read(Bus *self, u32 adr)
         return &((uint8_t *)self->ipl)[adr & 0x000fffff];
     }
 }
-static void _write(ARG, u32 adr, u32 val)
+#define RAM_SIZE 0x01800000u /* 24 MB */
+
+static inline u32 be32_load(const u8 *p)
 {
-    if (adr < 0xC17fffff) {
-        // ram area
-        ((u32 *)self->ram)[adr & 0x0fffffff] = val;
-    } else {
-        assert(!"bus adr not implemented ");
-    }
+    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
 }
 
-static const Bus BUS_TEMPLATE = {.load_ipl = _load_ipl,
-                                 .free = &_free,
-                                 .read = &_read,
-                                 .get_ram_location = &_get_ram_location,
-                                 .write = &_write};
+static inline void be32_store(u8 *p, u32 v)
+{
+    p[0] = (u8)(v >> 24);
+    p[1] = (u8)(v >> 16);
+    p[2] = (u8)(v >> 8);
+    p[3] = (u8)v;
+}
+
+static inline u32 ram_offset(u32 adr)
+{
+    u32 off = adr & 0x0fffffff;
+    return (off < RAM_SIZE) ? off : RAM_SIZE;
+}
+
+static void _write_word(Bus *self, u32 adr, u32 val)
+{
+    u32 off = ram_offset(adr);
+    if (off < RAM_SIZE) {
+        be32_store((u8 *)self->ram + off, val);
+        return;
+    }
+    abort();
+}
+
+static u32 _read_word(Bus *self, u32 adr)
+{
+    u32 off = ram_offset(adr);
+    if (off < RAM_SIZE)
+        return be32_load((const u8 *)self->ram + off);
+
+    if (adr >= 0xfff00000)
+        return be32_load((const u8 *)self->ipl + (adr & 0x000fffff));
+
+    assert(!"mem map adr not implemented");
+    return 0;
+}
+
+static const Bus BUS_TEMPLATE = {
+    .load_ipl = _load_ipl,
+    .free = &_free,
+    .read = &_read,
+    .get_ram_location = &_get_ram_location,
+    .write = &_write_word,
+    .read_word = &_read_word,
+};
 
 void init_bus(Bus *self)
 {

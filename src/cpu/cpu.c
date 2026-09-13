@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 static CPU *static_cpu_ptr;
 
@@ -34,6 +35,7 @@ static void main_loop(CPU *self)
     // TODO: implement interrupt check and isr
     // while (!waiting_interrupt(self)) {
     while (true) {
+        // printf("cycle \n");
 
         tb = tb_lookup(self, m);
         if (tb == NULL_PTR) {
@@ -41,11 +43,17 @@ static void main_loop(CPU *self)
             // code block is not present in hash table and has to be translated
 
             // NOTE: if I add thread make sure to use locks here
-            TranslationBlock new_tb = tb_translate(self, m);
 
-            assert(tb_finilize(&new_tb) == 0);
+            TranslationBlock *new_tb = malloc(sizeof(TranslationBlock));
 
-            run_tb(new_tb.core.code);
+            assert(new_tb != NULL_PTR);
+
+            tb_translate(self, m, new_tb);
+
+            assert(tb_finilize(new_tb) == 0);
+
+            self->print_state(self);
+            run_tb(new_tb);
 
             self->print_state(self);
         }
@@ -99,7 +107,15 @@ static void print_cpu_state(CPU *self)
 
 void _helper_write_word_to_bus(u32 adr, u32 val)
 {
+    printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
+}
+u32 _helper_read_word_from_bus(u32 adr)
+{
+    u32 val = static_cpu_ptr->bus->read_word(static_cpu_ptr->bus, adr);
+
+    printf("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
+    return val;
 }
 
 static const CPU CPU_TEMPLATE = {
@@ -111,6 +127,7 @@ static const CPU CPU_TEMPLATE = {
     .boot = &_boot,
     .print_state = &print_cpu_state,
     .helper_functions[0] = (u64)&_helper_write_word_to_bus,
+    .helper_functions[1] = (u64)&_helper_read_word_from_bus,
 };
 
 void init_cpu(CPU *self, Disc *disc, Bus *bus)

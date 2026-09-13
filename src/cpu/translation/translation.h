@@ -4,6 +4,13 @@
 #include "disc/disc.h"
 
 #include <stddef.h>
+#define TB_INITIAL_CAPACITY 0x1000
+#define TB_MAX_CAPACITY (0x1000 * 16)
+#define TB_MAX_BYTES_PER_GUEST_INSTRUCTION 128
+#define TB_EPILOGUE_MAX_BYTES 32
+#define HOST_INSTRUCTION_RET 0xD65F03C0u
+#define TB_TRACE(...) printf(__VA_ARGS__)
+#define TB_TRACE_CODE(ptr, n_instrs) _print_code_block((ptr), (n_instrs))
 
 typedef struct {
     void *code;
@@ -24,14 +31,29 @@ typedef struct {
       uintptr_t jmp_target_addr[2];
     */
 } TranslationBlock;
+typedef struct {
+    u8 *code;     /* base of the mapping                       */
+    u32 size;     /* bytes written so far                      */
+    u32 capacity; /* bytes currently mapped                    */
+} CodeBuffer;
 
 void init_translation(Disc *disc);
 
 void deconstruct_translation(void);
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode);
-TranslationBlock tb_translate(CPU *cpu, CpuMode cpu_mode);
+
+bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb);
 
 int tb_finilize(TranslationBlock *tb);
 
-void run_tb(void *code_block);
+void run_tb(TranslationBlock *block);
+// code buffer
+
+bool code_buffer_init(CodeBuffer *cb, u32 capacity);
+
+bool code_buffer_make_executable(CodeBuffer *cb);
+
+bool code_buffer_reserve(CodeBuffer *cb, u32 extra);
+
+void code_buffer_destroy(CodeBuffer *cb);
