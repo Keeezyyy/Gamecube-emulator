@@ -16,6 +16,7 @@
 #define OPC_BCLR_EXT 16
 #define OPC_BX 18
 #define OPC_BCLR 19
+#define OPC_RLWINM 21
 #define OPC_ORI 24
 #define OPC_ORIS 25
 #define OPC_MFMSR 31

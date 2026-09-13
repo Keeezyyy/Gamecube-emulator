@@ -33,3 +33,5 @@ extern void emit_mtspr(u32 **start, u32 **end);
 
 extern void emit_lwz(u32 **start, u32 **end);
 extern void emit_bx(u32 **start, u32 **end);
+extern void emit_rlwinm(u32 **start, u32 **end);
+extern void emit_rlwinm_cr0_set(u32 **start, u32 **end);

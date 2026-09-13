@@ -127,6 +127,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     case OPC_ADDI: {
 
         printf("[0x%08x] : addi r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+
                _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
                _get_field(insn, 16, 31));
 
@@ -448,6 +449,38 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 *main_block, *main_block_end;
         emit_lwz(&main_block, &main_block_end);
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_RLWINM: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const u32 SH = _get_field(insn, 16, 20);
+        const u32 MB = _get_field(insn, 21, 25);
+        const u32 ME = _get_field(insn, 26, 30);
+        const u32 RC = _get_field(insn, 31, 31);
+        printf("[0x%08x] : rlwinm r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS, regA,
+               SH, MB, ME);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, SH);
+        curr_instruction = emit_load_u32(curr_instruction, 3, MB);
+        curr_instruction = emit_load_u32(curr_instruction, 4, ME);
+        curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+
+        u32 *main_block, *main_block_end;
+        emit_rlwinm(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        if (RC == 1) {
+            emit_rlwinm_cr0_set(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+        }
 
         *pc_after_instruction += 4;
 

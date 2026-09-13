@@ -279,3 +279,81 @@ _emit_bx:
       _emit_bx_after:
 
 
+
+//w0 regS_num
+//w1 regA_num
+//w2 SH
+//w3 MB
+//w4 ME
+//w5 RC 
+.globl _emit_rlwinm
+_emit_rlwinm:
+          adr x2, _emit_rlwinm_start
+          adr x3, _emit_rlwinm_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_rlwinm_start:
+          LOAD_REGISTER w0, w6            
+
+          neg  w7, w2                     
+          ror  w6, w6, w7                 
+
+          mov  w8,  #-1                   
+          lsr  w9,  w8, w3                
+          mov  w10, #31
+          sub  w10, w10, w4
+          lsl  w10, w8, w10               
+
+          cmp  w3, w4
+          and  w11, w9, w10               
+          orr  w12, w9, w10                         
+          csel w9, w11, w12, le
+
+          and  w6, w6, w9
+          STORE_REGISTER w1, w6
+      _emit_rlwinm_after:
+
+
+
+//w0 regS_num
+//w1 regA_num
+//w2 SH
+//w3 MB
+//w4 ME
+//w5 RC 
+.globl _emit_rlwinm_cr0_set
+_emit_rlwinm_cr0_set:
+          adr x2, _emit_rlwinm_flag_set_start
+          adr x3, _emit_rlwinm_flag_set_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_rlwinm_flag_set_start:
+
+        ldr w7, [x5] 
+        and w7, w7, #(1<<3)
+        cbnz w6, _emit_rlwinm_flag_set_else
+        orr w7, w7, #(1<<2)
+        b _emit_rlwinm_flag_set_finally
+
+        _emit_rlwinm_flag_set_else:
+
+        tbz  w6, #31, _emit_rlwinm_flag_set_positiv
+        _emit_rlwinm_flag_set_negativ:
+        orr w7, w7, #(1<<0)
+        b _emit_rlwinm_flag_set_finally
+
+        _emit_rlwinm_flag_set_positiv:
+
+        orr w7, w7, #(1<<1)
+
+        _emit_rlwinm_flag_set_finally:
+
+        str w7, [x5]
+
+        _emit_rlwinm_flag_set_after:
+
+
+
+
