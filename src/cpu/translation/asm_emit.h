@@ -16,3 +16,13 @@ extern void emit_mtmsr(u32 **start, u32 **end);
 // x1 -> spr_ptr
 // w2 -> spr_num
 extern void emit_mfspr(u32 **start, u32 **end);
+
+// w0 rS_num
+// w1 rA_num
+// w2 d
+extern void emit_stw(u32 **start, u32 **end);
+
+// w0 rS_num
+// w1 rA_num
+// w2 d
+extern void emit_stwu(u32 **start, u32 **end);

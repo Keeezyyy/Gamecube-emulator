@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+static CPU *static_cpu_ptr;
 
 static void deconstruct_cpu(CPU *self)
 {
@@ -96,6 +97,11 @@ static void print_cpu_state(CPU *self)
     printf("=========================================\n");
 }
 
+void _helper_write_word_to_bus(u32 adr, u32 val)
+{
+    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
+}
+
 static const CPU CPU_TEMPLATE = {
     .registers = {0},
     .state = {0},
@@ -104,6 +110,7 @@ static const CPU CPU_TEMPLATE = {
     .get_current_cpu_mode = &get_current_cpu_mode,
     .boot = &_boot,
     .print_state = &print_cpu_state,
+    .helper_functions[0] = (u64)&_helper_write_word_to_bus,
 };
 
 void init_cpu(CPU *self, Disc *disc, Bus *bus)
@@ -111,4 +118,5 @@ void init_cpu(CPU *self, Disc *disc, Bus *bus)
     *self = CPU_TEMPLATE;
     self->bus = bus;
     init_translation(disc);
+    static_cpu_ptr = self;
 }

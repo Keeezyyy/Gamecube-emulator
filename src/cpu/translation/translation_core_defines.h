@@ -4,6 +4,8 @@
 #define STATIC_CODE_BLOCK_BUFFER 512
 #define MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK 1024
 #define GUEST_REGISTER_POINTER 16
+#define GUEST_RAM_POINTER 17
+#define GUEST_HELPER_FUNCTIONS_POINTER 15
 
 // opcodes OPC_...
 #define OPC_STMW 47
@@ -24,3 +26,9 @@
 #define OPC_MTMSR_EXT 146
 
 #define OPC_MFSPR_EXT 339
+
+#define OPC_STW 36
+#define OPC_STWU 37
+
+#define _CAT(a, b) a##b
+#define CAT(a, b) _CAT(a, b)

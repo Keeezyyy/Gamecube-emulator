@@ -15,8 +15,10 @@ struct Bus {
 
     int (*load_ipl)(Bus *self, char *ipl_location);
     void (*free)(Bus *self);
-
     void *(*read)(Bus *self, u32 adr);
+    void (*write)(Bus *self, u32 adr, u32 val);
+
+    u64 (*get_ram_location)(Bus *self);
 };
 
 void init_bus(Bus *self);

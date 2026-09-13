@@ -1,6 +1,7 @@
 #include "bus.h"
 #include "core/config/config.h"
 #include <_abort.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,6 +35,10 @@ static void _free(ARG)
 {
     free(self->ipl);
 }
+static u64 _get_ram_location(ARG)
+{
+    return (u64)ram_buffer;
+}
 
 static void *_read(Bus *self, u32 adr)
 {
@@ -51,12 +56,28 @@ static void *_read(Bus *self, u32 adr)
         return &((uint8_t *)self->ipl)[adr & 0x000fffff];
     }
 }
+static void _write(ARG, u32 adr, u32 val)
+{
+    if (adr < 0xC17fffff) {
+        // ram area
+        ((u32 *)self->ram)[adr & 0x0fffffff] = val;
+    } else {
+        assert(!"bus adr not implemented ");
+    }
+}
 
-static const Bus BUS_TEMPLATE = {.load_ipl = _load_ipl, .free = &_free, .read = &_read};
+static const Bus BUS_TEMPLATE = {.load_ipl = _load_ipl,
+                                 .free = &_free,
+                                 .read = &_read,
+                                 .get_ram_location = &_get_ram_location,
+                                 .write = &_write};
 
 void init_bus(Bus *self)
 {
+
     *self = BUS_TEMPLATE;
+
+    printf("ram buffer : 0x%016x\n", ram_buffer);
 
     self->ram = ram_buffer;
 }

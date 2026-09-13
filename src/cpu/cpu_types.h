@@ -46,8 +46,9 @@ struct CPU {
     CpuState state;
     CpuRegisters registers;
     CpuSpecialPurposeRegisters special_purpose_registers;
-
     CpuState state_on_start_of_tb;
+
+    u64 helper_functions[64];
 
     Bus *bus;
 

@@ -34,7 +34,7 @@ LDLIBS   :=
 # Debugger fuer "make debug". Standard ist gdb; per Kommandozeile
 # ueberschreibbar, z.B. "make debug DEBUGGER=lldb" (auf macOS meist der
 # einfachere Weg, da gdb dort signiert werden muss).
-DEBUGGER ?= gdb
+DEBUGGER ?= lldb
 
 # ==== Build-Modus ============================================================
 # Verwendung:

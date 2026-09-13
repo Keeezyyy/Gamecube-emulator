@@ -7,21 +7,64 @@
 #include <stdbool.h>
 
 #include <stdio.h>
+static inline uint32_t _endian32(uint32_t x, bool is_little_endian)
+{
+    if (!is_little_endian) {
+        return ((x & 0x000000FF) << 24) | ((x & 0x0000FF00) << 8) | ((x & 0x00FF0000) >> 8) |
+               ((x & 0xFF000000) >> 24);
+    }
+    return x;
+}
+static inline void _print_instruction(u32 instruction)
+{
+    char hex[9] = {0};
+    char spaced[32] = {0};
 
+    u32 v = _endian32(instruction, false);
+
+    snprintf(hex, sizeof(hex), "%08x", v);
+
+    size_t n = 0;
+    for (size_t i = 0; i < 8; i += 2)
+        n += snprintf(spaced + n, sizeof(spaced) - n, "0x%c%c ", hex[i], hex[i + 1]);
+
+    printf("---------------------------------------------------------------------------------------"
+           "---------------------------------------------------------------------------------------"
+           "------------------------------------\n");
+
+    printf("disasm %s\n", hex);
+    fflush(stdout);
+
+    FILE *p = popen("xcrun llvm-mc --disassemble -triple=arm64", "w");
+    if (!p) {
+        perror("popen");
+        return;
+    }
+
+    fprintf(p, "%s\n", spaced);
+    pclose(p);
+
+    printf("---------------------------------------------------------------------------------------"
+           "---------------------------------------------------------------------------------------"
+           "------------------------------------\n");
+}
 static inline u32 a64_movz(u8 rd, u16 imm16, u8 shift)
 {
     return 0xD2800000u | ((u32)shift << 21) | ((u32)imm16 << 5) | rd;
 }
 static inline u32 a64_movk(u8 rd, u16 imm16, u8 shift)
 {
+
     return 0xF2800000u | ((u32)shift << 21) | ((u32)imm16 << 5) | rd;
 }
 
 u32 *emit_load_u64(u32 *out, u8 rd, u64 v)
 {
+    printf("emit load 64 value : 0x%016llx\n", (unsigned long long)v);
     *out++ = a64_movz(rd, v & 0xFFFF, 0);
     for (u8 s = 1; s < 4; s++) {
         u16 chunk = (v >> (16 * s)) & 0xFFFF;
+
         if (chunk)
             *out++ = a64_movk(rd, chunk, s);
     }

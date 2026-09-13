@@ -263,6 +263,10 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+        // TODO: check manual for deeper functions and if it changes machine context
+        // TODO: check manual for deeper functions and if it changes machine context
+        // TODO: check manual for deeper functions and if it changes machine context
+        // TODO: check manual for deeper functions and if it changes machine context
         if (_get_field(insn, 21, 30) == OPC_MTMSR_EXT) {
             printf("[0x%08x] : mtmsr r%d, \n", pc_buffer[pc_buffer_counter],
                    _get_field(insn, 6, 10));
@@ -300,7 +304,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
 
             const u32 *main_block, *main_block_end;
-            emit_mtmsr(&main_block, &main_block_end);
+            emit_mfspr(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
             *pc_after_instruction += 4;
@@ -310,7 +314,49 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             return curr_instruction;
         }
     }
+    // TODO:check for MSB oder LSB!!!!!!!!
+    case OPC_STW: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const u16 d = _get_field(insn, 16, 31);
+        printf("[0x%08x] : stw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, d);
+
+        const u32 *main_block, *main_block_end;
+        emit_stw(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_STWU: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const u16 d = _get_field(insn, 16, 31);
+        printf("[0x%08x] : stwu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, d);
+
+        assert(regA != 0);
+
+        const u32 *main_block, *main_block_end;
+        emit_stwu(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
     default:
 
         assert(!"not implemented guest instruction");
@@ -345,7 +391,7 @@ TranslationBlock tb_translate(CPU *cpu, CpuMode cpu_mode)
 
     u32 pc = cpu->state.pc;
 
-    bool is_little_endian = BIT_CHECK(cpu_mode.val, 31);
+    bool is_little_endian = false;
 
     u32 pc_during_instruction = pc;
     u32 pc_after_instruction = pc;
@@ -354,8 +400,18 @@ TranslationBlock tb_translate(CPU *cpu, CpuMode cpu_mode)
     u16 pc_buffer_counter = 0;
     u16 host_instructions_pushed_counter = 0;
 
+    _print_code_block(host_code_buffer, 100);
+
+    // loading static pointers to useful stuff (CPU *cpu, u32* gpio, void* helper_functions)
     u32 *current_host_code_block_ptr =
         emit_load_u64(host_code_buffer, GUEST_REGISTER_POINTER, (u64)cpu->registers.gpio);
+
+    _print_code_block(host_code_buffer, 100);
+
+    current_host_code_block_ptr = emit_load_u64(
+        current_host_code_block_ptr, GUEST_HELPER_FUNCTIONS_POINTER, (u64)cpu->helper_functions);
+
+    _print_code_block(host_code_buffer, 100);
 
     u8 termination_type = 0;
     do {
