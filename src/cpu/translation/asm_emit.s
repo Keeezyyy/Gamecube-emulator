@@ -440,11 +440,8 @@ _emit_bcx:
         b.eq _emit_bcx_after
         add w9, w12, 4
         str w9, [x14]
-
-
-
-
-
+        ret
         _emit_bcx_after:
+
 
 

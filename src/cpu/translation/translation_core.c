@@ -245,6 +245,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         *termination_type = TERMINATING_TYPE_CONDITINIAL_BRANCH;
 
+        *pc_after_instruction += 4;
         return curr_instruction;
     }
     case OPC_ADDIS: {
@@ -569,6 +570,7 @@ static u32 *emit_prologue(u32 *out, const CPU *cpu)
     return out;
 }
 
+// TODO: add variable sizing for the code blocks
 bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 {
     const u32 pc_at_start = cpu->state.pc;
@@ -613,6 +615,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
                                      pc_count, out, &termination_type);
         pc_count += 1;
 
+        printf("code size : %llu\n", (u64)((u8 *)out - (u8 *)block_start));
         assert((u64)((u8 *)out - (u8 *)block_start) <= TB_MAX_BYTES_PER_GUEST_INSTRUCTION);
         TB_TRACE_CODE(block_start, (u32)(out - block_start));
 
@@ -625,9 +628,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     }
     out = (u32 *)(cb.code + cb.size);
 
-    if (termination_type == TERMINATING_TYPE_MSR_CHANGE) {
-        out = emit_pc_store(pc, out, cpu);
-    }
+    out = emit_pc_store(pc, out, cpu);
     if (termination_type == TERMINATING_TYPE_CONDITINIAL_BRANCH) {
         printf("terminating through conditionial branch \n");
     }
@@ -641,6 +642,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     }
 
     TB_TRACE_CODE((u32 *)cb.code, cb.size / 4);
+
+    printf("adr of ret : 0x%016llx\n", ((u64)out) - 4);
 
     *out_tb = (TranslationBlock){
         .core = {.code = cb.code, .size = cb.size},

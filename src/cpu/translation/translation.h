@@ -4,9 +4,9 @@
 #include "disc/disc.h"
 
 #include <stddef.h>
-#define TB_INITIAL_CAPACITY 0x1000
+#define TB_INITIAL_CAPACITY 0x2000
 #define TB_MAX_CAPACITY (0x1000 * 16)
-#define TB_MAX_BYTES_PER_GUEST_INSTRUCTION 128
+#define TB_MAX_BYTES_PER_GUEST_INSTRUCTION 256
 #define TB_EPILOGUE_MAX_BYTES 32
 #define HOST_INSTRUCTION_RET 0xD65F03C0u
 #define TB_TRACE(...) printf(__VA_ARGS__)
