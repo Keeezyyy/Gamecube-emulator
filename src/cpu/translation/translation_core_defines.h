@@ -11,9 +11,11 @@
 #define OPC_STMW 47
 #define OPC_LFD 50
 
+#define OPC_CMPLI 10
 #define OPC_ADDI 14
 #define OPC_ADDIS 15
 #define OPC_BCLR_EXT 16
+#define OPC_BCX 16
 #define OPC_BX 18
 #define OPC_BCLR 19
 #define OPC_RLWINM 21

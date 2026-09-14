@@ -316,12 +316,6 @@ _emit_rlwinm:
 
 
 
-//w0 regS_num
-//w1 regA_num
-//w2 SH
-//w3 MB
-//w4 ME
-//w5 RC 
 .globl _emit_rlwinm_cr0_set
 _emit_rlwinm_cr0_set:
           adr x2, _emit_rlwinm_flag_set_start
@@ -330,30 +324,127 @@ _emit_rlwinm_cr0_set:
           str x3, [x1]
           ret          
         _emit_rlwinm_flag_set_start:
+          ldr  w7, [x5]                 
 
-        ldr w7, [x5] 
-        and w7, w7, #(1<<3)
-        cbnz w6, _emit_rlwinm_flag_set_else
-        orr w7, w7, #(1<<2)
-        b _emit_rlwinm_flag_set_finally
+          cmp  w6, wzr                  
+          cset w8,  lt                  
+          cset w9,  gt                  
+          cset w10, eq                  
 
-        _emit_rlwinm_flag_set_else:
-
-        tbz  w6, #31, _emit_rlwinm_flag_set_positiv
-        _emit_rlwinm_flag_set_negativ:
-        orr w7, w7, #(1<<0)
-        b _emit_rlwinm_flag_set_finally
-
-        _emit_rlwinm_flag_set_positiv:
-
-        orr w7, w7, #(1<<1)
-
-        _emit_rlwinm_flag_set_finally:
-
-        str w7, [x5]
-
-        _emit_rlwinm_flag_set_after:
+          and  w7, w7, #0x1FFFFFFF      
+          orr  w7, w7, w8,  lsl #31
+          orr  w7, w7, w9,  lsl #30
+          orr  w7, w7, w10, lsl #29
+          str  w7, [x5]        
+          _emit_rlwinm_flag_set_after:
 
 
+
+
+.globl _emit_cpmli
+_emit_cpmli:
+          adr x2, _emit_cmpli_start
+          adr x3, _emit_cmpli_after
+          str x2, [x0]
+          str x3, [x1]
+          ret
+        _emit_cmpli_start:
+          LOAD_REGISTER w2, w5          
+          ldr  w9, [x4]                 
+
+          mov  w7, #28
+          sub  w7, w7, w0, lsl #2       
+
+          cmp  w5, w3                   
+          cset w10, lo                  
+          cset w11, hi                  
+          cset w12, eq                  
+
+          lsl  w6, w10, #3
+          orr  w6, w6, w11, lsl #2
+          orr  w6, w6, w12, lsl #1
+
+          lsr  w13, w9, w7
+          and  w13, w13, #1
+          orr  w6, w6, w13              
+
+          mov  w8, #0xF
+          lsl  w8, w8, w7
+          lsl  w6, w6, w7
+          bic  w9, w9, w8               
+          orr  w9, w9, w6
+          str  w9, [x4]
+        _emit_cmpli_after:
+
+
+
+.globl _emit_bcx
+_emit_bcx:
+          adr x2, _emit_bcx_start
+          adr x3, _emit_bcx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_bcx_start:
+        ldr w7, [x5] // w7 = (cr) register 
+        mov w6, w0
+        lsr w6,w6, 2
+        and w6,w6, 1
+        cbnz w6, _emit_bcx_not_zero
+        sub w7, w7, 1
+        _emit_bcx_not_zero:
+
+        //w6 holds BO[2] and is ctr_ok
+        
+        cmp w7, 0
+        cset w8, ne // w8 = (CTR != 0)
+
+        mov w9, w0
+        lsr w9,w9, 3
+        and w9,w9, 1 //w9 = B0[3]
+
+        eor w8, w8,w9 
+
+        orr w6,w6, w8 // w6 = ctr_ok = B0[2] || ((CTR != 0) ^ B0[3])
+
+        mov w9, w0 // w9 = B0
+        and w11,w9, 1 //w11 = B0[0]
+
+        mov w10, w7 // w10 = cr 
+        lsr w10, w10,w1 // w10 = w10 >> BI
+        and w10,w10, 1 //w10 = CR[BI]
+
+        lsr w9,w9, 1
+        and w9,w9, 1 //w9 = B0[3]
+
+        eor w9,w9, w10 // w9 = CR[BI] ^ B0[1]
+
+        orr w9, w9,w11 // w9 = B0[0] || CR[BI] ^ B0[1]
+
+
+        // if ctr_ok & cond_ok
+        cmp w9, 0
+        ccmp w6, 0, 4, ne
+        b.eq _emit_bcx_after
+        cmp w2, 1
+        b.ne _emit_bcx_aa_else
+        str w4, [x13]
+        b _emit_bcx_lk_if
+
+        _emit_bcx_aa_else:
+        add w9, w4, w12
+        str w9, [x13]
+
+        _emit_bcx_lk_if:
+        cmp w3, 0
+        b.eq _emit_bcx_after
+        add w9, w12, 4
+        str w9, [x14]
+
+
+
+
+
+        _emit_bcx_after:
 
 

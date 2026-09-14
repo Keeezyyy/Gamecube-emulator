@@ -28,7 +28,8 @@ typedef union {
     struct {
         u32 spr0_7[8];
         u32 lr;
-        u32 spr9_919[911];
+        u32 cr;
+        u32 spr10_919[910];
         u32 hid2;
         u32 spr921_1009[89];
         u32 iabr;
