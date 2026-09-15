@@ -23,6 +23,7 @@
 
 #define TERMINATING_TYPE_CONDITINIAL_BRANCH 1
 #define TERMINATING_TYPE_MSR_CHANGE 2
+#define TERMINATING_TYPE_SPR_CHANGE 3
 
 #define ASM_RET 0xD65F03C0
 static inline uint32_t _endian32(uint32_t x, bool is_little_endian)
@@ -108,10 +109,6 @@ static u32 *write_buffer_impl(u32 *buffer, const struct block *blocks, size_t n)
     }
     return (u32 *)out;
 }
-
-#define write_to_buffer(buffer, ...)                                                               \
-    write_buffer_impl((buffer), (const struct block[]){__VA_ARGS__},                               \
-                      sizeof((const struct block[]){__VA_ARGS__}) / sizeof(struct block))
 
 static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction, u32 *pc_buffer,
                                    u32 pc_buffer_counter, u32 *code_buffer, u8 *termination_type)
@@ -216,26 +213,26 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         const u8 b0 = _get_field(insn, 6, 10);
         const u8 bi = _get_field(insn, 11, 15);
+        const i32 bd = _sign_extend(_get_field(insn, 16, 29) << 2, 14 + 2);
         const u8 AA = _get_bit(insn, 30);
         const u8 LK = _get_bit(insn, 31);
-        const i32 bd = _sign_extend(_get_field(insn, 16, 29) << 2, 14 + 2);
 
-        printf("pc buffer count : %d\n", pc_buffer_counter);
-        printf("[0x%08x] : bc   %d\n", pc_buffer[pc_buffer_counter], bd);
+        printf("[0x%08x] : bcx   %d\n", pc_buffer[pc_buffer_counter], bi);
 
         u32 *curr_instruction = code_buffer;
         curr_instruction = emit_load_u32(curr_instruction, 0, (u64)b0);
-        curr_instruction = emit_load_u32(curr_instruction, 1, (u64)bi);
+        curr_instruction = emit_load_u32(curr_instruction, 1, (u64)31 - bi);
         curr_instruction = emit_load_u32(curr_instruction, 2, (u64)AA);
         curr_instruction = emit_load_u32(curr_instruction, 3, (u64)LK);
         curr_instruction = emit_load_u32(curr_instruction, 4, bd);
-        curr_instruction =
-            emit_load_u64(curr_instruction, 5, (u64)&cpu->special_purpose_registers.cr);
+        curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
 
         curr_instruction = emit_load_u32(curr_instruction, 12, pc_buffer[pc_buffer_counter]);
         curr_instruction = emit_load_u64(curr_instruction, 13, (u64)&cpu->state.pc);
         curr_instruction =
             emit_load_u64(curr_instruction, 14, (u64)&cpu->special_purpose_registers.lr);
+        curr_instruction =
+            emit_load_u64(curr_instruction, 15, (u64)&cpu->special_purpose_registers.ctr);
 
         const u32 *main_block;
         const u32 *main_block_end;
@@ -291,10 +288,35 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
                 return code_buffer;
                 break;
-
-            } else {
-                assert(!"conditinial branch not implemented");
             }
+        } else if (_get_field(insn, 21, 30) == OPC_ISYNC_EXT) {
+            printf("[0x%08x] : isync \n", pc_buffer[pc_buffer_counter]);
+            u32 *curr_instruction = code_buffer;
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        } else if (_get_field(insn, 21, 30) == OPC_CRXOR_EXT) {
+            const u32 crbD = _get_field(insn, 6, 10);
+            const u32 crbA = _get_field(insn, 11, 15);
+            const u32 crbB = _get_field(insn, 16, 20);
+
+            printf("[0x%08x] : crxor %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                   crbB);
+
+            u32 *curr_instruction = code_buffer;
+            curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, 31 - crbA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, 31 - crbB);
+            curr_instruction = emit_load_u64(curr_instruction, 3, (u64)&cpu->state.cr);
+            const u32 *main_block, *main_block_end;
+            emit_crxor(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        } else {
+            abort();
         }
     }
     case OPC_MFMSR | OPC_MTMSR: {
@@ -390,8 +412,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             // TODO: check if the spr are part of the machine state and have to be terminating the
             // tb!!
 
-            if (spr == 8) {
-                *termination_type = TERMINATING_TYPE_MSR_CHANGE;
+            if (SPR_TERMINATING_INDEXES(spr)) {
+                *termination_type = TERMINATING_TYPE_SPR_CHANGE;
             }
             return curr_instruction;
         }
@@ -514,6 +536,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
         if (RC == 1) {
+            curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
             emit_rlwinm_cr0_set(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
         }
@@ -531,11 +554,14 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 uimm = _get_field(insn, 16, 31);
         printf("[0x%08x] : cmpli  r%d, %d\n", pc_buffer[pc_buffer_counter], regA, uimm);
 
+        assert(L == 0);
+
         curr_instruction = emit_load_u32(curr_instruction, 0, cfd);
         curr_instruction = emit_load_u32(curr_instruction, 1, L);
         curr_instruction = emit_load_u32(curr_instruction, 2, regA);
         curr_instruction = emit_load_u32(curr_instruction, 3, uimm);
         curr_instruction = emit_load_u64(curr_instruction, 4, (u64)&cpu->state.cr);
+        curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
 
         const u32 *main_block, *main_block_end;
         emit_cpmli(&main_block, &main_block_end);
@@ -545,6 +571,31 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         return curr_instruction;
         break;
+    }
+    case OPC_STFD: {
+        abort();
+        if (cpu->fpu.get_pse_bit(cpu) == 0) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const i16 d = _get_field(insn, 16, 31);
+            printf("[0x%08x] : stfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+            const u32 *main_block, *main_block_end;
+            emit_stw(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+            break;
+        } else {
+            abort();
+        }
     }
     default:
 
@@ -629,9 +680,6 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     out = (u32 *)(cb.code + cb.size);
 
     out = emit_pc_store(pc, out, cpu);
-    if (termination_type == TERMINATING_TYPE_CONDITINIAL_BRANCH) {
-        printf("terminating through conditionial branch \n");
-    }
 
     *out++ = HOST_INSTRUCTION_RET;
     cb.size = (u32)((u8 *)out - cb.code);
@@ -649,6 +697,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
         .core = {.code = cb.code, .size = cb.size},
         .pc_at_start = pc_at_start,
         .msr_at_start = cpu->state.msr,
+        .hid2_at_start = cpu->special_purpose_registers.hid2,
     };
     return true;
 }

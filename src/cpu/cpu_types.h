@@ -2,6 +2,7 @@
 
 #include "bus/bus.h"
 #include "core/config/config.h"
+#include <stdbool.h>
 #include <stddef.h>
 
 typedef struct PACKED {
@@ -16,7 +17,6 @@ typedef struct PACKED {
 typedef struct PACKED {
     u32 gpio[32];
     u32 sr[16];
-    f32 fpr[32];
 
 } CpuRegisters;
 
@@ -28,7 +28,7 @@ typedef union {
     struct {
         u32 spr0_7[8];
         u32 lr;
-        u32 cr;
+        u32 ctr;
         u32 spr10_919[910];
         u32 hid2;
         u32 spr921_1009[89];
@@ -42,6 +42,20 @@ typedef union {
 } CpuSpecialPurposeRegisters;
 
 typedef struct CPU CPU;
+typedef struct FPU FPU;
+
+enum FPRPrecision {
+    FPR_PRECISION_DOUBLE = 0,
+    FPR_PRECISION_SINGLE = 1,
+};
+
+struct FPU {
+    u8 (*get_pse_bit)(CPU *self);
+
+    enum FPRPrecision fpr_precision_table[32];
+
+    double fpr[32];
+};
 
 struct CPU {
     CpuState state;
@@ -52,6 +66,7 @@ struct CPU {
     u64 helper_functions[64];
 
     Bus *bus;
+    FPU fpu;
 
     void (*main)(CPU *self);
     void (*boot)(CPU *self);

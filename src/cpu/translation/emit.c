@@ -85,6 +85,7 @@ static inline u32 a64_movn_w(u8 rd, u16 imm16, u8 hw)
 
 u32 *emit_load_u32(u32 *out, u8 rd, u32 v)
 {
+
     printf("v : 0x%08x\n", v);
     const u16 lo = (u16)(v & 0xFFFF);
     const u16 hi = (u16)(v >> 16);

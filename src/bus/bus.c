@@ -56,7 +56,6 @@ static void *_read(Bus *self, u32 adr)
         return &((uint8_t *)self->ipl)[adr & 0x000fffff];
     }
 }
-#define RAM_SIZE 0x01800000u /* 24 MB */
 
 static inline u32 be32_load(const u8 *p)
 {

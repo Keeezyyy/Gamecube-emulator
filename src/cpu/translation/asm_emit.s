@@ -1,5 +1,5 @@
-GUEST_REGISTER_POINTER .req x16
-FUNCTION_ARRAY_POINTER .req x15
+GUEST_REGISTER_POINTER .req x19
+FUNCTION_ARRAY_POINTER .req x20
 
 .macro PUSH_64 reg
   str \reg, [sp, #-16]!
@@ -187,6 +187,7 @@ _emit_stwu:
 
         mov w0, w5
         mov w1, w6
+        mov w7, 0
 
         PUSH_32 w5
         PUSH_32 w8
@@ -331,10 +332,14 @@ _emit_rlwinm_cr0_set:
           cset w9,  gt                  
           cset w10, eq                  
 
-          and  w7, w7, #0x1FFFFFFF      
+          ldr  w11, [x16]
+          lsr  w11, w11, #31
+
+          and  w7, w7, #0x0FFFFFFF      
           orr  w7, w7, w8,  lsl #31
           orr  w7, w7, w9,  lsl #30
           orr  w7, w7, w10, lsl #29
+          orr  w7, w7, w11, lsl #28
           str  w7, [x5]        
           _emit_rlwinm_flag_set_after:
 
@@ -364,8 +369,8 @@ _emit_cpmli:
           orr  w6, w6, w11, lsl #2
           orr  w6, w6, w12, lsl #1
 
-          lsr  w13, w9, w7
-          and  w13, w13, #1
+          ldr  w13, [x16]
+          lsr  w13, w13, #31
           orr  w6, w6, w13              
 
           mov  w8, #0xF
@@ -385,63 +390,72 @@ _emit_bcx:
           str x2, [x0]
           str x3, [x1]
           ret          
-        _emit_bcx_start:
-        ldr w7, [x5] // w7 = (cr) register 
-        mov w6, w0
-        lsr w6,w6, 2
-        and w6,w6, 1
-        cbnz w6, _emit_bcx_not_zero
-        sub w7, w7, 1
-        _emit_bcx_not_zero:
+       _emit_bcx_start:
+        ubfx w6, w0, #2, #1         // BO[2]
+        ldr  w7, [x15]              // CTR
+        cbnz w6, 1f
+        sub  w7, w7, #1
+        str  w7, [x15]
+1:      cmp  w7, #0
+        cset w8, ne                 // CTR != 0
+        ubfx w9, w0, #1, #1         // BO[3]
+        eor  w8, w8, w9
+        orr  w6, w6, w8             // ctr_ok
 
-        //w6 holds BO[2] and is ctr_ok
-        
-        cmp w7, 0
-        cset w8, ne // w8 = (CTR != 0)
+        ldr  w10, [x5]              // CR
+        lsr  w10, w10, w1           // w1 = 31 - BI
+        and  w10, w10, #1           // CR[BI]
+        ubfx w9, w0, #3, #1         // BO[1]
+        eor  w10, w10, w9
+        eor  w10, w10, #1           // XNOR  ->  CR[BI] == BO[1]
+        ubfx w11, w0, #4, #1        // BO[0]
+        orr  w10, w10, w11          // cond_ok
 
-        mov w9, w0
-        lsr w9,w9, 3
-        and w9,w9, 1 //w9 = B0[3]
+        cbz  w3, 2f
+        add  w9, w12, #4
+        str  w9, [x14]
 
-        eor w8, w8,w9 
-
-        orr w6,w6, w8 // w6 = ctr_ok = B0[2] || ((CTR != 0) ^ B0[3])
-
-        mov w9, w0 // w9 = B0
-        and w11,w9, 1 //w11 = B0[0]
-
-        mov w10, w7 // w10 = cr 
-        lsr w10, w10,w1 // w10 = w10 >> BI
-        and w10,w10, 1 //w10 = CR[BI]
-
-        lsr w9,w9, 1
-        and w9,w9, 1 //w9 = B0[3]
-
-        eor w9,w9, w10 // w9 = CR[BI] ^ B0[1]
-
-        orr w9, w9,w11 // w9 = B0[0] || CR[BI] ^ B0[1]
-
-
-        // if ctr_ok & cond_ok
-        cmp w9, 0
-        ccmp w6, 0, 4, ne
-        b.eq _emit_bcx_after
-        cmp w2, 1
-        b.ne _emit_bcx_aa_else
-        str w4, [x13]
-        b _emit_bcx_lk_if
-
-        _emit_bcx_aa_else:
-        add w9, w4, w12
-        str w9, [x13]
-
-        _emit_bcx_lk_if:
-        cmp w3, 0
-        b.eq _emit_bcx_after
-        add w9, w12, 4
-        str w9, [x14]
+2:      cmp  w10, #0
+        ccmp w6, #0, #4, ne
+        b.eq 3f
+        cmp  w2, #1
+        b.ne 4f
+        str  w4, [x13]              // AA=1: NIA = EXTS(BD||00)
+        b    _emit_bcx_after
+4:      add  w9, w4, w12            // AA=0: NIA = CIA + EXTS(BD||00)
+        str  w9, [x13]
         ret
-        _emit_bcx_after:
+3:      add  w9, w12, #4            // nicht genommen
+        str  w9, [x13]
+        ret
+_emit_bcx_after:
 
+
+
+.globl _emit_crxor
+_emit_crxor:
+          adr x2, _emit_crxor_start
+          adr x3, _emit_crxor_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_crxor_start:
+        ldr w4, [x3] // w4 = (cr)
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        eor w5, w5, w6
+        lsl w5, w5, w0
+        mov  w7, #1
+
+        
+        lsl  w7, w7, w0
+
+
+        bic  w4, w4, w7 
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_crxor_after:
 
 

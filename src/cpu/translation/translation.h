@@ -12,6 +12,14 @@
 #define TB_TRACE(...) printf(__VA_ARGS__)
 #define TB_TRACE_CODE(ptr, n_instrs) _print_code_block((ptr), (n_instrs))
 
+#define SPR_LR 8
+#define SPR_HID2 920
+#define SPR_TERMINATING_INDEXES(spr) (spr == SPR_LR || spr == SPR_HID2)
+
+#define write_to_buffer(buffer, ...)                                                               \
+    write_buffer_impl((buffer), (const struct block[]){__VA_ARGS__},                               \
+                      sizeof((const struct block[]){__VA_ARGS__}) / sizeof(struct block))
+
 typedef struct {
     void *code;
     size_t size;
@@ -23,6 +31,7 @@ typedef struct {
 
     u32 pc_at_start;
     u32 msr_at_start;
+    u32 hid2_at_start;
 
     // for linking tb´s together
     /*
@@ -31,6 +40,7 @@ typedef struct {
       uintptr_t jmp_target_addr[2];
     */
 } TranslationBlock;
+
 typedef struct {
     u8 *code;     /* base of the mapping                       */
     u32 size;     /* bytes written so far                      */

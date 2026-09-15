@@ -1,5 +1,6 @@
 #include "cpu/translation/translation.h"
 #include "core/config/config.h"
+#include "cpu/cpu_types.h"
 #include "disc/disc.h"
 #include <_abort.h>
 #include <assert.h>
@@ -39,10 +40,13 @@ void deconstruct_translation(void)
     zfree_hash_table(t);
 }
 
-static inline void get_hash_from_state(const u32 pc, const u32 msr, const char *buffer)
+#define HASH_BUFFER_SIZE 128
+
+static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hid2,
+                                       const char *buffer)
 {
 
-    assert(sprintf(buffer, "%016llx-%08x", pc, msr) != 26);
+    assert(sprintf(buffer, "%016llx-%08x-%08x", pc, msr, hid2) != 26);
 }
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
@@ -50,9 +54,9 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
     // TODO:
     // implement fast tb cache
 
-    char buffer[26] = {0};
+    char buffer[HASH_BUFFER_SIZE] = {0};
 
-    get_hash_from_state(cpu->state.pc, cpu->state.msr, buffer);
+    get_hash_from_state(cpu->state.pc, cpu->state.msr, cpu->special_purpose_registers.hid2, buffer);
 
     TranslationBlock *tb = zhash_get(t, buffer);
 
@@ -75,9 +79,9 @@ int tb_finilize(TranslationBlock *tb)
     }
     __builtin___clear_cache((char *)tb->core.code, (char *)tb->core.code + tb->core.size);
 
-    char buffer[26] = {0};
+    char buffer[HASH_BUFFER_SIZE] = {0};
 
-    get_hash_from_state(tb->pc_at_start, tb->msr_at_start, buffer);
+    get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, buffer);
 
     printf("added tb [0x%08x]\n", tb->pc_at_start);
     zhash_set(t, buffer, tb->core.code);

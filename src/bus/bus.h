@@ -1,7 +1,7 @@
 #pragma once
 #include "core/config/config.h"
 #include <stddef.h>
-#define RAM_SIZE 0x017fffff
+#define RAM_SIZE 0x01800000u
 
 #define ARG Bus *self
 typedef struct Bus Bus;
