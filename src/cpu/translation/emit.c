@@ -1,7 +1,6 @@
 #include "emit.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
-#include "cpu/translation/emit_utils.h"
 #include "cpu/translation/translation_core_defines.h"
 #include <assert.h>
 #include <stdbool.h>

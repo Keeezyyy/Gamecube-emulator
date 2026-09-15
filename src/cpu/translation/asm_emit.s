@@ -486,10 +486,10 @@ _emit_addx:
           str x3, [x1]
           ret          
         _emit_addx_start:
-        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w1, w3
         LOAD_REGISTER w2, w4
         adds w15, w3, w4
-        STORE_REGISTER w1, w15
+        STORE_REGISTER w0, w15
         _emit_addx_after:
 
 
@@ -510,6 +510,19 @@ _emit_blr:
         str w2, [x0]
         ret
         _emit_blr_after:
+
+
+.globl _emit_mfmsr
+_emit_mfmsr:
+          adr x2, _emit_mfmsr_start
+          adr x3, _emit_mfmsr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_mfmsr_start:
+        ldr w2, [x1]
+        STORE_REGISTER w0, w2
+        _emit_mfmsr_after:
 
 
 

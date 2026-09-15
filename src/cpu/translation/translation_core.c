@@ -188,7 +188,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         u32 *curr_instruction = code_buffer;
         if (LK) {
-            cpu->special_purpose_registers.lr = pc_buffer[pc_buffer_counter] + 4;
+            // cpu->special_purpose_registers.lr = pc_buffer[pc_buffer_counter] + 4;
 
             curr_instruction = emit_load_u32(curr_instruction, 0, pc_buffer[pc_buffer_counter] + 4);
             curr_instruction =
@@ -340,11 +340,12 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             u32 *curr_instruction = code_buffer;
 
+            const u32 *main_block, *main_block_end;
             curr_instruction = emit_load_u32(curr_instruction, 0, (u32)regD);
             curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.msr);
-            curr_instruction = emit_store_u32_indexed(curr_instruction, 1, GUEST_REGISTER_POINTER,
-                                                      0, A64_EXT_UXTW, 2);
+            emit_mfmsr(&main_block, &main_block_end);
 
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
             *pc_after_instruction += 4;
 
             return curr_instruction;
@@ -459,6 +460,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             if (rc == 1) {
                 set_cr0_from_w15(&main_block, &main_block_end);
                 curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+                curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
                 curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
             }
 

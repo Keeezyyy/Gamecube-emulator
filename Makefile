@@ -90,7 +90,7 @@ VENDOR_CFLAGS   := $(CSTD) -w
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Regeln =================================================================
-.PHONY: all asm run debug lsp clean distclean format compdb help
+.PHONY: all asm run debug lsp clean distclean format compdb help test test-build
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -196,6 +196,24 @@ compdb:
 	$(MAKE) clean
 	bear -- $(MAKE) all
 
+# ==== Tests ==================================================================
+# Die Unit-Tests fuer Gast-Instruktionen liegen komplett unter test/ und haben
+# ein eigenes Makefile: sie uebersetzen die Emulatorquellen ohne src/main.c ein
+# zweites Mal und haengen einen eigenen Testrunner davor.
+#
+#   make test               alles bauen und ausfuehren
+#   make test ARGS=stw      nur Testfaelle mit "stw" im Namen
+#   make test-build         nur bauen
+#
+# Gebraucht wird zusaetzlich ein PowerPC-Cross-Compiler fuer die
+# Gastprogramme:  brew install llvm lld
+
+test:
+	$(MAKE) -C test run ARGS="$(ARGS)"
+
+test-build:
+	$(MAKE) -C test
+
 # ==== Hilfe ==================================================================
 
 help:
@@ -212,6 +230,8 @@ help:
 	@echo "make asm                   - nur die Assembler-Objekte bauen"
 	@echo "make lsp                   - compile_flags.txt fuer clangd erzeugen"
 	@echo "make compdb                - compile_commands.json erzeugen"
+	@echo "make test                  - Gast-Unit-Tests bauen und ausfuehren"
+	@echo "make test ARGS=stw         - nur passende Testfaelle ausfuehren"
 
 # ==== Dependency Files =======================================================
 

@@ -44,6 +44,7 @@ extern void emit_blr(u32 **start, u32 **end);
 extern void emit_orx(u32 **start, u32 **end);
 extern void set_cr0_from_w15(u32 **start, u32 **end);
 extern void emit_addx(u32 **start, u32 **end);
+extern void emit_mfmsr(u32 **start, u32 **end);
 
 extern void set_xer_ca_from_w15(u32 **start, u32 **end);
 extern void set_xer_ov_from_w15(u32 **start, u32 **end);
