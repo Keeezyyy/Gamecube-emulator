@@ -26,9 +26,11 @@
 #define OPC_MFMSR_EXT 83
 #define OPC_MTMSR 31
 #define OPC_MTMSR_EXT 146
+#define OPC_ADDX_EXT 266
 #define OPC_MFSPR_EXT 339
 #define OPC_MTSPR_EXT 467
 #define OPC_SYNC_EXT 598
+#define OPC_ORX_EXT 444
 #define OPC_LWZ 32
 #define OPC_STW 36
 #define OPC_STWU 37

@@ -21,7 +21,7 @@
                       sizeof((const struct block[]){__VA_ARGS__}) / sizeof(struct block))
 
 typedef struct {
-    void *code;
+    const void *code;
     size_t size;
 } TranslationBlockCore;
 

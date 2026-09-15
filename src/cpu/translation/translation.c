@@ -49,6 +49,12 @@ static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hi
     assert(sprintf(buffer, "%016llx-%08x-%08x", pc, msr, hid2) != 26);
 }
 
+void _empty(u32 pc)
+{
+
+    printf("run tb block for pc : 0x%08x\n", pc);
+}
+
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
     // TODO:
@@ -66,9 +72,9 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 
     printf("run tb block for pc : 0x%08x\n", cpu->state.pc);
 
-    assert(!"not implemented!");
+    _empty(cpu->state.pc);
 
-    // run the block
+    run_tb(tb);
 }
 
 int tb_finilize(TranslationBlock *tb)
@@ -83,14 +89,15 @@ int tb_finilize(TranslationBlock *tb)
 
     get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, buffer);
 
-    printf("added tb [0x%08x]\n", tb->pc_at_start);
-    zhash_set(t, buffer, tb->core.code);
+    printf("added tb [0x%08x], with code adr : 0x%016llx\n", tb->pc_at_start, (u64)tb->core.code);
+    zhash_set(t, buffer, tb);
     return 0;
 }
 
 void run_tb(TranslationBlock *block)
 {
-    printf("[RUN TB] now running : 0x%08x\n", block->pc_at_start);
+    printf("[RUN TB] now running : 0x%08x, with adr : 0x%016llx\n", block->pc_at_start,
+           block->core.code);
     void (*code)();
     code = block->core.code;
     code();

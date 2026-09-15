@@ -459,3 +459,42 @@ _emit_crxor:
         _emit_crxor_after:
 
 
+
+.globl _emit_orx
+_emit_orx:
+          adr x2, _emit_orx_start
+          adr x3, _emit_orx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_orx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        orr w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_orx_after:
+
+
+
+
+
+.globl _emit_addx
+_emit_addx:
+          adr x2, _emit_addx_start
+          adr x3, _emit_addx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_addx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        adds w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_addx_after:
+
+
+
+
+
+
+
