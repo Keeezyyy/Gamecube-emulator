@@ -4,6 +4,7 @@
 #include "disc/disc.h"
 #include <_abort.h>
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <zhash/zhash.h>
@@ -42,11 +43,13 @@ void deconstruct_translation(void)
 
 #define HASH_BUFFER_SIZE 128
 
-static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hid2,
-                                       const char *buffer)
+static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hid2, char *buffer)
 {
-
-    assert(sprintf(buffer, "%016llx-%08x-%08x", pc, msr, hid2) != 26);
+    /* Nicht in ein assert() packen: im Release-Build (NDEBUG) faellt der
+     * Rumpf sonst weg und jeder Zustand bekaeme denselben leeren Schluessel. */
+    const int written = snprintf(buffer, HASH_BUFFER_SIZE, "%08x-%08x-%08x", pc, msr, hid2);
+    assert(written > 0 && written < HASH_BUFFER_SIZE);
+    (void)written;
 }
 
 void _empty(u32 pc)
@@ -64,22 +67,17 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 
     get_hash_from_state(cpu->state.pc, cpu->state.msr, cpu->special_purpose_registers.hid2, buffer);
 
-    TranslationBlock *tb = zhash_get(t, buffer);
-
-    if (tb == NULL) {
-        return tb;
-    }
-
-    // printf("run tb block for pc : 0x%08x\n", cpu->state.pc);
-
-    //_empty(cpu->state.pc);
-
-    run_tb(tb);
+    return zhash_get(t, buffer);
 }
 
 int tb_finilize(TranslationBlock *tb)
 {
-    if (mprotect(tb->core.code, tb->core.size, PROT_READ | PROT_EXEC) != 0) {
+    if (tb->core.code == NULL || tb->core.size == 0) {
+        fprintf(stderr, "tb_finilize: leerer block fuer pc 0x%08x\n", tb->pc_at_start);
+        return -1;
+    }
+
+    if (mprotect((void *)tb->core.code, tb->core.size, PROT_READ | PROT_EXEC) != 0) {
         perror("mprotect");
         return -1;
     }
@@ -89,16 +87,18 @@ int tb_finilize(TranslationBlock *tb)
 
     get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, buffer);
 
-    printf("added tb [0x%08x], with code adr : 0x%016llx\n", tb->pc_at_start, (u64)tb->core.code);
+    printf("added tb [0x%08x], with code adr : %p\n", tb->pc_at_start, tb->core.code);
     zhash_set(t, buffer, tb);
     return 0;
 }
 
 void run_tb(TranslationBlock *block)
 {
-    printf("[RUN TB] now running : 0x%08x, with adr : 0x%016llx\n", block->pc_at_start,
-           block->core.code);
-    void (*code)();
-    code = block->core.code;
+    printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start, block->core.code);
+
+    assert(block->core.code != NULL);
+
+    void (*code)(void);
+    *(uintptr_t *)&code = (uintptr_t)block->core.code;
     code();
 }

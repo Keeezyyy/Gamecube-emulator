@@ -634,17 +634,15 @@ bclr_1:      cmp  w7, #0
 
 
 bclr_2:      
+        ldr  w9, [x14]              
+        cbz  w3, bclr_4
+        add  w11, w12, #4           
+        str  w11, [x14]            
+bclr_4:
         cmp  w10, #0
         ccmp w6, #0, #4, ne
         b.eq bclr_3
-        ldr w9, [x14]
-        lsl w9, w9, #2
         str  w9, [x13]
-        cbnz w3, bclr_4
-        ret
-bclr_4:
-        add w12, w12, 4
-        str w12, [x14]
         ret
 
 bclr_3:      add  w9, w12, #4            // nicht genommen

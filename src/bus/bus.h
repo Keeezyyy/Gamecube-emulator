@@ -2,6 +2,7 @@
 #include "core/config/config.h"
 #include <stddef.h>
 #define RAM_SIZE 0x01800000u
+#define IPL_BASE 0xfff00000u
 
 #define ARG Bus *self
 typedef struct Bus Bus;
@@ -15,7 +16,7 @@ struct Bus {
 
     int (*load_ipl)(Bus *self, char *ipl_location);
     void (*free)(Bus *self);
-    void *(*read)(Bus *self, u32 adr);
+    u32 (*read)(Bus *self, u32 adr);
     void (*write)(Bus *self, u32 adr, u32 val);
     u32 (*read_word)(Bus *self, u32 adr);
 

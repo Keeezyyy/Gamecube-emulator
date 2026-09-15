@@ -29,6 +29,7 @@
 #define OPC_MFMSR_EXT 83
 #define OPC_MTMSR 31
 #define OPC_MTMSR_EXT 146
+#define OPC_MULHW_EXT 75
 #define OPC_ADDX_EXT 266
 #define OPC_MFSPR_EXT 339
 #define OPC_MTSPR_EXT 467

@@ -48,15 +48,24 @@ static void main_loop(CPU *self)
 
             assert(new_tb != NULL_PTR);
 
-            tb_translate(self, m, new_tb);
+            if (!tb_translate(self, m, new_tb)) {
+                fprintf(stderr, "translation failed at pc 0x%08x\n", self->state.pc);
+                free(new_tb);
+                abort();
+            }
 
-            assert(tb_finilize(new_tb) == 0);
+            if (tb_finilize(new_tb) != 0) {
+                fprintf(stderr, "tb_finilize failed at pc 0x%08x\n", self->state.pc);
+                free(new_tb);
+                abort();
+            }
 
-            self->print_state(self);
-            run_tb(new_tb);
-
-            self->print_state(self);
+            tb = new_tb;
         }
+
+        self->print_state(self);
+        run_tb(tb);
+        self->print_state(self);
     }
 }
 

@@ -666,6 +666,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+        if (_get_field(insn, 22, 30) == OPC_MULHW_EXT) {
+        }
         printf("not implemented : %d\n", _get_field(insn, 21, 30));
         assert(!"not implemented guest instruction");
     }
@@ -891,8 +893,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
         out = (u32 *)(cb.code + cb.size);
 
-        const u32 *guest_instruction = cpu->bus->read(cpu->bus, pc);
-        if (guest_instruction == NULL) {
+        const u32 guest_instruction = cpu->bus->read(cpu->bus, pc);
+        if (guest_instruction == 0) {
             TB_TRACE("fetch fault at 0x%08x\n", pc);
             code_buffer_destroy(&cb);
             return false;
@@ -903,8 +905,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
         host_block_buffer[pc_count] = out;
 
         u32 *block_start = out;
-        out = _translate_instruction(CORRECT_ENDIAN(*guest_instruction), cpu, &pc, pc_buffer,
-                                     host_block_buffer, pc_count, out, &termination_type);
+        out = _translate_instruction(guest_instruction, cpu, &pc, pc_buffer, host_block_buffer,
+                                     pc_count, out, &termination_type);
         pc_count += 1;
 
         printf("code size : %llu\n", (u64)((u8 *)out - (u8 *)block_start));
