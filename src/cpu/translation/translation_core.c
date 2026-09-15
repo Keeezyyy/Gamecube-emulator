@@ -24,6 +24,7 @@
 #define TERMINATING_TYPE_CONDITINIAL_BRANCH 1
 #define TERMINATING_TYPE_MSR_CHANGE 2
 #define TERMINATING_TYPE_SPR_CHANGE 3
+#define TERMINATING_TYPE_RET 4
 
 #define ASM_RET 0xD65F03C0
 static inline uint32_t _endian32(uint32_t x, bool is_little_endian)
@@ -281,12 +282,23 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             if (insn == 0x4e800020) {
                 // uncodininial branch (ret)
 
-                printf("[0x%08x] : bclr  (RET)\n", pc_buffer[pc_buffer_counter]);
+                printf("[0x%08x] : blr  (RET)\n", pc_buffer[pc_buffer_counter]);
 
                 printf("pc after : [0x%08x]   (RET)\n", cpu->special_purpose_registers.lr);
                 *pc_after_instruction = cpu->special_purpose_registers.lr;
 
-                return code_buffer;
+                const u32 *main_block, *main_block_end;
+                u32 *curr_instruction = code_buffer;
+                curr_instruction = emit_load_u64(curr_instruction, 0, (u64)&cpu->state.pc);
+                curr_instruction =
+                    emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers.lr);
+
+                emit_blr(&main_block, &main_block_end);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+                *termination_type = TERMINATING_TYPE_RET;
+
+                return curr_instruction;
                 break;
             }
         } else if (_get_field(insn, 21, 30) == OPC_ISYNC_EXT) {
@@ -667,6 +679,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
 static u32 *emit_pc_store(u32 pc_to_push, u32 *code_buffer, CPU *cpu)
 {
+    printf("pc store emit\n");
     u32 *curr_instruction = code_buffer;
     const u32 *pc_register_ptr = &cpu->state.pc;
 
@@ -741,7 +754,9 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     }
     out = (u32 *)(cb.code + cb.size);
 
-    out = emit_pc_store(pc, out, cpu);
+    if (termination_type != TERMINATING_TYPE_RET) {
+        out = emit_pc_store(pc, out, cpu);
+    }
 
     *out++ = HOST_INSTRUCTION_RET;
     cb.size = (u32)((u8 *)out - cb.code);
@@ -751,9 +766,11 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
         return false;
     }
 
-    TB_TRACE_CODE((u32 *)cb.code, cb.size / 4);
+    TB_TRACE_CODE((u32 *)cb.code, (cb.size / 4) + 0xa000);
 
     printf("adr of ret : 0x%016llx\n", ((u64)out) - 4);
+
+    printf("pc at end : 0x%08x\n", pc_at_start);
 
     const TranslationBlockCore core = {.code = cb.code, cb.size};
 

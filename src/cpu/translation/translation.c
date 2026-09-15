@@ -55,6 +55,8 @@ void _empty(u32 pc)
     printf("run tb block for pc : 0x%08x\n", pc);
 }
 
+int count = 0;
+
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
     // TODO:
@@ -73,6 +75,12 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
     printf("run tb block for pc : 0x%08x\n", cpu->state.pc);
 
     _empty(cpu->state.pc);
+
+    count++;
+
+    if (count > 4) {
+        abort();
+    }
 
     run_tb(tb);
 }

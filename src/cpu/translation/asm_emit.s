@@ -498,3 +498,18 @@ _emit_addx:
 
 
 
+.globl _emit_blr
+_emit_blr:
+          adr x2, _emit_blr_start
+          adr x3, _emit_blr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_blr_start:
+        ldr w2, [x1]
+        str w2, [x0]
+        ret
+        _emit_blr_after:
+
+
+

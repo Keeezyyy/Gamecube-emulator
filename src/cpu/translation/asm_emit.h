@@ -40,6 +40,7 @@ extern void emit_rlwinm_cr0_set(u32 **start, u32 **end);
 
 extern void emit_cpmli(u32 **start, u32 **end);
 extern void emit_crxor(u32 **start, u32 **end);
+extern void emit_blr(u32 **start, u32 **end);
 extern void emit_orx(u32 **start, u32 **end);
 extern void set_cr0_from_w15(u32 **start, u32 **end);
 extern void emit_addx(u32 **start, u32 **end);
