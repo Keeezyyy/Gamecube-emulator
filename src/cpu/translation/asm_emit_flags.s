@@ -5,6 +5,9 @@ _set_cr0_from_w15:
           str x2, [x0]
           str x3, [x1]
           ret          
+          //x5 -> cr_ptr
+          //x16 -> xer_ptr
+          //w15 -> val
         _set_cr0_from_w15_start:
           ldr  w7, [x5]                 
 

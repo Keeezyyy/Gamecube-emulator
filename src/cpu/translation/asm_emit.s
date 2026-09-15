@@ -524,5 +524,38 @@ _emit_mfmsr:
         STORE_REGISTER w0, w2
         _emit_mfmsr_after:
 
+.globl _emit_norx
+_emit_norx:
+          adr x2, _emit_norx_start
+          adr x3, _emit_norx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_norx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        orr w15, w3, w4
+        mvn w15, w15
+        STORE_REGISTER w1, w15
+        _emit_norx_after:
+
+
+.globl _emit_addic
+_emit_addic:
+          //void emit_addic(*void start, *void end)  // imm val is on the stack 
+          adr x22, _emit_addic_start
+          adr x23, _emit_addic_after
+          STR x22, [x0]
+          STR x23, [x1]
+
+          ret
+        _emit_addic_start:
+          ldr w3, [GUEST_REGISTER_POINTER, w0, uxtw 2] // w19 A reg
+          add w15, w3, w1
+          STORE_REGISTER w1, w15 
+_emit_addic_after:
+
+
+
 
 

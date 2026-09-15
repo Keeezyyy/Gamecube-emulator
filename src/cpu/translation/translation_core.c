@@ -153,6 +153,66 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         *pc_after_instruction += 4;
         return curr;
     }
+    case OPC_ADDIC: {
+
+        printf("[0x%08x] : addic r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+
+               _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
+               _get_field(insn, 16, 31));
+
+        const u32 rD_field = _get_field(insn, 6, 10);
+        const u32 rA_field = _get_field(insn, 11, 15);
+        const i16 imm = _get_field(insn, 16, 31);
+        u32 *curr = code_buffer;
+
+        const u32 *regA = &cpu->registers.gpio[rA_field];
+        u32 *blk, *blk_end;
+        curr = emit_load_u32(curr, 0, (u64)rA_field);
+        curr = emit_load_u32(curr, 1, (u64)rD_field);
+        curr = emit_load_u32(curr, 2, (i32)imm);
+
+        emit_addic(&blk, &blk_end);
+        curr = write_to_buffer(curr, {blk, blk_end});
+
+        curr = emit_load_u64(curr, 16, (u64)&cpu->state.xer);
+
+        set_xer_ca_from_w15(&blk, &blk_end);
+        curr = write_to_buffer(curr, {blk, blk_end});
+        *pc_after_instruction += 4;
+        return curr;
+    }
+    case OPC_ADDIC_CR0: {
+
+        printf("[0x%08x] : addic. r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+
+               _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
+               _get_field(insn, 16, 31));
+
+        const u32 rD_field = _get_field(insn, 6, 10);
+        const u32 rA_field = _get_field(insn, 11, 15);
+        const i16 imm = _get_field(insn, 16, 31);
+        u32 *curr = code_buffer;
+
+        const u32 *regA = &cpu->registers.gpio[rA_field];
+        u32 *blk, *blk_end;
+        curr = emit_load_u32(curr, 0, (u64)rA_field);
+        curr = emit_load_u32(curr, 1, (u64)rD_field);
+        curr = emit_load_u32(curr, 2, (i32)imm);
+
+        emit_addic(&blk, &blk_end);
+        curr = write_to_buffer(curr, {blk, blk_end});
+        curr = write_to_buffer(curr, {blk, blk_end});
+
+        curr = emit_load_u64(curr, 16, (u64)&cpu->state.xer);
+        set_xer_ca_from_w15(&blk, &blk_end);
+        curr = write_to_buffer(curr, {blk, blk_end});
+
+        curr = emit_load_u64(curr, 5, (u64)&cpu->state.cr);
+        set_cr0_from_w15(&blk, &blk_end);
+        curr = write_to_buffer(curr, {blk, blk_end});
+        *pc_after_instruction += 4;
+        return curr;
+    }
     case OPC_ORI: {
 
         printf("[0x%08x] : ori r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
@@ -455,6 +515,35 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             u32 *main_block, *main_block_end;
             emit_orx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            if (rc == 1) {
+                set_cr0_from_w15(&main_block, &main_block_end);
+                curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+                curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            }
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_NORX_EXT) {
+            const u32 s = _get_field(insn, 6, 10);
+            const u32 a = _get_field(insn, 11, 15);
+            const u32 b = _get_field(insn, 16, 20);
+            const u32 rc = _get_field(insn, 31, 31);
+
+            printf("[0x%08x] : nor r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, s);
+            curr_instruction = emit_load_u32(curr_instruction, 1, a);
+            curr_instruction = emit_load_u32(curr_instruction, 2, b);
+
+            u32 *main_block, *main_block_end;
+            emit_norx(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
             if (rc == 1) {
