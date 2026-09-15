@@ -604,4 +604,53 @@ _emit_addic_after:
 
 
 
+.globl _emit_bclr
+_emit_bclr:
+          adr x2, _emit_bclr_start
+          adr x3, _emit_bclr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+       _emit_bclr_start:
+        ubfx w6, w0, #2, #1         // BO[2]
+        ldr  w7, [x15]              // CTR
+        cbnz w6, bclr_1
+        sub  w7, w7, #1
+        str  w7, [x15]
+bclr_1:      cmp  w7, #0
+        cset w8, ne                 // CTR != 0
+        ubfx w9, w0, #1, #1         // BO[3]
+        eor  w8, w8, w9
+        orr  w6, w6, w8             // ctr_ok
+
+        ldr  w10, [x5]              // CR
+        lsr  w10, w10, w1           // w1 = 31 - BI
+        and  w10, w10, #1           // CR[BI]
+        ubfx w9, w0, #3, #1         // BO[1]
+        eor  w10, w10, w9
+        eor  w10, w10, #1           // XNOR  ->  CR[BI] == BO[1]
+        ubfx w11, w0, #4, #1        // BO[0]
+        orr  w10, w10, w11          // cond_ok
+
+
+bclr_2:      
+        cmp  w10, #0
+        ccmp w6, #0, #4, ne
+        b.eq bclr_3
+        ldr w9, [x14]
+        lsl w9, w9, #2
+        str  w9, [x13]
+        cbnz w3, bclr_4
+        ret
+bclr_4:
+        add w12, w12, 4
+        str w12, [x14]
+        ret
+
+bclr_3:      add  w9, w12, #4            // nicht genommen
+        str  w9, [x13]
+        ret
+_emit_bclr_after:
+
+
 

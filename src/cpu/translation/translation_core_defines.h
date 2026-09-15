@@ -18,6 +18,7 @@
 #define OPC_BCLR_EXT 16
 #define OPC_ISYNC_EXT 150
 #define OPC_CRXOR_EXT 193
+#define OPC_BCLRX_EXT 16
 #define OPC_BCX 16
 #define OPC_BX 18
 #define OPC_BCLR 19

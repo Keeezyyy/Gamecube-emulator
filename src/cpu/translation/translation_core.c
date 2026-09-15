@@ -403,6 +403,35 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
                 return curr_instruction;
                 break;
+            } else {
+                const u32 bo = _get_field(insn, 6, 10);
+                const u32 bi = _get_field(insn, 11, 15);
+                const u32 LK = _get_field(insn, 31, 31);
+                printf("[0x%08x] : bclr %d, %d \n", pc_buffer[pc_buffer_counter], bo, bi);
+                u32 *curr_instruction = code_buffer;
+
+                curr_instruction = emit_load_u32(curr_instruction, 0, (u64)bo);
+                curr_instruction = emit_load_u32(curr_instruction, 1, (u64)31 - bi);
+                curr_instruction = emit_load_u32(curr_instruction, 2, (u64)31 - bi);
+                curr_instruction = emit_load_u32(curr_instruction, 3, (u64)LK);
+
+                curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+
+                curr_instruction =
+                    emit_load_u32(curr_instruction, 12, pc_buffer[pc_buffer_counter]);
+                curr_instruction = emit_load_u64(curr_instruction, 13, (u64)&cpu->state.pc);
+                curr_instruction =
+                    emit_load_u64(curr_instruction, 14, (u64)&cpu->special_purpose_registers.lr);
+                curr_instruction =
+                    emit_load_u64(curr_instruction, 15, (u64)&cpu->special_purpose_registers.ctr);
+
+                const u32 *main_block;
+                const u32 *main_block_end;
+                emit_bclr(&main_block, &main_block_end);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+                *termination_type = TERMINATING_TYPE_CONDITINIAL_BRANCH;
+                return curr_instruction;
             }
         } else if (_get_field(insn, 21, 30) == OPC_ISYNC_EXT) {
             printf("[0x%08x] : isync \n", pc_buffer[pc_buffer_counter]);
@@ -430,6 +459,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             *pc_after_instruction += 4;
 
             return curr_instruction;
+
         } else {
             abort();
         }
