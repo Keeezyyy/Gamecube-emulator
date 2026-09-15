@@ -473,7 +473,6 @@ _emit_bcx_jump_in_tb:
         br x16
 3:      add  w9, w12, #4            // nicht genommen
         str  w9, [x13]
-        br x16
 _emit_bcx_jump_in_tb_after:
 
 
