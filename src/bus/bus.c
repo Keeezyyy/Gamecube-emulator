@@ -76,20 +76,33 @@ static inline u32 ram_offset(u32 adr)
     return (off < RAM_SIZE) ? off : RAM_SIZE;
 }
 
+void _print_write(u32 adr, u32 val)
+{
+
+    printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
+}
+
+static int count = 0;
 static void _write_word(Bus *self, u32 adr, u32 val)
 {
+    count++;
+    if (adr == 0x80000000 + RAM_SIZE) {
+        _print_write(adr, val);
+    }
     u32 off = ram_offset(adr);
-    if (off < RAM_SIZE) {
+    if (adr <= 0x817fffff + 2) {
         be32_store((u8 *)self->ram + off, val);
         return;
+    } else {
+        assert(!"bus write error\n");
+        abort();
     }
-    abort();
 }
 
 static u32 _read_word(Bus *self, u32 adr)
 {
     u32 off = ram_offset(adr);
-    if (off < RAM_SIZE)
+    if (off <= RAM_SIZE)
         return be32_load((const u8 *)self->ram + off);
 
     if (adr >= 0xfff00000)

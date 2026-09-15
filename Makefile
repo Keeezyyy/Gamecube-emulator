@@ -4,7 +4,6 @@ TARGET   := gcemu
 SRC_DIR  := src
 INC_DIR  := include
 BUILD    := build
-BIN      := $(BUILD)/$(TARGET)
 
 # Globale Konfiguration: wird ueber "-include" automatisch in jede
 # Uebersetzungseinheit eingefuegt, muss also nirgends von Hand inkludiert
@@ -38,20 +37,56 @@ DEBUGGER ?= lldb
 
 # ==== Build-Modus ============================================================
 # Verwendung:
-#   make
+#   make                           Debug (Standard)
 #   make BUILD_TYPE=debug
-#   make BUILD_TYPE=release
+#   make BUILD_TYPE=release        oder kurz:  make release
+#   make release NATIVE=1          zusaetzlich auf die eigene CPU zuschneiden
+#
+# Debug- und Release-Build haben getrennte Ausgabeverzeichnisse (siehe
+# OUT_DIR), ein Wechsel des BUILD_TYPE braucht also kein "make clean".
 
 BUILD_TYPE ?= debug
 
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
 ifeq ($(BUILD_TYPE),debug)
-    CFLAGS  += -O0 -g3 -fno-omit-frame-pointer -DGCEMU_BUILD_DEBUG=1
-    ASFLAGS += -g
+    OPTFLAGS := -O0 -g3 -fno-omit-frame-pointer
+    CFLAGS   += -DGCEMU_BUILD_DEBUG=1
+    ASFLAGS  += -g
 else ifeq ($(BUILD_TYPE),release)
-    CFLAGS += -O2 -DNDEBUG
+    # -O3                hoechste Optimierungsstufe des Compilers
+    # -flto              Link Time Optimization: Inlining ueber Dateigrenzen
+    # -fomit-frame-p.    ein Register mehr, dafuer schlechtere Backtraces
+    # -f*-sections       erlaubt dem Linker, ungenutzten Code/Daten zu werfen
+    # -fno-math-errno    erspart errno-Behandlung bei libm-Aufrufen
+    #                    (kein -ffast-math: die Gast-FPU muss exakt bleiben)
+    OPTFLAGS := -O3 -flto -fomit-frame-pointer \
+                -ffunction-sections -fdata-sections -fno-math-errno
+    CFLAGS   += -DNDEBUG -DGCEMU_BUILD_RELEASE=1
+    LDFLAGS  += -O3 -flto
+
+    ifeq ($(UNAME_S),Darwin)
+        LDFLAGS += -Wl,-dead_strip
+    else
+        LDFLAGS += -Wl,--gc-sections -Wl,-s
+    endif
+
+    # NATIVE=1 erzeugt Code fuer genau diese CPU (schneller, das Binary
+    # laeuft dann aber nicht mehr zwingend auf anderen Maschinen).
+    ifeq ($(NATIVE),1)
+        NATIVE_SUFFIX := -native
+        ifneq ($(filter arm64 aarch64,$(UNAME_M)),)
+            OPTFLAGS += -mcpu=native
+        else
+            OPTFLAGS += -march=native -mtune=native
+        endif
+    endif
 else
     $(error BUILD_TYPE muss "debug" oder "release" sein, nicht "$(BUILD_TYPE)")
 endif
+
+CFLAGS += $(OPTFLAGS)
 
 # ==== Sanitizer ==============================================================
 # Verwendung:
@@ -60,7 +95,23 @@ endif
 ifeq ($(SANITIZE),1)
     CFLAGS  += -fsanitize=address,undefined
     LDFLAGS += -fsanitize=address,undefined
+    SAN_SUFFIX := -asan
 endif
+
+# ==== Ausgabeverzeichnis =====================================================
+# Jede Variante bekommt einen eigenen Ausgabebaum (Objekte und Binary), damit
+# sich Builds mit unterschiedlichen Flags nie gegenseitig ueberschreiben. Ein
+# Wechsel braucht deshalb kein "make clean":
+#
+#   build/debug/gcemu            build/debug/obj/...
+#   build/debug-asan/gcemu       Sanitizer-Build
+#   build/release/gcemu          build/release/obj/...
+#   build/release-native/gcemu   Release mit -mcpu/-march=native
+BUILD_TAG := $(BUILD_TYPE)$(NATIVE_SUFFIX)$(SAN_SUFFIX)
+
+OUT_DIR  := $(BUILD)/$(BUILD_TAG)
+OBJ_DIR  := $(OUT_DIR)/obj
+BIN      := $(OUT_DIR)/$(TARGET)
 
 # ==== Quellen ================================================================
 # C-Dateien und handgeschriebener Assembler. Beides landet im selben
@@ -74,23 +125,23 @@ endif
 SRCS     := $(shell find $(SRC_DIR) -type f -name '*.c')
 ASM_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.s' -o -name '*.S' \))
 
-OBJS     := $(SRCS:$(SRC_DIR)/%.c=$(BUILD)/obj/%.o)
-ASM_OBJS := $(patsubst $(SRC_DIR)/%.s,$(BUILD)/obj/%.o, \
-              $(patsubst $(SRC_DIR)/%.S,$(BUILD)/obj/%.o,$(ASM_SRCS)))
+OBJS     := $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+ASM_OBJS := $(patsubst $(SRC_DIR)/%.s,$(OBJ_DIR)/%.o, \
+              $(patsubst $(SRC_DIR)/%.S,$(OBJ_DIR)/%.o,$(ASM_SRCS)))
 
 # ==== Vendor (Fremdcode in include/) =========================================
 # Fremdbibliotheken liegen als Quellen unter include/<lib>/ und werden mit
 # entschaerften Warnungen und ohne die globale config.h uebersetzt.
 VENDOR_SRCS := $(shell find $(INC_DIR) -type f -name '*.c')
-VENDOR_OBJS := $(VENDOR_SRCS:$(INC_DIR)/%.c=$(BUILD)/obj/vendor/%.o)
+VENDOR_OBJS := $(VENDOR_SRCS:$(INC_DIR)/%.c=$(OBJ_DIR)/vendor/%.o)
 
 VENDOR_CPPFLAGS := -I$(INC_DIR) -MMD -MP
-VENDOR_CFLAGS   := $(CSTD) -w
+VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Regeln =================================================================
-.PHONY: all asm run debug lsp clean distclean format compdb help test test-build
+.PHONY: all asm run debug release lsp clean distclean format compdb help test test-build
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -105,22 +156,22 @@ $(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS)
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(BUILD)/obj/%.o: $(SRC_DIR)/%.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Assembler ohne Praeprozessor.
-$(BUILD)/obj/%.o: $(SRC_DIR)/%.s
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
 	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 # Assembler mit Praeprozessor: bekommt dieselben Include-Pfade wie C, damit
 # gemeinsame Header (Offsets, Konstanten) genutzt werden koennen.
-$(BUILD)/obj/%.o: $(SRC_DIR)/%.S
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.S
 	@mkdir -p $(dir $@)
 	$(AS) $(CPPFLAGS) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/obj/vendor/%.o: $(INC_DIR)/%.c
+$(OBJ_DIR)/vendor/%.o: $(INC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(VENDOR_CPPFLAGS) $(VENDOR_CFLAGS) -c $< -o $@
 
@@ -132,12 +183,27 @@ $(BUILD)/obj/vendor/%.o: $(INC_DIR)/%.c
 #
 # Hinweis: existiert eine compile_commands.json (siehe "make compdb"), hat die
 # fuer clangd Vorrang.
-CLANGD_FLAGS := $(CPPFLAGS) $(CFLAGS) -Wno-unknown-warning-option
+# Bewusst nicht aus $(CFLAGS) abgeleitet: sonst haette ein "make release" die
+# Editor-Sicht dauerhaft auf -O3/-DNDEBUG umgestellt. clangd interessieren nur
+# Includes, Standard, Warnungen und Makros - die bleiben hier auf Debug.
+CLANGD_FLAGS := $(CPPFLAGS) $(CSTD) $(WARN) -DGCEMU_BUILD_DEBUG=1 \
+                -Wno-unknown-warning-option
 
 lsp: compile_flags.txt
 
 compile_flags.txt: $(MAKEFILE_LIST)
 	@printf '%s\n' $(filter-out -MMD -MP,$(CLANGD_FLAGS)) > $@
+
+# ==== Release ================================================================
+# Baut mit allen Optimierungen (-O3 + LTO, siehe oben) nach build/release/.
+# Der Debug-Baum bleibt dabei unangetastet.
+#
+#   make release
+#   make release NATIVE=1               auf die CPU dieser Maschine zuschneiden
+#   make run BUILD_TYPE=release ARGS=..  Release-Binary starten
+
+release:
+	$(MAKE) BUILD_TYPE=release all
 
 # ==== Run ====================================================================
 
@@ -170,8 +236,9 @@ debug:
 
 # ==== Clean ==================================================================
 
+# Raeumt beide Build-Typen ab, nicht nur den gerade eingestellten.
 clean:
-	$(RM) -r $(BUILD)/obj $(BIN)
+	$(RM) -r $(BUILD)/debug* $(BUILD)/release*
 
 distclean: clean
 	$(RM) -r $(BUILD) compile_commands.json compile_flags.txt
@@ -219,9 +286,12 @@ test-build:
 help:
 	@echo "make                       - Debug-Build"
 	@echo "make BUILD_TYPE=debug      - Debug-Build"
-	@echo "make BUILD_TYPE=release    - Release-Build"
+	@echo "make release               - Release-Build (-O3, LTO, dead-strip)"
+	@echo "make BUILD_TYPE=release    - dasselbe, ausgeschrieben"
+	@echo "make release NATIVE=1      - Release fuer genau diese CPU"
 	@echo "make SANITIZE=1            - ASan/UBSan aktivieren"
-	@echo "make run ARGS=rom.iso      - Emulator starten"
+	@echo "make run ARGS=rom.iso      - Emulator starten (Debug-Binary)"
+	@echo "make run BUILD_TYPE=release - Release-Binary starten"
 	@echo "make debug ARGS=rom.iso    - Debug-Build unter gdb starten"
 	@echo "make debug DEBUGGER=lldb   - stattdessen lldb verwenden"
 	@echo "make clean                 - Build-Dateien entfernen"

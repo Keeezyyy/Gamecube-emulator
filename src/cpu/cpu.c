@@ -99,7 +99,7 @@ static void print_cpu_state(CPU *self)
 
 void _helper_write_word_to_bus(u32 adr, u32 val)
 {
-    printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
+    // printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
 }
 u32 _helper_read_word_from_bus(u32 adr)

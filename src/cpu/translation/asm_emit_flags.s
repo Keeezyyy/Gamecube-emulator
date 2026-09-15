@@ -65,10 +65,9 @@ _set_xer_ca_from_w15:
 
           cset w8,  cs // carry out
           ldr  w11, [x16]
-          lsl w8,w8, 29
-          mov  w12, #29
-          bic w11, w11, w12
-          orr w11, w11, w8
+          lsl  w8, w8, #29
+          bic  w11, w11, #0x20000000   
+          orr  w11, w11, w8
           str  w11, [x16]        
         _set_xer_ca_from_w15_after:
 

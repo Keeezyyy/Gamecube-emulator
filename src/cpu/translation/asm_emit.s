@@ -132,9 +132,7 @@ _emit_mfspr:
           str w3, [GUEST_REGISTER_POINTER, w0, uxtw 2]
         _emit_mfspr_after:
 
-// w0 rS_num
-// w1 rA_num
-// w2 d
+//TODO: change endianess in asm code rather than in bus.c 
 .globl _emit_stw
 _emit_stw:
           adr x2, _emit_stw_start
@@ -431,6 +429,55 @@ _emit_bcx:
 _emit_bcx_after:
 
 
+.globl _emit_bcx_jump_in_tb
+_emit_bcx_jump_in_tb:
+          adr x2, _emit_bcx_jump_in_tb_start
+          adr x3, _emit_bcx_jump_in_tb_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+       _emit_bcx_jump_in_tb_start:
+        ubfx w6, w0, #2, #1         // BO[2]
+        ldr  w7, [x15]              // CTR
+        cbnz w6, 1f
+        sub  w7, w7, #1
+        str  w7, [x15]
+1:      cmp  w7, #0
+        cset w8, ne                 // CTR != 0
+        ubfx w9, w0, #1, #1         // BO[3]
+        eor  w8, w8, w9
+        orr  w6, w6, w8             // ctr_ok
+
+        ldr  w10, [x5]              // CR
+        lsr  w10, w10, w1           // w1 = 31 - BI
+        and  w10, w10, #1           // CR[BI]
+        ubfx w9, w0, #3, #1         // BO[1]
+        eor  w10, w10, w9
+        eor  w10, w10, #1           // XNOR  ->  CR[BI] == BO[1]
+        ubfx w11, w0, #4, #1        // BO[0]
+        orr  w10, w10, w11          // cond_ok
+
+        cbz  w3, 2f
+        add  w9, w12, #4
+        str  w9, [x14]
+
+2:      cmp  w10, #0
+        ccmp w6, #0, #4, ne
+        b.eq 3f
+        cmp  w2, #1
+        b.ne 4f
+        str  w4, [x13]              // AA=1: NIA = EXTS(BD||00)
+        b    _emit_bcx_jump_in_tb_after
+4:      add  w9, w4, w12            // AA=0: NIA = CIA + EXTS(BD||00)
+        str  w9, [x13]
+        br x16
+3:      add  w9, w12, #4            // nicht genommen
+        str  w9, [x13]
+        br x16
+_emit_bcx_jump_in_tb_after:
+
+
+
 
 .globl _emit_crxor
 _emit_crxor:
@@ -551,7 +598,7 @@ _emit_addic:
           ret
         _emit_addic_start:
           ldr w3, [GUEST_REGISTER_POINTER, w0, uxtw 2] // w19 A reg
-          add w15, w3, w1
+          adds w15, w3, w2
           STORE_REGISTER w1, w15 
 _emit_addic_after:
 

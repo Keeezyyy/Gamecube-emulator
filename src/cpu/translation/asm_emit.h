@@ -48,6 +48,7 @@ extern void emit_addx(u32 **start, u32 **end);
 extern void emit_mfmsr(u32 **start, u32 **end);
 extern void emit_addic(u32 **start, u32 **end);
 extern void emit_addic_cr0(u32 **start, u32 **end);
+extern void emit_bcx_jump_in_tb(u32 **start, u32 **end);
 
 extern void set_xer_ca_from_w15(u32 **start, u32 **end);
 extern void set_xer_ov_from_w15(u32 **start, u32 **end);
