@@ -162,6 +162,31 @@ _emit_stw:
 
 
 
+.globl _emit_sth
+_emit_sth:
+          adr x2, _emit_sth_start
+          adr x3, _emit_sth_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_sth_start:
+        cbnz w1, _emit_sth_else
+        mov w4, 0
+        b _emit_sth_finaly
+
+        _emit_sth_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        
+        _emit_sth_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        and w1, w6, 0xffff
+
+        mov x7, 5
+        CALL_HELPER_FUNCTION w7
+        _emit_sth_after:
+
 // w0 rS_num
 // w1 rA_num
 // w2 d

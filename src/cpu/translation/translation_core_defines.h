@@ -47,6 +47,7 @@
 #define OPC_LWZ 32
 #define OPC_LBZU 35
 #define OPC_STW 36
+#define OPC_STH 44
 #define OPC_STBU 39
 #define OPC_STMW 47
 #define OPC_STWU 37
@@ -88,6 +89,8 @@
 #define OPC_EXTSBX_EXT 954
 #define OPC_EXTSHX_EXT 922
 #define OPC_CMPL_EXT 32
+#define OPC_DCBF_EXT 86
+#define OPC_ICBI_EXT 982
 #define OPC_SUBFX_EXT 40
 #define OPC_SUBFCX_EXT 8
 #define OPC_SUBFEX_EXT 136

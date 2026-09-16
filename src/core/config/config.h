@@ -69,4 +69,18 @@
 #define ALIGNOF(type) sizeof(type)
 #endif
 
+#define DEBUG
+
+#include <stdio.h>
+
+#if defined(DEBUG)
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)                                                                           \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
 #define UNUSED(x) ((void)(x))

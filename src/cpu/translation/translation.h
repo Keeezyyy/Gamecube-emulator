@@ -9,8 +9,17 @@
 #define TB_MAX_BYTES_PER_GUEST_INSTRUCTION 256
 #define TB_EPILOGUE_MAX_BYTES 32
 #define HOST_INSTRUCTION_RET 0xD65F03C0u
-#define TB_TRACE(...) printf(__VA_ARGS__)
+#define TB_TRACE(...) DEBUG_PRINT(__VA_ARGS__)
+
+#if defined(DEBUG)
 #define TB_TRACE_CODE(ptr, n_instrs) _print_code_block((ptr), (n_instrs))
+#else
+#define TB_TRACE_CODE(ptr, n_instrs)                                                               \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            _print_code_block((ptr), (n_instrs));                                                  \
+    } while (0)
+#endif
 
 #define SPR_XER 1
 #define SPR_LR 8

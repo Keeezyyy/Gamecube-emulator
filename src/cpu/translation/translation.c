@@ -55,7 +55,7 @@ static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hi
 void _empty(u32 pc)
 {
 
-    printf("run tb block for pc : 0x%08x\n", pc);
+    DEBUG_PRINT("run tb block for pc : 0x%08x\n", pc);
 }
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
@@ -87,7 +87,7 @@ int tb_finilize(TranslationBlock *tb)
 
     get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, buffer);
 
-    printf("added tb [0x%08x], with code adr : %p\n", tb->pc_at_start, tb->core.code);
+    DEBUG_PRINT("added tb [0x%08x], with code adr : %p\n", tb->pc_at_start, tb->core.code);
     zhash_set(t, buffer, tb);
     return 0;
 }
@@ -206,7 +206,7 @@ static inline void store_fp_regs(FPU *fpu)
 
 void run_tb(TranslationBlock *block, CPU *cpu)
 {
-    printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start, block->core.code);
+    DEBUG_PRINT("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start, block->core.code);
 
     assert(block->core.code != NULL);
 

@@ -13,7 +13,10 @@ static CPU cpu;
 
 static int _init(void)
 {
+
     init_bus(&b);
+
+    b.set_cpu_ptr(&b, &cpu);
     init_disc(&disc);
     if (disc.load_rom(&disc, "./roms/example.bin") != 0) {
         return 1;
@@ -27,6 +30,7 @@ static int _init(void)
     disc.print_header(&disc);
 
     init_cpu(&cpu, &disc, &b);
+
     return 0;
 }
 

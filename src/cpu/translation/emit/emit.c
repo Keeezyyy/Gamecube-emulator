@@ -18,7 +18,7 @@ static inline u32 a64_movk(u8 rd, u16 imm16, u8 shift)
 
 u32 *emit_load_u64(u32 *out, u8 rd, u64 v)
 {
-    printf("emit load 64 value : 0x%016llx\n", (unsigned long long)v);
+    DEBUG_PRINT("emit load 64 value : 0x%016llx\n", (unsigned long long)v);
     *out++ = a64_movz(rd, v & 0xFFFF, 0);
     for (u8 s = 1; s < 4; s++) {
         u16 chunk = (v >> (16 * s)) & 0xFFFF;
@@ -44,7 +44,7 @@ static inline u32 a64_movn_w(u8 rd, u16 imm16, u8 hw)
 u32 *emit_load_u32(u32 *out, u8 rd, u32 v)
 {
 
-    printf("v : 0x%08x\n", v);
+    DEBUG_PRINT("v : 0x%08x\n", v);
     const u16 lo = (u16)(v & 0xFFFF);
     const u16 hi = (u16)(v >> 16);
 

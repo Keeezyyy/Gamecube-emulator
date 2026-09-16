@@ -36,7 +36,7 @@ static void main_loop(CPU *self)
     // TODO: implement interrupt check and isr
     // while (!waiting_interrupt(self)) {
     while (true) {
-        // printf("cycle \n");
+        // DEBUG_PRINT("cycle \n");
 
         tb = tb_lookup(self, m);
         if (tb == NULL_PTR) {
@@ -84,58 +84,62 @@ static void print_cpu_state(CPU *self)
     const CpuRegisters *rg = &self->registers;
     const CpuSpecialPurposeRegisters *spr = &self->special_purpose_registers;
 
-    printf("================== CPU ==================\n");
-    printf("PC    = 0x%08X\n", st->pc);
-    printf("CR    = 0x%08X\n", st->cr);
-    printf("XER   = 0x%08X\n", st->xer);
-    printf("FPSCR = 0x%08X\n", st->fpscr);
-    printf("MSR   = 0x%08X\n", st->msr);
+    DEBUG_PRINT("================== CPU ==================\n");
+    DEBUG_PRINT("PC    = 0x%08X\n", st->pc);
+    DEBUG_PRINT("CR    = 0x%08X\n", st->cr);
+    DEBUG_PRINT("XER   = 0x%08X\n", st->xer);
+    DEBUG_PRINT("FPSCR = 0x%08X\n", st->fpscr);
+    DEBUG_PRINT("MSR   = 0x%08X\n", st->msr);
 
-    printf("\n------------------ GPR ------------------\n");
+    DEBUG_PRINT("\n------------------ GPR ------------------\n");
     for (u32 i = 0; i < 32; i++)
-        printf("r%-2u = 0x%08X%s", i, rg->gpio[i], (i % 4 == 3) ? "\n" : "  ");
+        DEBUG_PRINT("r%-2u = 0x%08X%s", i, rg->gpio[i], (i % 4 == 3) ? "\n" : "  ");
 
-    printf("\n------------------ SR -------------------\n");
+    DEBUG_PRINT("\n------------------ SR -------------------\n");
     for (u32 i = 0; i < 16; i++)
-        printf("sr%-2u = 0x%08X%s", i, rg->sr[i], (i % 4 == 3) ? "\n" : "  ");
+        DEBUG_PRINT("sr%-2u = 0x%08X%s", i, rg->sr[i], (i % 4 == 3) ? "\n" : "  ");
 
-    printf("\n------------------ SPR ------------------\n");
-    printf("LR   = 0x%08X   (spr8)\n", spr->lr);
-    printf("HID2 = 0x%08X   (spr920)\n", spr->hid2);
-    printf("IABR = 0x%08X   (spr1010)\n", spr->iabr);
-    printf("DABR = 0x%08X   (spr1013)\n", spr->dabr);
-    printf("=========================================\n");
+    DEBUG_PRINT("\n------------------ SPR ------------------\n");
+    DEBUG_PRINT("LR   = 0x%08X   (spr8)\n", spr->lr);
+    DEBUG_PRINT("HID2 = 0x%08X   (spr920)\n", spr->hid2);
+    DEBUG_PRINT("IABR = 0x%08X   (spr1010)\n", spr->iabr);
+    DEBUG_PRINT("DABR = 0x%08X   (spr1013)\n", spr->dabr);
+    DEBUG_PRINT("=========================================\n");
 }
 
 void _helper_write_word_to_bus(u32 adr, u32 val)
 {
-    // printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
+    // DEBUG_PRINT("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
 }
 static void _helper_write_byte_to_bus(u32 adr, u32 val)
 {
-    // printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
+    // DEBUG_PRINT("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
     static_cpu_ptr->bus->write_byte(static_cpu_ptr->bus, adr, val);
+}
+static void _helper_write_half_to_bus(u32 adr, u32 val)
+{
+    static_cpu_ptr->bus->write_half(static_cpu_ptr->bus, adr, val);
 }
 static u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = static_cpu_ptr->bus->read_word(static_cpu_ptr->bus, adr);
 
-    // printf("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
+    // DEBUG_PRINT("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
     return val;
 }
 static u64 _helper_read_double_word_from_bus(u32 adr)
 {
     u64 val = static_cpu_ptr->bus->read_dword(static_cpu_ptr->bus, adr);
 
-    // printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
+    // DEBUG_PRINT("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val;
 }
 static u32 _helper_read_byte(u32 adr)
 {
     const u8 val = static_cpu_ptr->bus->read_byte(static_cpu_ptr->bus, adr);
 
-    // printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
+    // DEBUG_PRINT("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val & 0xff;
 }
 
@@ -153,14 +157,17 @@ static void start(CPU *self)
     pthread_t main_thread;
     pthread_t background_thread;
 
-    pthread_create(main_thread, NULL, (void *)self->main, self);
-    pthread_join(main_thread, NULL);
-
-    pthread_create(background_thread, NULL, (void *)self->background, self);
-    pthread_join(background_thread, NULL);
-
-    while (true) {
+    // NOTE: pthread_create writes the new handle through the first argument, so it must be the
+    // address of the pthread_t, not its (uninitialized) value
+    if (pthread_create(&main_thread, NULL, (void *)self->main, self) != 0) {
+        abort();
     }
+    if (pthread_create(&background_thread, NULL, (void *)self->background, self) != 0) {
+        abort();
+    }
+
+    pthread_join(main_thread, NULL);
+    pthread_join(background_thread, NULL);
 }
 
 static const CPU CPU_TEMPLATE = {
@@ -183,6 +190,7 @@ static const CPU CPU_TEMPLATE = {
     .helper_functions[2] = (u64)&_helper_read_double_word_from_bus,
     .helper_functions[3] = (u64)&_helper_read_byte,
     .helper_functions[4] = (u64)&_helper_write_byte_to_bus,
+    .helper_functions[5] = (u64)&_helper_write_half_to_bus,
     //------------------------------------------------------------------------------------------
 };
 

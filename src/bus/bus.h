@@ -6,6 +6,8 @@
 
 #define ARG Bus *self
 typedef struct Bus Bus;
+// forward declaration, cpu_types.h includes bus.h
+typedef struct CPU CPU;
 
 struct Bus {
     // RAM 0x80000000 | 0xC0000000 ram is mirrored to these locations
@@ -14,15 +16,18 @@ struct Bus {
     void *ipl;
     size_t ipl_size;
 
+    CPU *cpu;
+
     int (*load_ipl)(Bus *self, char *ipl_location);
     void (*free)(Bus *self);
+    void (*set_cpu_ptr)(Bus *self, CPU *cpu);
     u32 (*read)(Bus *self, u32 adr);
     void (*write)(Bus *self, u32 adr, u32 val);
     void (*write_byte)(Bus *self, u32 adr, u32 val);
+    void (*write_half)(Bus *self, u32 adr, u32 val);
     u8 (*read_byte)(Bus *self, u32 adr);
     u32 (*read_word)(Bus *self, u32 adr);
     u64 (*read_dword)(Bus *self, u32 adr);
-
     u64 (*get_ram_location)(Bus *self);
 };
 
