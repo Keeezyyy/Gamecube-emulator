@@ -744,7 +744,32 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
-        if (_get_field(insn, 22, 30) == OPC_MULHW_EXT) {
+
+        if (_get_field(insn, 21, 30) == OPC_CMP_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 cfd = _get_field(insn, 6, 8);
+            const u32 L = _get_field(insn, 10, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            printf("[0x%08x] : cmpi  r%d, r%d\n", pc_buffer[pc_buffer_counter], regA, regB);
+
+            assert(L == 0);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, cfd);
+            curr_instruction = emit_load_u32(curr_instruction, 1, L);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 3, regB);
+            curr_instruction = emit_load_u64(curr_instruction, 4, (u64)&cpu->state.cr);
+            curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
+
+            const u32 *main_block, *main_block_end;
+            emit_cmp(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+            break;
         }
         printf("not implemented : %d\n", _get_field(insn, 21, 30));
         assert(!"not implemented guest instruction");

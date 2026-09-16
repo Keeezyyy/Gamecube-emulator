@@ -651,4 +651,41 @@ bclr_3:      add  w9, w12, #4            // nicht genommen
 _emit_bclr_after:
 
 
+.globl _emit_cmp
+_emit_cmp:
+          adr x2, _emit_cmp_start
+          adr x3, _emit_cmp_after
+          str x2, [x0]
+          str x3, [x1]
+          ret
+        _emit_cmp_start:
+          LOAD_REGISTER w2, w5          
+          LOAD_REGISTER w3, w15          
+          mov w3, w15
+          ldr  w9, [x4]                 
+
+          mov  w7, #28
+          sub  w7, w7, w0, lsl #2       
+
+          cmp  w5, w3                   
+          cset w10, lo                  
+          cset w11, hi                  
+          cset w12, eq                  
+
+          lsl  w6, w10, #3
+          orr  w6, w6, w11, lsl #2
+          orr  w6, w6, w12, lsl #1
+
+          ldr  w13, [x16]
+          lsr  w13, w13, #31
+          orr  w6, w6, w13              
+
+          mov  w8, #0xF
+          lsl  w8, w8, w7
+          lsl  w6, w6, w7
+          bic  w9, w9, w8               
+          orr  w9, w9, w6
+          str  w9, [x4]
+        _emit_cmp_after:
+
 

@@ -5,3 +5,4 @@
 #include "disc/disc.h"
 
 void init_cpu(CPU *self, Disc *disc, Bus *bus);
+void run_background(CPU *self);

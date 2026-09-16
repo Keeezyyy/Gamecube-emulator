@@ -38,6 +38,7 @@
 #define OPC_SYNC_EXT 598
 #define OPC_ORX_EXT 444
 #define OPC_NORX_EXT 124
+#define OPC_CMP_EXT 0
 #define OPC_LWZ 32
 #define OPC_STW 36
 #define OPC_STWU 37

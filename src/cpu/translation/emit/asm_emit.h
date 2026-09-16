@@ -18,6 +18,7 @@ extern void emit_bx(u32 **start, u32 **end);
 extern void emit_bcx(u32 **start, u32 **end);
 extern void emit_rlwinm(u32 **start, u32 **end);
 extern void emit_cpmli(u32 **start, u32 **end);
+extern void emit_cmp(u32 **start, u32 **end);
 extern void emit_crxor(u32 **start, u32 **end);
 extern void emit_blr(u32 **start, u32 **end);
 extern void emit_bclr(u32 **start, u32 **end);

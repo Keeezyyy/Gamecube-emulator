@@ -1,5 +1,5 @@
 #include "cpu/cpu.h"
-
+#include <pthread.h>
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation.h"
@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/_pthread/_pthread_t.h>
 static CPU *static_cpu_ptr;
 
 static void deconstruct_cpu(CPU *self)
@@ -135,11 +136,28 @@ static const FPU FPU_TEMPLATE = {
     .get_pse_bit = _fpu_get_sep_bit,
 };
 
+static void start(CPU *self)
+{
+    pthread_t main_thread;
+    pthread_t background_thread;
+
+    pthread_create(main_thread, NULL, (void *)self->main, self);
+    pthread_join(main_thread, NULL);
+
+    pthread_create(background_thread, NULL, (void *)self->background, self);
+    // pthread_join(background_thread, NULL);
+
+    while (true) {
+    }
+}
+
 static const CPU CPU_TEMPLATE = {
     .registers = {0},
     .state = {0},
     .free = &deconstruct_cpu,
     .main = &main_loop,
+    .start = &start,
+    .background = &run_background,
     .get_current_cpu_mode = &get_current_cpu_mode,
     .boot = &_boot,
     .print_state = &print_cpu_state,

@@ -69,6 +69,8 @@ struct CPU {
     FPU fpu;
 
     void (*main)(CPU *self);
+    void (*background)(CPU *self);
+    void (*start)(CPU *self);
     void (*boot)(CPU *self);
     void (*free)(CPU *self);
     void (*print_state)(CPU *self);

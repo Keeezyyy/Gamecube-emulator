@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 
     cpu.boot(&cpu);
 
-    cpu.main(&cpu);
+    cpu.start(&cpu);
 
     return 0;
 }
