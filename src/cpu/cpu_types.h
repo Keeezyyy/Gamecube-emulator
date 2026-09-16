@@ -58,8 +58,8 @@ typedef struct {
 } FPU;
 
 typedef struct {
-    u32 interrupt_mask_register;
-
+    // Upper 32 Bits are ignored
+    u64 interrupt_mask_register; //
 } CpuExcpetion;
 
 struct CPU {

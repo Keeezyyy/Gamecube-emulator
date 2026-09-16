@@ -21,14 +21,8 @@ struct Bus {
     int (*load_ipl)(Bus *self, char *ipl_location);
     void (*free)(Bus *self);
     void (*set_cpu_ptr)(Bus *self, CPU *cpu);
-    u32 (*read)(Bus *self, u32 adr);
-    void (*write)(Bus *self, u32 adr, u32 val);
-    void (*write_byte)(Bus *self, u32 adr, u32 val);
-    void (*write_half)(Bus *self, u32 adr, u32 val);
-    u8 (*read_byte)(Bus *self, u32 adr);
-    u32 (*read_word)(Bus *self, u32 adr);
-    u64 (*read_dword)(Bus *self, u32 adr);
-    u64 (*get_ram_location)(Bus *self);
+    u64 *(*read)(Bus *self, u32 adr);
+    u64 *(*write)(Bus *self, u32 adr);
 };
 
 void init_bus(Bus *self);

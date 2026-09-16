@@ -2943,7 +2943,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
         out = (u32 *)(cb.code + cb.size);
 
-        const u32 guest_instruction = cpu->bus->read(cpu->bus, pc);
+        const u32 guest_instruction =
+            __builtin_bswap32(*(u32 *)cpu->bus->read(cpu->bus, pc));
         if (guest_instruction == 0) {
             TB_TRACE("fetch fault at 0x%08x\n", pc);
             code_buffer_destroy(&cb);

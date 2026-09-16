@@ -107,39 +107,35 @@ static void print_cpu_state(CPU *self)
     DEBUG_PRINT("=========================================\n");
 }
 
-void _helper_write_word_to_bus(u32 adr, u32 val)
+static void _helper_write_word_to_bus(u32 adr, u32 val)
 {
-    // DEBUG_PRINT("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
-    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
+    *(u32 *)static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr) = __builtin_bswap32(val);
 }
 static void _helper_write_byte_to_bus(u32 adr, u32 val)
 {
-    // DEBUG_PRINT("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
-    static_cpu_ptr->bus->write_byte(static_cpu_ptr->bus, adr, val);
+
+    *(u8 *)static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr) = (u8)val;
 }
 static void _helper_write_half_to_bus(u32 adr, u32 val)
 {
-    static_cpu_ptr->bus->write_half(static_cpu_ptr->bus, adr, val);
+
+    *(u16 *)static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr) = __builtin_bswap16((u16)val);
 }
 static u32 _helper_read_word_from_bus(u32 adr)
 {
-    u32 val = static_cpu_ptr->bus->read_word(static_cpu_ptr->bus, adr);
-
-    // DEBUG_PRINT("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
+    u32 val = __builtin_bswap32(*((u32 *)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr)));
     return val;
 }
 static u64 _helper_read_double_word_from_bus(u32 adr)
 {
-    u64 val = static_cpu_ptr->bus->read_dword(static_cpu_ptr->bus, adr);
+    u64 val = __builtin_bswap64(*static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr));
 
-    // DEBUG_PRINT("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val;
 }
 static u32 _helper_read_byte(u32 adr)
 {
-    const u8 val = static_cpu_ptr->bus->read_byte(static_cpu_ptr->bus, adr);
+    u32 val = *((u8 *)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr));
 
-    // DEBUG_PRINT("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val & 0xff;
 }
 
