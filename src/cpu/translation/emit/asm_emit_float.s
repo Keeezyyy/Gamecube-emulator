@@ -128,3 +128,199 @@ _emit_copy_fpscr_to_cr1_start:
       orr w10, w10, w11
       str w10, [x15]
 _emit_copy_fpscr_to_cr1_after:
+
+
+.globl _emit_lfdu
+_emit_lfdu:
+          adr x22, _emit_lfdu_start
+          adr x23, _emit_lfdu_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_lfdu_start:
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x4
+        PUSH_64 x0
+        PUSH_64 x1
+        mov w2, 2
+        CALL_HELPER_FUNCTION w2
+        POP_64 x1
+        POP_64 x5
+        POP_64 x4
+        str x0, [x4]
+        STORE_REGISTER w1, w5
+        _emit_lfdu_after:
+
+
+.globl _emit_lfdx
+_emit_lfdx:
+          adr x22, _emit_lfdx_start
+          adr x23, _emit_lfdx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_lfdx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, lfdx_1
+        mov w0, 0
+        b lfdx_2
+lfdx_1:
+        LOAD_REGISTER w1, w0
+lfdx_2:
+        add w0, w0, w2
+        PUSH_64 x4
+        mov w2, 2
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        str x0, [x4]
+        _emit_lfdx_after:
+
+
+.globl _emit_lfdux
+_emit_lfdux:
+          adr x22, _emit_lfdux_start
+          adr x23, _emit_lfdux_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_lfdux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x4
+        PUSH_64 x0
+        PUSH_64 x1
+        mov w2, 2
+        CALL_HELPER_FUNCTION w2
+        POP_64 x1
+        POP_64 x5
+        POP_64 x4
+        str x0, [x4]
+        STORE_REGISTER w1, w5
+        _emit_lfdux_after:
+
+
+.globl _emit_stfdu
+_emit_stfdu:
+          adr x22, _emit_stfdu_start
+          adr x23, _emit_stfdu_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_stfdu_start:
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x1
+        PUSH_64 x0
+        PUSH_64 x4
+        lsr x1, x4, #32
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        POP_64 x0
+        PUSH_64 x0
+        add w0, w0, #4
+        mov w1, w4
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x0
+        POP_64 x1
+        STORE_REGISTER w1, w0
+        _emit_stfdu_after:
+
+
+.globl _emit_stfdx
+_emit_stfdx:
+          adr x22, _emit_stfdx_start
+          adr x23, _emit_stfdx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_stfdx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, stfdx_1
+        mov w0, 0
+        b stfdx_2
+stfdx_1:
+        LOAD_REGISTER w1, w0
+stfdx_2:
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x4
+        lsr x1, x4, #32
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        POP_64 x0
+        add w0, w0, #4
+        mov w1, w4
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        _emit_stfdx_after:
+
+
+.globl _emit_stfdux
+_emit_stfdux:
+          adr x22, _emit_stfdux_start
+          adr x23, _emit_stfdux_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_stfdux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x1
+        PUSH_64 x0
+        PUSH_64 x4
+        lsr x1, x4, #32
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        POP_64 x0
+        PUSH_64 x0
+        add w0, w0, #4
+        mov w1, w4
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x0
+        POP_64 x1
+        STORE_REGISTER w1, w0
+        _emit_stfdux_after:
+
+
+.globl _emit_fneg
+_emit_fneg:
+          adr x22, _emit_fneg_start
+          adr x23, _emit_fneg_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_fneg_start:
+        eor x9, x9, #0x8000000000000000
+        _emit_fneg_after:
+
+
+.globl _emit_fabs
+_emit_fabs:
+          adr x22, _emit_fabs_start
+          adr x23, _emit_fabs_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_fabs_start:
+        and x9, x9, #0x7fffffffffffffff
+        _emit_fabs_after:
+
+
+.globl _emit_fnabs
+_emit_fnabs:
+          adr x22, _emit_fnabs_start
+          adr x23, _emit_fnabs_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_fnabs_start:
+        orr x9, x9, #0x8000000000000000
+        _emit_fnabs_after:

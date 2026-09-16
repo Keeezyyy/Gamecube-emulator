@@ -788,3 +788,971 @@ stmw_3:
         _emit_stmw_after:
 
 
+
+
+.globl _emit_andx
+_emit_andx:
+          adr x2, _emit_andx_start
+          adr x3, _emit_andx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_andx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        and w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_andx_after:
+
+
+.globl _emit_andcx
+_emit_andcx:
+          adr x2, _emit_andcx_start
+          adr x3, _emit_andcx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_andcx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        bic w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_andcx_after:
+
+
+.globl _emit_orcx
+_emit_orcx:
+          adr x2, _emit_orcx_start
+          adr x3, _emit_orcx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_orcx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        orn w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_orcx_after:
+
+
+.globl _emit_xorx
+_emit_xorx:
+          adr x2, _emit_xorx_start
+          adr x3, _emit_xorx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_xorx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        eor w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_xorx_after:
+
+
+.globl _emit_nandx
+_emit_nandx:
+          adr x2, _emit_nandx_start
+          adr x3, _emit_nandx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_nandx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        and w15, w3, w4
+        mvn w15, w15
+        STORE_REGISTER w1, w15
+        _emit_nandx_after:
+
+
+.globl _emit_eqvx
+_emit_eqvx:
+          adr x2, _emit_eqvx_start
+          adr x3, _emit_eqvx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_eqvx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        eon w15, w3, w4
+        STORE_REGISTER w1, w15
+        _emit_eqvx_after:
+
+
+.globl _emit_slwx
+_emit_slwx:
+          adr x2, _emit_slwx_start
+          adr x3, _emit_slwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_slwx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        and x4, x4, #0x3f
+        lsl x15, x3, x4
+        STORE_REGISTER w1, w15
+        _emit_slwx_after:
+
+
+.globl _emit_srwx
+_emit_srwx:
+          adr x2, _emit_srwx_start
+          adr x3, _emit_srwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_srwx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        and x4, x4, #0x3f
+        lsr x15, x3, x4
+        STORE_REGISTER w1, w15
+        _emit_srwx_after:
+
+
+.globl _emit_srawx
+_emit_srawx:
+          adr x2, _emit_srawx_start
+          adr x3, _emit_srawx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_srawx_start:
+        LOAD_REGISTER w0, w3
+        LOAD_REGISTER w2, w4
+        sxtw x3, w3
+        and x4, x4, #0x3f
+        asr x15, x3, x4
+        lsl x6, x15, x4
+        cmp x6, x3
+        cset w8, ne
+        and w8, w8, w3, lsr #31
+        cmp w8, #1
+        STORE_REGISTER w1, w15
+        _emit_srawx_after:
+
+
+.globl _emit_srawix
+_emit_srawix:
+          adr x2, _emit_srawix_start
+          adr x3, _emit_srawix_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_srawix_start:
+        LOAD_REGISTER w0, w3
+        sxtw x3, w3
+        and x4, x2, #0x1f
+        asr x15, x3, x4
+        lsl x6, x15, x4
+        cmp x6, x3
+        cset w8, ne
+        and w8, w8, w3, lsr #31
+        cmp w8, #1
+        STORE_REGISTER w1, w15
+        _emit_srawix_after:
+
+
+.globl _emit_cntlzwx
+_emit_cntlzwx:
+          adr x2, _emit_cntlzwx_start
+          adr x3, _emit_cntlzwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_cntlzwx_start:
+        LOAD_REGISTER w0, w3
+        clz w15, w3
+        STORE_REGISTER w1, w15
+        _emit_cntlzwx_after:
+
+
+.globl _emit_extsbx
+_emit_extsbx:
+          adr x2, _emit_extsbx_start
+          adr x3, _emit_extsbx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_extsbx_start:
+        LOAD_REGISTER w0, w3
+        sxtb w15, w3
+        STORE_REGISTER w1, w15
+        _emit_extsbx_after:
+
+
+.globl _emit_extshx
+_emit_extshx:
+          adr x2, _emit_extshx_start
+          adr x3, _emit_extshx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_extshx_start:
+        LOAD_REGISTER w0, w3
+        sxth w15, w3
+        STORE_REGISTER w1, w15
+        _emit_extshx_after:
+
+
+.globl _emit_xori
+_emit_xori:
+          adr x2, _emit_xori_start
+          adr x3, _emit_xori_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_xori_start:
+        LOAD_REGISTER w0, w3
+        eor w15, w3, w2
+        STORE_REGISTER w1, w15
+        _emit_xori_after:
+
+
+.globl _emit_andi
+_emit_andi:
+          adr x2, _emit_andi_start
+          adr x3, _emit_andi_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_andi_start:
+        LOAD_REGISTER w0, w3
+        and w15, w3, w2
+        STORE_REGISTER w1, w15
+        _emit_andi_after:
+
+
+.globl _emit_subfx
+_emit_subfx:
+          adr x2, _emit_subfx_start
+          adr x3, _emit_subfx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_subfx_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        subs w15, w4, w3
+        STORE_REGISTER w0, w15
+        _emit_subfx_after:
+
+
+.globl _emit_subfex
+_emit_subfex:
+          adr x2, _emit_subfex_start
+          adr x3, _emit_subfex_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_subfex_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        ldr  w11, [x16]
+        lsr  w11, w11, #29
+        and w11, w11, 1
+        cmp w11, #1
+        sbcs w15, w4, w3
+        STORE_REGISTER w0, w15
+        _emit_subfex_after:
+
+
+.globl _emit_negx
+_emit_negx:
+          adr x2, _emit_negx_start
+          adr x3, _emit_negx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_negx_start:
+        LOAD_REGISTER w1, w3
+        negs w15, w3
+        STORE_REGISTER w0, w15
+        _emit_negx_after:
+
+
+.globl _emit_addzex
+_emit_addzex:
+          adr x2, _emit_addzex_start
+          adr x3, _emit_addzex_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_addzex_start:
+        LOAD_REGISTER w1, w3
+        ldr  w11, [x16]
+        lsr  w11, w11, #29
+        and w11, w11, 1
+        cmp w11, #1
+        adcs w15, w3, wzr
+        STORE_REGISTER w0, w15
+        _emit_addzex_after:
+
+
+.globl _emit_addmex
+_emit_addmex:
+          adr x2, _emit_addmex_start
+          adr x3, _emit_addmex_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_addmex_start:
+        LOAD_REGISTER w1, w3
+        ldr  w11, [x16]
+        lsr  w11, w11, #29
+        and w11, w11, 1
+        cmp w11, #1
+        mov w4, #-1
+        adcs w15, w3, w4
+        STORE_REGISTER w0, w15
+        _emit_addmex_after:
+
+
+.globl _emit_subfzex
+_emit_subfzex:
+          adr x2, _emit_subfzex_start
+          adr x3, _emit_subfzex_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_subfzex_start:
+        LOAD_REGISTER w1, w3
+        mvn w3, w3
+        ldr  w11, [x16]
+        lsr  w11, w11, #29
+        and w11, w11, 1
+        cmp w11, #1
+        adcs w15, w3, wzr
+        STORE_REGISTER w0, w15
+        _emit_subfzex_after:
+
+
+.globl _emit_subfmex
+_emit_subfmex:
+          adr x2, _emit_subfmex_start
+          adr x3, _emit_subfmex_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_subfmex_start:
+        LOAD_REGISTER w1, w3
+        mvn w3, w3
+        ldr  w11, [x16]
+        lsr  w11, w11, #29
+        and w11, w11, 1
+        cmp w11, #1
+        mov w4, #-1
+        adcs w15, w3, w4
+        STORE_REGISTER w0, w15
+        _emit_subfmex_after:
+
+
+.globl _emit_mullwx
+_emit_mullwx:
+          adr x2, _emit_mullwx_start
+          adr x3, _emit_mullwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_mullwx_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        smull x15, w3, w4
+        sxtw x9, w15
+        cmp x15, x9
+        cset w9, ne
+        mov w10, #0x7fffffff
+        adds w10, w10, w9
+        STORE_REGISTER w0, w15
+        _emit_mullwx_after:
+
+
+.globl _emit_mulhwx
+_emit_mulhwx:
+          adr x2, _emit_mulhwx_start
+          adr x3, _emit_mulhwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_mulhwx_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        smull x15, w3, w4
+        asr x15, x15, #32
+        STORE_REGISTER w0, w15
+        _emit_mulhwx_after:
+
+
+.globl _emit_mulhwux
+_emit_mulhwux:
+          adr x2, _emit_mulhwux_start
+          adr x3, _emit_mulhwux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_mulhwux_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        umull x15, w3, w4
+        lsr x15, x15, #32
+        STORE_REGISTER w0, w15
+        _emit_mulhwux_after:
+
+
+.globl _emit_divwx
+_emit_divwx:
+          adr x2, _emit_divwx_start
+          adr x3, _emit_divwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_divwx_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        sdiv w15, w3, w4
+        cmp w4, #0
+        cset w9, eq
+        mov w10, #0x80000000
+        cmp w3, w10
+        ccmn w4, #1, #0, eq
+        cset w11, eq
+        orr w9, w9, w11
+        mov w10, #0x7fffffff
+        adds w10, w10, w9
+        STORE_REGISTER w0, w15
+        _emit_divwx_after:
+
+
+.globl _emit_divwux
+_emit_divwux:
+          adr x2, _emit_divwux_start
+          adr x3, _emit_divwux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_divwux_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        udiv w15, w3, w4
+        cmp w4, #0
+        cset w9, eq
+        mov w10, #0x7fffffff
+        adds w10, w10, w9
+        STORE_REGISTER w0, w15
+        _emit_divwux_after:
+
+
+.globl _emit_subfic
+_emit_subfic:
+          adr x2, _emit_subfic_start
+          adr x3, _emit_subfic_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_subfic_start:
+        ldr w3, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        subs w15, w2, w3
+        STORE_REGISTER w1, w15
+        _emit_subfic_after:
+
+
+.globl _emit_mulli
+_emit_mulli:
+          adr x2, _emit_mulli_start
+          adr x3, _emit_mulli_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_mulli_start:
+        ldr w3, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mul w15, w3, w2
+        STORE_REGISTER w1, w15
+        _emit_mulli_after:
+
+
+.globl _emit_cmpl
+_emit_cmpl:
+          adr x2, _emit_cmpl_start
+          adr x3, _emit_cmpl_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_cmpl_start:
+        LOAD_REGISTER w2, w5
+        LOAD_REGISTER w3, w15
+        mov w3, w15
+        ldr  w9, [x4]
+        mov  w7, #28
+        sub  w7, w7, w0, lsl #2
+        cmp  w5, w3
+        cset w10, lo
+        cset w11, hi
+        cset w12, eq
+        lsl  w6, w10, #3
+        orr  w6, w6, w11, lsl #2
+        orr  w6, w6, w12, lsl #1
+        ldr  w13, [x16]
+        lsr  w13, w13, #31
+        orr  w6, w6, w13
+        mov  w8, #0xF
+        lsl  w8, w8, w7
+        lsl  w6, w6, w7
+        bic  w9, w9, w8
+        orr  w9, w9, w6
+        str  w9, [x4]
+        _emit_cmpl_after:
+
+
+.globl _emit_crand
+_emit_crand:
+          adr x2, _emit_crand_start
+          adr x3, _emit_crand_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_crand_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        and w5, w5, w6
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_crand_after:
+
+
+.globl _emit_crandc
+_emit_crandc:
+          adr x2, _emit_crandc_start
+          adr x3, _emit_crandc_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_crandc_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        bic w5, w5, w6
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_crandc_after:
+
+
+.globl _emit_creqv
+_emit_creqv:
+          adr x2, _emit_creqv_start
+          adr x3, _emit_creqv_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_creqv_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        eon w5, w5, w6
+        and w5, w5, 1
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_creqv_after:
+
+
+.globl _emit_crnand
+_emit_crnand:
+          adr x2, _emit_crnand_start
+          adr x3, _emit_crnand_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_crnand_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        and w5, w5, w6
+        mvn w5, w5
+        and w5, w5, 1
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_crnand_after:
+
+
+.globl _emit_crnor
+_emit_crnor:
+          adr x2, _emit_crnor_start
+          adr x3, _emit_crnor_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_crnor_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        orr w5, w5, w6
+        mvn w5, w5
+        and w5, w5, 1
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_crnor_after:
+
+
+.globl _emit_cror
+_emit_cror:
+          adr x2, _emit_cror_start
+          adr x3, _emit_cror_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_cror_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        orr w5, w5, w6
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_cror_after:
+
+
+.globl _emit_crorc
+_emit_crorc:
+          adr x2, _emit_crorc_start
+          adr x3, _emit_crorc_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_crorc_start:
+        ldr w4, [x3]
+        lsr w5, w4, w1
+        and w5, w5, 1
+        lsr w6, w4, w2
+        and w6, w6, 1
+        orn w5, w5, w6
+        and w5, w5, 1
+        lsl w5, w5, w0
+        mov  w7, #1
+        lsl  w7, w7, w0
+        bic  w4, w4, w7
+        orr w4, w4, w5
+        str w4, [x3]
+        _emit_crorc_after:
+
+
+.globl _emit_rlwnm
+_emit_rlwnm:
+          adr x2, _emit_rlwnm_start
+          adr x3, _emit_rlwnm_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_rlwnm_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w0, w6
+        neg  w7, w2
+        ror  w6, w6, w7
+        mov  w8,  #-1
+        lsr  w9,  w8, w3
+        mov  w10, #31
+        sub  w10, w10, w4
+        lsl  w10, w8, w10
+        cmp  w3, w4
+        and  w11, w9, w10
+        orr  w12, w9, w10
+        csel w9, w11, w12, le
+        and  w6, w6, w9
+        STORE_REGISTER w1, w6
+        _emit_rlwnm_after:
+
+
+.globl _emit_rlwimi
+_emit_rlwimi:
+          adr x2, _emit_rlwimi_start
+          adr x3, _emit_rlwimi_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_rlwimi_start:
+        LOAD_REGISTER w0, w6
+        neg  w7, w2
+        ror  w6, w6, w7
+        mov  w8,  #-1
+        lsr  w9,  w8, w3
+        mov  w10, #31
+        sub  w10, w10, w4
+        lsl  w10, w8, w10
+        cmp  w3, w4
+        and  w11, w9, w10
+        orr  w12, w9, w10
+        csel w9, w11, w12, le
+        and  w6, w6, w9
+        LOAD_REGISTER w1, w13
+        bic w13, w13, w9
+        orr w6, w6, w13
+        STORE_REGISTER w1, w6
+        _emit_rlwimi_after:
+
+
+.globl _emit_lwzu
+_emit_lwzu:
+          adr x2, _emit_lwzu_start
+          adr x3, _emit_lwzu_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lwzu_start:
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 1
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        mov w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lwzu_after:
+
+
+.globl _emit_lwzx
+_emit_lwzx:
+          adr x2, _emit_lwzx_start
+          adr x3, _emit_lwzx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lwzx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lwzx_else
+        mov w3, 0
+        b _emit_lwzx_finally
+        _emit_lwzx_else:
+        LOAD_REGISTER w1, w3
+        _emit_lwzx_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 1
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lwzx_after:
+
+
+.globl _emit_lwzux
+_emit_lwzux:
+          adr x2, _emit_lwzux_start
+          adr x3, _emit_lwzux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lwzux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 1
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        mov w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lwzux_after:
+
+
+.globl _emit_stwx
+_emit_stwx:
+          adr x2, _emit_stwx_start
+          adr x3, _emit_stwx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stwx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_stwx_else
+        mov w4, 0
+        b _emit_stwx_finaly
+        _emit_stwx_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        _emit_stwx_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        mov w1, w6
+        mov x7, 0
+        CALL_HELPER_FUNCTION w7
+        _emit_stwx_after:
+
+
+.globl _emit_stwux
+_emit_stwux:
+          adr x2, _emit_stwux_start
+          adr x3, _emit_stwux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stwux_start:
+        LOAD_REGISTER w2, w2
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w8, w1
+        mov w0, w5
+        mov w1, w6
+        mov w7, 0
+        PUSH_32 w5
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w7
+        POP_32 w8
+        POP_32 w5
+        str w5, [GUEST_REGISTER_POINTER, w8, uxtw 2]
+        _emit_stwux_after:
+
+
+.globl _emit_lmw
+_emit_lmw:
+          adr x2, _emit_lmw_start
+          adr x3, _emit_lmw_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lmw_start:
+        cbnz w1, lmw_1
+        mov w5, 0
+        b lmw_2
+lmw_1:
+        LOAD_REGISTER w1, w5
+lmw_2:
+        add w6, w5, w2
+
+        mov w5, w0
+lmw_3:
+        cmp w5, 31
+        b.gt _emit_lmw_after
+
+        PUSH_32 w5
+        PUSH_32 w6
+        mov w0, w6
+        mov w2, 1
+        CALL_HELPER_FUNCTION w2
+        mov w1, w0
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w1
+        add w5, w5, 1
+        add w6, w6, 4
+        b lmw_3
+
+        _emit_lmw_after:
+
+
+.globl _emit_bcctr
+_emit_bcctr:
+          adr x2, _emit_bcctr_start
+          adr x3, _emit_bcctr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_bcctr_start:
+        ldr  w10, [x5]
+        lsr  w10, w10, w1
+        and  w10, w10, #1
+        ubfx w9, w0, #3, #1
+        eor  w10, w10, w9
+        eor  w10, w10, #1
+        ubfx w11, w0, #4, #1
+        orr  w10, w10, w11
+        ldr  w9, [x15]
+        cbz  w3, bcctr_4
+        add  w11, w12, #4
+        str  w11, [x14]
+bcctr_4:
+        cbz  w10, bcctr_3
+        bic  w9, w9, #3
+        str  w9, [x13]
+        ret
+bcctr_3:
+        add  w9, w12, #4
+        str  w9, [x13]
+        ret
+        _emit_bcctr_after:
+
+
+.globl _emit_mfsrin
+_emit_mfsrin:
+          adr x2, _emit_mfsrin_start
+          adr x3, _emit_mfsrin_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_mfsrin_start:
+        LOAD_REGISTER w2, w2
+        lsr w2, w2, #28
+        ldr w3, [x1, w2, uxtw 2]
+        str w3, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        _emit_mfsrin_after:
+
+
+.globl _emit_mtsrin
+_emit_mtsrin:
+          adr x2, _emit_mtsrin_start
+          adr x3, _emit_mtsrin_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_mtsrin_start:
+        LOAD_REGISTER w2, w2
+        lsr w2, w2, #28
+        LOAD_REGISTER w0, w4
+        str w4, [x1, w2, uxtw 2]
+        _emit_mtsrin_after:

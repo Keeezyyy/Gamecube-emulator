@@ -10,6 +10,8 @@
 #define OPC_STMW 47
 #define OPC_LFD 50
 
+#define OPC_PS_NEG 4
+
 #define OPC_CMPLI 10
 #define OPC_CMPI 11
 #define OPC_ADDIC 12
@@ -49,6 +51,67 @@
 #define OPC_STFD 54
 #define OPC_FMR 63
 #define OPC_FMR_EXT 72
+#define OPC_MULLI 7
+#define OPC_SUBFIC 8
+#define OPC_RLWIMI 20
+#define OPC_RLWNM 23
+#define OPC_XORI 26
+#define OPC_XORIS 27
+#define OPC_ANDI 28
+#define OPC_ANDIS 29
+#define OPC_LWZU 33
+#define OPC_LMW 46
+#define OPC_LFDU 51
+#define OPC_STFDU 55
+#define OPC_BCCTR_EXT 528
+#define OPC_CRAND_EXT 257
+#define OPC_CRANDC_EXT 129
+#define OPC_CREQV_EXT 289
+#define OPC_CRNAND_EXT 225
+#define OPC_CRNOR_EXT 33
+#define OPC_CROR_EXT 449
+#define OPC_CRORC_EXT 417
+#define OPC_ANDX_EXT 28
+#define OPC_ANDCX_EXT 60
+#define OPC_ORCX_EXT 412
+#define OPC_XORX_EXT 316
+#define OPC_NANDX_EXT 476
+#define OPC_EQVX_EXT 284
+#define OPC_SLWX_EXT 24
+#define OPC_SRWX_EXT 536
+#define OPC_SRAWX_EXT 792
+#define OPC_SRAWIX_EXT 824
+#define OPC_CNTLZWX_EXT 26
+#define OPC_EXTSBX_EXT 954
+#define OPC_EXTSHX_EXT 922
+#define OPC_CMPL_EXT 32
+#define OPC_SUBFX_EXT 40
+#define OPC_SUBFCX_EXT 8
+#define OPC_SUBFEX_EXT 136
+#define OPC_MULLWX_EXT 235
+#define OPC_DIVWX_EXT 491
+#define OPC_DIVWUX_EXT 459
+#define OPC_MULHWUX_EXT 11
+#define OPC_NEGX_EXT 104
+#define OPC_ADDZEX_EXT 202
+#define OPC_ADDMEX_EXT 234
+#define OPC_SUBFZEX_EXT 200
+#define OPC_SUBFMEX_EXT 232
+#define OPC_LWZX_EXT 23
+#define OPC_LWZUX_EXT 55
+#define OPC_STWX_EXT 151
+#define OPC_STWUX_EXT 183
+#define OPC_LFDX_EXT 599
+#define OPC_LFDUX_EXT 631
+#define OPC_STFDX_EXT 727
+#define OPC_STFDUX_EXT 759
+#define OPC_MFSR_EXT 595
+#define OPC_MTSR_EXT 210
+#define OPC_MFSRIN_EXT 659
+#define OPC_MTSRIN_EXT 242
+#define OPC_FNEG_EXT 40
+#define OPC_FABS_EXT 264
+#define OPC_FNABS_EXT 136
 
 #define _CAT(a, b) a##b
 #define CAT(a, b) _CAT(a, b)
