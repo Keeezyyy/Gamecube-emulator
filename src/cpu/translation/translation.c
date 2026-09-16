@@ -92,13 +92,48 @@ int tb_finilize(TranslationBlock *tb)
     return 0;
 }
 
+static inline void push_fp_regs(void)
+{
+    __asm__ volatile("sub sp, sp, #128\n"
+                     "str q8,  [sp, #0]\n"
+                     "str q9,  [sp, #16]\n"
+                     "str q10, [sp, #32]\n"
+                     "str q11, [sp, #48]\n"
+                     "str q12, [sp, #64]\n"
+                     "str q13, [sp, #80]\n"
+                     "str q14, [sp, #96]\n"
+                     "str q15, [sp, #112]\n" ::
+                         : "memory");
+}
+static inline void pop_fp_regs(void)
+{
+    __asm__ volatile("ldr q8,  [sp, #0]\n"
+                     "ldr q9,  [sp, #16]\n"
+                     "ldr q10, [sp, #32]\n"
+                     "ldr q11, [sp, #48]\n"
+                     "ldr q12, [sp, #64]\n"
+                     "ldr q13, [sp, #80]\n"
+                     "ldr q14, [sp, #96]\n"
+                     "ldr q15, [sp, #112]\n"
+                     "add sp, sp, #128\n" ::
+                         : "memory");
+}
+
 void run_tb(TranslationBlock *block)
 {
     printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start, block->core.code);
 
     assert(block->core.code != NULL);
 
+    if (block->type & TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS) {
+        push_fp_regs();
+    }
+
     void (*code)(void);
     *(uintptr_t *)&code = (uintptr_t)block->core.code;
     code();
+
+    if (block->type & TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS) {
+        pop_fp_regs();
+    }
 }

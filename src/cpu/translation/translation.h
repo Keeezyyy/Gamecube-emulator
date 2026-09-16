@@ -20,14 +20,20 @@
     write_buffer_impl((buffer), (const struct block[]){__VA_ARGS__},                               \
                       sizeof((const struct block[]){__VA_ARGS__}) / sizeof(struct block))
 
+typedef u32 FPRUsageBitmap;
+
 typedef struct {
     const void *code;
     size_t size;
 } TranslationBlockCore;
 
+#define TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS 1
+
 typedef struct {
 
     TranslationBlockCore core;
+
+    u8 type;
 
     u32 pc_at_start;
     u32 msr_at_start;

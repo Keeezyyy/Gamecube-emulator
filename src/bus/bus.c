@@ -103,7 +103,19 @@ static void _write_word(Bus *self, u32 adr, u32 val)
     assert(!"bus write error");
     abort();
 }
+static u64 _read_double_word(Bus *self, u32 adr)
+{
+    if (in_ipl(self, adr))
+        return __builtin_bswap64(*((u64 *)self->ipl + (adr - IPL_BASE)));
 
+    const u32 off = ram_offset(adr);
+    if (off != RAM_OFFSET_INVALID)
+        return __builtin_bswap64(*((const u64 *)self->ram + off));
+
+    printf("[BUS] unmapped read from 0x%08x\n", adr);
+    assert(!"mem map adr not implemented");
+    return 0;
+}
 static u32 _read_word(Bus *self, u32 adr)
 {
     if (in_ipl(self, adr))
@@ -125,6 +137,7 @@ static const Bus BUS_TEMPLATE = {
     .read = &_read_word,
     .write = &_write_word,
     .read_word = &_read_word,
+    .read_dword = &_read_double_word,
 };
 
 void init_bus(Bus *self)

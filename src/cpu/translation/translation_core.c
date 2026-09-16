@@ -1,7 +1,7 @@
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
-#include "cpu/translation/asm_emit.h"
-#include "cpu/translation/emit.h"
+#include "cpu/translation/emit/asm_emit.h"
+#include "cpu/translation/emit/emit.h"
 #include "translation.h"
 #include "translation_core_defines.h"
 #include <_abort.h>
@@ -124,7 +124,7 @@ static bool is_pc_in_current_tb(u32 *pc_buffer, u32 current_pc_index, u32 dest_p
 
 static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction, u32 *pc_buffer,
                                    u32 **host_block_buffer, u32 pc_buffer_counter, u32 *code_buffer,
-                                   u8 *termination_type)
+                                   u8 *termination_type, u8 *tb_type, FPRUsageBitmap *fpr_bitmap)
 {
 
     u32 host_instruction_counter = 0;
@@ -134,6 +134,57 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
     // NOTE: the after_instruction_pc must be set in every case
     switch (op) {
+    case OPC_LFD: {
+        // FLOATING POINT OPERATION
+
+        *tb_type |= TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS;
+        switch (op) {
+        case OPC_LFD: {
+            u32 *curr_instruction = code_buffer;
+            const u32 fD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const i32 d = _sign_extend(_get_field(insn, 16, 31), 31 - 16);
+
+            printf("[0x%08x] : lfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA, d);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, fD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+            const u32 *main_block, *main_block_end;
+            emit_lfd(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            curr_instruction = emit_fmov_into_gpr_64(curr_instruction, 0, fD);
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+            break;
+        }
+        case OPC_FMR: {
+            if (_get_field(insn, 21, 30) == OPC_FMR_EXT) {
+                if (cpu->fpu.get_pse_bit(cpu) == 1) {
+                    /*When HID2[PSE] = 1 and the content in frB is a double-precision floating point
+                      operand, then the operand is copied to frD. When HID2[PSE] = 1 and the content
+                      of frB contains a paired-single floating-point operand, the frB[ps0] is copied
+                      to frD[ps0] and the content of frD[ps1] is unchanged.
+                      */
+
+                } else {
+                    // regular move
+                }
+
+            } else {
+                assert(!"not implemented floating point");
+            }
+        }
+        default:
+            assert(!"not implemented floating point");
+        }
+
+        assert(!"error in fpo");
+    }
     case OPC_ADDI: {
 
         printf("[0x%08x] : addi r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
@@ -862,6 +913,12 @@ static u32 *emit_prologue(u32 *out, const CPU *cpu)
     return out;
 }
 
+static u32 *emit_nop(u32 *out)
+{
+    out[0] = 0xD503201F;
+    return &out[1];
+}
+
 // TODO: add variable sizing for the code blocks
 bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 {
@@ -874,7 +931,15 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
         return false;
     }
 
-    u32 *out = emit_prologue((u32 *)cb.code, cpu);
+    u32 *out = (u32 *)cb.code;
+
+    // for init calls in the future
+    out = emit_nop(out);
+    out = emit_nop(out);
+    out = emit_nop(out);
+
+    out = emit_prologue(out, cpu);
+
     cb.size = (u32)((u8 *)out - cb.code);
 
     u32 pc_buffer[MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK];
@@ -883,6 +948,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
     u32 pc = cpu->state.pc;
     u8 termination_type = 0;
+
+    FPRUsageBitmap fpr_bitmap = 0;
 
     while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
 
@@ -906,7 +973,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
         u32 *block_start = out;
         out = _translate_instruction(guest_instruction, cpu, &pc, pc_buffer, host_block_buffer,
-                                     pc_count, out, &termination_type);
+                                     pc_count, out, &termination_type, &out_tb->type, &fpr_bitmap);
         pc_count += 1;
 
         printf("code size : %llu\n", (u64)((u8 *)out - (u8 *)block_start));
@@ -932,6 +999,26 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     if (!code_buffer_make_executable(&cb)) {
         code_buffer_destroy(&cb);
         return false;
+    }
+
+    if (out_tb->type & TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS) {
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
+        // TODO: push floating point init function call into nop slot
     }
 
     TB_TRACE_CODE((u32 *)cb.code, (cb.size / 4) + 0xa000);

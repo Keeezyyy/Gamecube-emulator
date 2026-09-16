@@ -111,11 +111,18 @@ void _helper_write_word_to_bus(u32 adr, u32 val)
     // printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
 }
-u32 _helper_read_word_from_bus(u32 adr)
+static u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = static_cpu_ptr->bus->read_word(static_cpu_ptr->bus, adr);
 
     printf("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
+    return val;
+}
+static u64 _helper_read_double_word_from_bus(u32 adr)
+{
+    u64 val = static_cpu_ptr->bus->read_dword(static_cpu_ptr->bus, adr);
+
+    printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val;
 }
 
@@ -139,6 +146,7 @@ static const CPU CPU_TEMPLATE = {
     .fpu = FPU_TEMPLATE,
     .helper_functions[0] = (u64)&_helper_write_word_to_bus,
     .helper_functions[1] = (u64)&_helper_read_word_from_bus,
+    .helper_functions[2] = (u64)&_helper_read_double_word_from_bus,
 };
 
 void init_cpu(CPU *self, Disc *disc, Bus *bus)

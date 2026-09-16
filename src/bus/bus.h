@@ -19,6 +19,7 @@ struct Bus {
     u32 (*read)(Bus *self, u32 adr);
     void (*write)(Bus *self, u32 adr, u32 val);
     u32 (*read_word)(Bus *self, u32 adr);
+    u64 (*read_dword)(Bus *self, u32 adr);
 
     u64 (*get_ram_location)(Bus *self);
 };
