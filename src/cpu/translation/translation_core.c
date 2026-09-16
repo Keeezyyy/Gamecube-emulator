@@ -579,12 +579,19 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
-        if (_get_field(insn, 21, 30) == OPC_MFSPR_EXT) {
+        if (_get_field(insn, 21, 30) == OPC_MFSPR_EXT || _get_field(insn, 21, 30) == OPC_MFTB_EXT) {
             const u32 lo = _get_field(insn, 11, 15);
             const u32 hi = _get_field(insn, 16, 20);
             const u32 spr = (hi << 5) | lo;
-            printf("[0x%08x] : mfspr r%d, spr%d\n", pc_buffer[pc_buffer_counter],
-                   _get_field(insn, 6, 10), spr);
+
+            if (_get_field(insn, 21, 30) == OPC_MFSPR_EXT) {
+                printf("[0x%08x] : mfspr r%d, spr%d\n", pc_buffer[pc_buffer_counter],
+                       _get_field(insn, 6, 10), spr);
+            } else {
+                printf("[0x%08x] : mftb r%d, spr%d\n", pc_buffer[pc_buffer_counter],
+                       _get_field(insn, 6, 10), spr);
+                assert(spr == 268 || spr == 269);
+            }
 
             const u8 regD = _get_field(insn, 6, 10);
 
@@ -907,6 +914,32 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         } else {
             abort();
         }
+    }
+    case OPC_CMPI: {
+        u32 *curr_instruction = code_buffer;
+        const u32 cfd = _get_field(insn, 6, 8);
+        const u32 L = _get_field(insn, 10, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i32 simm = _sign_extend(_get_field(insn, 16, 31), 16);
+        printf("[0x%08x] : cmpi  r%d, %d\n", pc_buffer[pc_buffer_counter], regA, simm);
+
+        assert(L == 0);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, cfd);
+        curr_instruction = emit_load_u32(curr_instruction, 1, L);
+        curr_instruction = emit_load_u32(curr_instruction, 2, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 3, simm);
+        curr_instruction = emit_load_u64(curr_instruction, 4, (u64)&cpu->state.cr);
+        curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
+
+        const u32 *main_block, *main_block_end;
+        emit_cpmli(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
     }
     default:
 

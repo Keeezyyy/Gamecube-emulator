@@ -1,4 +1,5 @@
 #include "bus.h"
+#include "bus/interfaces/pi.h"
 #include "core/config/config.h"
 #include <_abort.h>
 #include <assert.h>
@@ -111,6 +112,9 @@ static u32 _read_word(Bus *self, u32 adr)
     const u32 off = ram_offset(adr);
     if (off != RAM_OFFSET_INVALID)
         return be32_load((const u8 *)self->ram + off);
+    if (adr >= 0xCC003000 && adr < 0xCC004000) {
+        return pi_read(adr);
+    }
 
     printf("[BUS] unmapped read from 0x%08x\n", adr);
     assert(!"mem map adr not implemented");

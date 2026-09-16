@@ -11,6 +11,7 @@
 #define OPC_LFD 50
 
 #define OPC_CMPLI 10
+#define OPC_CMPI 11
 #define OPC_ADDIC 12
 #define OPC_ADDIC_CR0 13
 #define OPC_ADDI 14
@@ -32,6 +33,7 @@
 #define OPC_MULHW_EXT 75
 #define OPC_ADDX_EXT 266
 #define OPC_MFSPR_EXT 339
+#define OPC_MFTB_EXT 371
 #define OPC_MTSPR_EXT 467
 #define OPC_SYNC_EXT 598
 #define OPC_ORX_EXT 444
