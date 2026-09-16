@@ -41,7 +41,7 @@
 #define OPC_STWU 37
 #define OPC_LFD 50
 #define OPC_STFD 54
-#define OPC_FMR 64
+#define OPC_FMR 63
 #define OPC_FMR_EXT 72
 
 #define _CAT(a, b) a##b

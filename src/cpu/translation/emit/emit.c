@@ -118,3 +118,24 @@ u32 *emit_fmov_into_gpr_64(u32 *out, u8 rd, u8 fn)
     *out++ = a64_fmov_x_from_d(rd, fn);
     return out;
 }
+static inline u32 a64_ins_d0_from_d0(u8 dd, u8 dn)
+{
+    return 0x6E080400u | ((u32)(dn & 31) << 5) | (dd & 31);
+}
+
+static inline u32 a64_ins_d0_from_x(u8 dd, u8 xn)
+{
+    return 0x4E081C00u | ((u32)(xn & 31) << 5) | (dd & 31);
+}
+
+u32 *emit_set_ps0_from_float(u32 *out, u8 fd, u8 fn)
+{
+    *out++ = a64_ins_d0_from_d0(fd, fn);
+    return out;
+}
+
+u32 *emit_set_ps0_from_gpr(u32 *out, u8 fd, u8 rn)
+{
+    *out++ = a64_ins_d0_from_x(fd, rn);
+    return out;
+}

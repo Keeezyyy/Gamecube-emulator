@@ -42,20 +42,20 @@ typedef union {
 } CpuSpecialPurposeRegisters;
 
 typedef struct CPU CPU;
-typedef struct FPU FPU;
 
 enum FPRPrecision {
     FPR_PRECISION_DOUBLE = 0,
     FPR_PRECISION_SINGLE = 1,
 };
 
-struct FPU {
+typedef struct {
     u8 (*get_pse_bit)(CPU *self);
 
-    enum FPRPrecision fpr_precision_table[32];
-
+    // ps0 - bei HID2[PSE] = 0 der gewoehnliche FPR-Inhalt
     double fpr[32];
-};
+    // ps1 - wie beim Gekko intern als double abgelegt, nicht als single
+    double ps1[32];
+} FPU;
 
 struct CPU {
     CpuState state;

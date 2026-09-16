@@ -64,7 +64,7 @@ static void main_loop(CPU *self)
         }
 
         self->print_state(self);
-        run_tb(tb);
+        run_tb(tb, self);
         self->print_state(self);
     }
 }
@@ -115,20 +115,20 @@ static u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = static_cpu_ptr->bus->read_word(static_cpu_ptr->bus, adr);
 
-    printf("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
+    // printf("[READ] : reading 0x%08x , from : 0x%08x\n", val, adr);
     return val;
 }
 static u64 _helper_read_double_word_from_bus(u32 adr)
 {
     u64 val = static_cpu_ptr->bus->read_dword(static_cpu_ptr->bus, adr);
 
-    printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
+    // printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val;
 }
 
 static u8 _fpu_get_sep_bit(CPU *self)
 {
-    return (self->special_purpose_registers.hid2 >> 2) & 1;
+    return (self->special_purpose_registers.hid2 >> 31 - 2) & 1;
 }
 
 static const FPU FPU_TEMPLATE = {
@@ -144,9 +144,14 @@ static const CPU CPU_TEMPLATE = {
     .boot = &_boot,
     .print_state = &print_cpu_state,
     .fpu = FPU_TEMPLATE,
+
+    // NOTE: no libc functions !!!
+    // NOTE if usage of lib functions in debug push and pop float regs
+    //------------------------------------------------------------------------------------------
     .helper_functions[0] = (u64)&_helper_write_word_to_bus,
     .helper_functions[1] = (u64)&_helper_read_word_from_bus,
     .helper_functions[2] = (u64)&_helper_read_double_word_from_bus,
+    //------------------------------------------------------------------------------------------
 };
 
 void init_cpu(CPU *self, Disc *disc, Bus *bus)

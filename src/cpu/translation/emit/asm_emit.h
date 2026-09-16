@@ -3,6 +3,7 @@
 extern void set_xer_ca_from_w15(u32 **start, u32 **end);
 extern void set_xer_ov_from_w15(u32 **start, u32 **end);
 extern void emit_rlwinm_cr0_set(u32 **start, u32 **end);
+extern void copy_fpscr_to_cr1(u32 **start, u32 **end);
 
 extern void emit_addi(u32 **start, u32 **end);
 extern void emit_ori(u32 **start, u32 **end);

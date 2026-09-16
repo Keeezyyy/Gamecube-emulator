@@ -18,3 +18,6 @@ u32 *emit_store_u32_indexed(u32 *out, u8 rt, u8 rn, u8 rm, a64_extend ext, u8 sh
 
 u32 *emit_fmov_into_float_64(u32 *out, u8 fd, u8 rn);
 u32 *emit_fmov_into_gpr_64(u32 *out, u8 rd, u8 fn);
+
+u32 *emit_set_ps0_from_float(u32 *out, u8 fd, u8 fn);
+u32 *emit_set_ps0_from_gpr(u32 *out, u8 fd, u8 rn);

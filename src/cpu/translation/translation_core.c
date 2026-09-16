@@ -102,8 +102,10 @@ static u32 *write_buffer_impl(u32 *buffer, const struct block *blocks, size_t n)
 {
     u8 *out = (u8 *)buffer;
     for (size_t i = 0; i < n; i++) {
+
         if (!blocks[i].start || !blocks[i].end)
             continue;
+        assert(blocks[i].start <= blocks[i].end);
         size_t len = (const u8 *)blocks[i].end - (const u8 *)blocks[i].start;
         memcpy(out, blocks[i].start, len);
         out += len;
@@ -121,6 +123,10 @@ static bool is_pc_in_current_tb(u32 *pc_buffer, u32 current_pc_index, u32 dest_p
     }
     return false;
 }
+void special()
+{
+    printf("b");
+}
 
 static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction, u32 *pc_buffer,
                                    u32 **host_block_buffer, u32 pc_buffer_counter, u32 *code_buffer,
@@ -134,7 +140,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
     // NOTE: the after_instruction_pc must be set in every case
     switch (op) {
-    case OPC_LFD: {
+    case OPC_LFD:
+    case OPC_FMR: {
         // FLOATING POINT OPERATION
 
         *tb_type |= TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS;
@@ -143,19 +150,20 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             u32 *curr_instruction = code_buffer;
             const u32 fD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
-            const i32 d = _sign_extend(_get_field(insn, 16, 31), 31 - 16);
+            const i32 d = _sign_extend(_get_field(insn, 16, 31), 16);
 
-            printf("[0x%08x] : lfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA, d);
+            printf("[0x%08x] : lfd f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA, d);
 
-            curr_instruction = emit_load_u32(curr_instruction, 0, fD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
-            curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+            curr_instruction = emit_load_u32(curr_instruction, 2, (u32)d);
+            curr_instruction = emit_load_u64(curr_instruction, 4, (u64)&cpu->fpu.fpr[fD]);
 
             const u32 *main_block, *main_block_end;
             emit_lfd(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
-            curr_instruction = emit_fmov_into_gpr_64(curr_instruction, 0, fD);
+            // lfd setzt nur ps0, ps1 bleibt stehen
+            curr_instruction = emit_set_ps0_from_gpr(curr_instruction, fD, 0);
 
             *pc_after_instruction += 4;
 
@@ -164,16 +172,28 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         }
         case OPC_FMR: {
             if (_get_field(insn, 21, 30) == OPC_FMR_EXT) {
-                if (cpu->fpu.get_pse_bit(cpu) == 1) {
-                    /*When HID2[PSE] = 1 and the content in frB is a double-precision floating point
-                      operand, then the operand is copied to frD. When HID2[PSE] = 1 and the content
-                      of frB contains a paired-single floating-point operand, the frB[ps0] is copied
-                      to frD[ps0] and the content of frD[ps1] is unchanged.
-                      */
 
-                } else {
-                    // regular move
+                const u32 d = _get_field(insn, 6, 10);
+                const u32 b = _get_field(insn, 16, 20);
+                const u32 rc = _get_field(insn, 31, 31);
+
+                printf("[0x%08x] : fmr%s f%d, f%d\n", pc_buffer[pc_buffer_counter], rc ? "." : "",
+                       d, b);
+
+                u32 *curr = code_buffer;
+                curr = emit_set_ps0_from_float(curr, d, b);
+
+                if (rc == 1) {
+                    curr = emit_load_u64(curr, 15, (u64)&cpu->state.cr);
+                    curr = emit_load_u64(curr, 16, (u64)&cpu->state.fpscr);
+
+                    u32 *blk, *blk_end;
+                    copy_fpscr_to_cr1(&blk, &blk_end);
+                    curr = write_to_buffer(curr, {blk, blk_end});
                 }
+
+                *pc_after_instruction += 4;
+                return curr;
 
             } else {
                 assert(!"not implemented floating point");
@@ -949,6 +969,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     u32 pc = cpu->state.pc;
     u8 termination_type = 0;
 
+    // for future optimization
+    //(only load required registers)
     FPRUsageBitmap fpr_bitmap = 0;
 
     while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
@@ -1001,26 +1023,6 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
         return false;
     }
 
-    if (out_tb->type & TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS) {
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-        // TODO: push floating point init function call into nop slot
-    }
-
     TB_TRACE_CODE((u32 *)cb.code, (cb.size / 4) + 0xa000);
 
     printf("adr of ret : 0x%016llx\n", ((u64)out) - 4);
@@ -1034,6 +1036,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
         .pc_at_start = pc_at_start,
         .msr_at_start = cpu->state.msr,
         .hid2_at_start = cpu->special_purpose_registers.hid2,
+        .type = out_tb->type,
     };
     return true;
 }
