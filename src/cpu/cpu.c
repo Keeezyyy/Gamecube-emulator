@@ -145,7 +145,7 @@ static void start(CPU *self)
     pthread_join(main_thread, NULL);
 
     pthread_create(background_thread, NULL, (void *)self->background, self);
-    // pthread_join(background_thread, NULL);
+    pthread_join(background_thread, NULL);
 
     while (true) {
     }

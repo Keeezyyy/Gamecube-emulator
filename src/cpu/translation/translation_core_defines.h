@@ -39,8 +39,11 @@
 #define OPC_ORX_EXT 444
 #define OPC_NORX_EXT 124
 #define OPC_CMP_EXT 0
+#define OPC_ADDCX_EXT 10
+#define OPC_ADDEX_EXT 138
 #define OPC_LWZ 32
 #define OPC_STW 36
+#define OPC_STMW 47
 #define OPC_STWU 37
 #define OPC_LFD 50
 #define OPC_STFD 54

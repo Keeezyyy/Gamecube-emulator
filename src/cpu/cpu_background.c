@@ -14,12 +14,15 @@ static uint64_t mult;
 
 static inline uint64_t read_cntvct(void)
 {
-    __asm__ volatile("mrs x0, cntvct_el0 ");
+    uint64_t v;
+    __asm__ volatile("mrs x0, cntvct_el0\nstr x0, [%0]" ::"r"(&v) : "x0", "memory");
+    return v;
 }
 static inline uint64_t read_cntfrq(void)
 {
-
-    __asm__ volatile("mrs x0, cntfrq_el0 ");
+    uint64_t v;
+    __asm__ volatile("mrs x0, cntfrq_el0\nstr x0, [%0]" ::"r"(&v) : "x0", "memory");
+    return v;
 }
 pthread_mutex_t my_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -32,8 +35,8 @@ void run_background(CPU *self)
         gekko_base = (uint64_t)(((unsigned __int128)delta * mult) >> 32);
 
         pthread_mutex_lock(&my_mutex);
-        self->special_purpose_registers.spr10_919[268] = gekko_base & U32_MAX;
-        self->special_purpose_registers.spr10_919[269] = gekko_base >> 32;
+        self->special_purpose_registers.buf[268] = gekko_base & U32_MAX;
+        self->special_purpose_registers.buf[269] = gekko_base >> 32;
         pthread_mutex_unlock(&my_mutex);
     }
 }

@@ -81,6 +81,37 @@ lfd_2:
         str x0, [x4]
       _emit_lfd_after:
 
+.globl _emit_stfd
+_emit_stfd:
+          adr x22, _emit_stfd_start
+          adr x23, _emit_stfd_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+
+        _emit_stfd_start:
+        cbnz w1, stfd_1
+        mov w0, 0
+        b stfd_2
+stfd_1:
+        LOAD_REGISTER w1, w0
+stfd_2:
+        add w0, w0, w2
+
+        PUSH_64 x0
+        PUSH_64 x4
+        lsr x1, x4, #32
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        POP_64 x0
+
+        add w0, w0, #4
+        mov w1, w4
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+      _emit_stfd_after:
+
 .global _copy_fpscr_to_cr1
 _copy_fpscr_to_cr1:
           adr x22, _emit_copy_fpscr_to_cr1_start

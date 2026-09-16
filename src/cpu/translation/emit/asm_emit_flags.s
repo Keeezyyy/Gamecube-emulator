@@ -46,7 +46,7 @@ _set_xer_ov_from_w15:
           lsl w8,w8, 30
           lsl w9,w9, 31
 
-          mov  w12, #30
+          mov  w12, #0x40000000
           bic w11,w11,w12 
           orr w11, w11, w8
           orr w11, w11, w9

@@ -598,10 +598,15 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             u32 *curr_instruction = code_buffer;
 
             curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
-            curr_instruction =
-                emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
+            if (spr == SPR_XER) {
+                curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.xer);
+                curr_instruction = emit_load_u32(curr_instruction, 2, 0);
+            } else {
+                curr_instruction =
+                    emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
 
-            curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
+                curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
+            }
 
             const u32 *main_block, *main_block_end;
             emit_mfspr(&main_block, &main_block_end);
@@ -623,10 +628,17 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             u32 *curr_instruction = code_buffer;
 
             curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
-            curr_instruction =
-                emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
+            if (spr == SPR_XER) {
+                curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.xer);
+                curr_instruction = emit_load_u32(curr_instruction, 2, 0);
+            } else {
+                curr_instruction =
+                    emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
 
-            curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
+                curr_instruction = emit_load_u32(
+                    curr_instruction, 2,
+                    spr == SPR_TBL_WRITE ? SPR_TBL : (spr == SPR_TBU_WRITE ? SPR_TBU : spr));
+            }
 
             const u32 *main_block, *main_block_end;
             emit_mtspr(&main_block, &main_block_end);
@@ -708,7 +720,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
-        if (_get_field(insn, 21, 30) == OPC_ADDX_EXT) {
+        if (_get_field(insn, 22, 30) == OPC_ADDX_EXT) {
             const u32 d = _get_field(insn, 6, 10);
             const u32 a = _get_field(insn, 11, 15);
             const u32 b = _get_field(insn, 16, 20);
@@ -727,7 +739,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             emit_addx(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
-            if (rc == 1) {
+            if (oe == 1) {
 
                 curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
 
@@ -736,6 +748,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             }
             if (rc == 1) {
                 curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+                curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
                 set_cr0_from_w15(&main_block, &main_block_end);
                 curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
             }
@@ -770,6 +783,81 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
             break;
+        }
+        if (_get_field(insn, 22, 30) == OPC_ADDEX_EXT) {
+            const u32 d = _get_field(insn, 6, 10);
+            const u32 a = _get_field(insn, 11, 15);
+            const u32 b = _get_field(insn, 16, 20);
+            const u32 oe = _get_field(insn, 21, 21);
+            const u32 rc = _get_field(insn, 31, 31);
+
+            printf("[0x%08x] : addex r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, d);
+            curr_instruction = emit_load_u32(curr_instruction, 1, a);
+            curr_instruction = emit_load_u32(curr_instruction, 2, b);
+            curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
+
+            u32 *main_block, *main_block_end;
+            emit_addex(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            set_xer_ca_from_w15(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            if (oe == 1) {
+
+                set_xer_ov_from_w15(&main_block, &main_block_end);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            }
+            if (rc == 1) {
+                curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+                set_cr0_from_w15(&main_block, &main_block_end);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            }
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 22, 30) == OPC_ADDCX_EXT) {
+            const u32 d = _get_field(insn, 6, 10);
+            const u32 a = _get_field(insn, 11, 15);
+            const u32 b = _get_field(insn, 16, 20);
+            const u32 oe = _get_field(insn, 21, 21);
+            const u32 rc = _get_field(insn, 31, 31);
+
+            printf("[0x%08x] : addcx r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, d);
+            curr_instruction = emit_load_u32(curr_instruction, 1, a);
+            curr_instruction = emit_load_u32(curr_instruction, 2, b);
+
+            u32 *main_block, *main_block_end;
+            emit_addx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
+
+            set_xer_ca_from_w15(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            if (oe == 1) {
+
+                set_xer_ov_from_w15(&main_block, &main_block_end);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            }
+            if (rc == 1) {
+                curr_instruction = emit_load_u64(curr_instruction, 5, (u64)&cpu->state.cr);
+                set_cr0_from_w15(&main_block, &main_block_end);
+                curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+            }
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
         }
         printf("not implemented : %d\n", _get_field(insn, 21, 30));
         assert(!"not implemented guest instruction");
@@ -809,6 +897,29 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         const u32 *main_block, *main_block_end;
         emit_stwu(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_STMW: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+
+        const i32 simm = _sign_extend(_get_field(insn, 16, 31), 16);
+        printf("[0x%08x] : stmw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, simm);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, simm);
+
+        assert(regA != 0);
+
+        const u32 *main_block, *main_block_end;
+        emit_stmw(&main_block, &main_block_end);
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
         *pc_after_instruction += 4;
@@ -916,29 +1027,25 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         break;
     }
     case OPC_STFD: {
-        abort();
-        if (cpu->fpu.get_pse_bit(cpu) == 0) {
-            u32 *curr_instruction = code_buffer;
-            const u32 regS = _get_field(insn, 6, 10);
-            const u32 regA = _get_field(insn, 11, 15);
-            const i16 d = _get_field(insn, 16, 31);
-            printf("[0x%08x] : stfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+        *tb_type |= TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS;
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        printf("[0x%08x] : stfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
-            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
-            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
-            curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+        curr_instruction = emit_fmov_into_gpr_64(curr_instruction, 4, regS);
 
-            const u32 *main_block, *main_block_end;
-            emit_stw(&main_block, &main_block_end);
-            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+        const u32 *main_block, *main_block_end;
+        emit_stfd(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
-            *pc_after_instruction += 4;
+        *pc_after_instruction += 4;
 
-            return curr_instruction;
-            break;
-        } else {
-            abort();
-        }
+        return curr_instruction;
+        break;
     }
     case OPC_CMPI: {
         u32 *curr_instruction = code_buffer;
@@ -958,7 +1065,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.xer);
 
         const u32 *main_block, *main_block_end;
-        emit_cpmli(&main_block, &main_block_end);
+        emit_cmpi(&main_block, &main_block_end);
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
         *pc_after_instruction += 4;

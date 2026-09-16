@@ -381,6 +381,43 @@ _emit_cpmli:
 
 
 
+.globl _emit_cmpi
+_emit_cmpi:
+          adr x2, _emit_cmpi_start
+          adr x3, _emit_cmpi_after
+          str x2, [x0]
+          str x3, [x1]
+          ret
+        _emit_cmpi_start:
+          LOAD_REGISTER w2, w5          
+          ldr  w9, [x4]                 
+
+          mov  w7, #28
+          sub  w7, w7, w0, lsl #2       
+
+          cmp  w5, w3                   
+          cset w10, lt                  
+          cset w11, gt                  
+          cset w12, eq                  
+
+          lsl  w6, w10, #3
+          orr  w6, w6, w11, lsl #2
+          orr  w6, w6, w12, lsl #1
+
+          ldr  w13, [x16]
+          lsr  w13, w13, #31
+          orr  w6, w6, w13              
+
+          mov  w8, #0xF
+          lsl  w8, w8, w7
+          lsl  w6, w6, w7
+          bic  w9, w9, w8               
+          orr  w9, w9, w6
+          str  w9, [x4]
+        _emit_cmpi_after:
+
+
+
 .globl _emit_bcx
 _emit_bcx:
           adr x2, _emit_bcx_start
@@ -419,7 +456,7 @@ _emit_bcx:
         cmp  w2, #1
         b.ne 4f
         str  w4, [x13]              // AA=1: NIA = EXTS(BD||00)
-        b    _emit_bcx_after
+        ret
 4:      add  w9, w4, w12            // AA=0: NIA = CIA + EXTS(BD||00)
         str  w9, [x13]
         ret
@@ -467,7 +504,7 @@ _emit_bcx_jump_in_tb:
         cmp  w2, #1
         b.ne 4f
         str  w4, [x13]              // AA=1: NIA = EXTS(BD||00)
-        b    _emit_bcx_jump_in_tb_after
+        br x16
 4:      add  w9, w4, w12            // AA=0: NIA = CIA + EXTS(BD||00)
         str  w9, [x13]
         br x16
@@ -539,6 +576,25 @@ _emit_addx:
         _emit_addx_after:
 
 
+.globl _emit_addex
+_emit_addex:
+          adr x2, _emit_addex_start
+          adr x3, _emit_addex_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_addex_start:
+        LOAD_REGISTER w1, w3
+        LOAD_REGISTER w2, w4
+        ldr  w11, [x16]
+          lsr  w11, w11, #29
+          and w11, w11, 1
+        cmp w11, #1
+        adcs w15, w3, w4
+        STORE_REGISTER w0, w15
+        _emit_addex_after:
+
+
 
 
 
@@ -553,6 +609,7 @@ _emit_blr:
           ret          
         _emit_blr_start:
         ldr w2, [x1]
+        bic w2, w2, #3
         str w2, [x0]
         ret
         _emit_blr_after:
@@ -642,6 +699,7 @@ bclr_4:
         cmp  w10, #0
         ccmp w6, #0, #4, ne
         b.eq bclr_3
+        bic  w9, w9, #3
         str  w9, [x13]
         ret
 
@@ -668,8 +726,8 @@ _emit_cmp:
           sub  w7, w7, w0, lsl #2       
 
           cmp  w5, w3                   
-          cset w10, lo                  
-          cset w11, hi                  
+          cset w10, lt                  
+          cset w11, gt                  
           cset w12, eq                  
 
           lsl  w6, w10, #3
@@ -687,5 +745,46 @@ _emit_cmp:
           orr  w9, w9, w6
           str  w9, [x4]
         _emit_cmp_after:
+
+
+// w0 rS_num
+// w1 rA_num
+// w2 d
+.globl _emit_stmw
+_emit_stmw:
+          adr x2, _emit_stmw_start
+          adr x3, _emit_stmw_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_stmw_start:
+        cbnz w1, stmw_1
+        mov w5, 0
+        b stmw_2
+stmw_1:
+        LOAD_REGISTER w1, w5
+stmw_2:
+        add w6, w5, w2
+
+        mov w5, w0
+stmw_3:
+        cmp w5, 31
+        b.gt _emit_stmw_after
+
+        LOAD_REGISTER w5,w1 
+        PUSH_32 w5
+        PUSH_32 w1
+        PUSH_32 w6
+        mov w0, w6
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2 
+        POP_32 w6
+        POP_32 w1
+        POP_32 w5
+        add w5, w5, 1
+        add w6, w6, 4
+        b stmw_3
+
+        _emit_stmw_after:
 
 

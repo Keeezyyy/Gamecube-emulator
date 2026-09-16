@@ -12,7 +12,12 @@
 #define TB_TRACE(...) printf(__VA_ARGS__)
 #define TB_TRACE_CODE(ptr, n_instrs) _print_code_block((ptr), (n_instrs))
 
+#define SPR_XER 1
 #define SPR_LR 8
+#define SPR_TBL 268
+#define SPR_TBU 269
+#define SPR_TBL_WRITE 284
+#define SPR_TBU_WRITE 285
 #define SPR_HID2 920
 #define SPR_TERMINATING_INDEXES(spr) (spr == SPR_LR || spr == SPR_HID2)
 
