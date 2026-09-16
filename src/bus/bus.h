@@ -18,6 +18,8 @@ struct Bus {
     void (*free)(Bus *self);
     u32 (*read)(Bus *self, u32 adr);
     void (*write)(Bus *self, u32 adr, u32 val);
+    void (*write_byte)(Bus *self, u32 adr, u32 val);
+    u8 (*read_byte)(Bus *self, u32 adr);
     u32 (*read_word)(Bus *self, u32 adr);
     u64 (*read_dword)(Bus *self, u32 adr);
 

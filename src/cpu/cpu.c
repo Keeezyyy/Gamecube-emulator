@@ -112,6 +112,11 @@ void _helper_write_word_to_bus(u32 adr, u32 val)
     // printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val);
 }
+static void _helper_write_byte_to_bus(u32 adr, u32 val)
+{
+    // printf("[WRITE] : writing 0x%08x , to : 0x%08x\n", val, adr);
+    static_cpu_ptr->bus->write_byte(static_cpu_ptr->bus, adr, val);
+}
 static u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = static_cpu_ptr->bus->read_word(static_cpu_ptr->bus, adr);
@@ -125,6 +130,13 @@ static u64 _helper_read_double_word_from_bus(u32 adr)
 
     // printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
     return val;
+}
+static u32 _helper_read_byte(u32 adr)
+{
+    const u8 val = static_cpu_ptr->bus->read_byte(static_cpu_ptr->bus, adr);
+
+    // printf("[READ] : reading 0x%016llx , from : 0x%08x\n", val, adr);
+    return val & 0xff;
 }
 
 static u8 _fpu_get_sep_bit(CPU *self)
@@ -169,6 +181,8 @@ static const CPU CPU_TEMPLATE = {
     .helper_functions[0] = (u64)&_helper_write_word_to_bus,
     .helper_functions[1] = (u64)&_helper_read_word_from_bus,
     .helper_functions[2] = (u64)&_helper_read_double_word_from_bus,
+    .helper_functions[3] = (u64)&_helper_read_byte,
+    .helper_functions[4] = (u64)&_helper_write_byte_to_bus,
     //------------------------------------------------------------------------------------------
 };
 

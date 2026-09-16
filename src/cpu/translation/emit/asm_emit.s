@@ -1756,3 +1756,64 @@ _emit_mtsrin:
         LOAD_REGISTER w0, w4
         str w4, [x1, w2, uxtw 2]
         _emit_mtsrin_after:
+
+
+
+.globl _emit_lbzu
+_emit_lbzu:
+          adr x2, _emit_lbzu_start
+          adr x3, _emit_lbzu_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lbzu_start:
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 3
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        mov w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lbzu_after:
+
+.globl _emit_stbu
+_emit_stbu:
+          adr x2, _emit_stbu_start
+          adr x3, _emit_stbu_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_stbu_start:
+
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        
+        _emit_stbu_finaly:
+        add w5, w4, w2
+
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+
+        mov w8, w1
+
+        mov w0, w5
+        mov w1, w6
+        mov w7, 4
+
+        PUSH_32 w5
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w7 // _write( u32 adr, u32 val) // str    w6, [FUNCTION_ARRAY_POINTER, w5, uxtw]
+        POP_32 w8
+        POP_32 w5
+
+        str w5, [GUEST_REGISTER_POINTER, w8, uxtw 2]
+        _emit_stbu_after:
+
+

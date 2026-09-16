@@ -139,3 +139,14 @@ u32 *emit_set_ps0_from_gpr(u32 *out, u8 fd, u8 rn)
     *out++ = a64_ins_d0_from_x(fd, rn);
     return out;
 }
+
+static inline u32 a64_fneg_2d(u8 dd, u8 dn)
+{
+    return 0x6EE0F800u | ((u32)(dn & 31) << 5) | (dd & 31);
+}
+
+u32 *emit_fneg_ps(u32 *out, u8 fd, u8 fn)
+{
+    *out++ = a64_fneg_2d(fd, fn);
+    return out;
+}

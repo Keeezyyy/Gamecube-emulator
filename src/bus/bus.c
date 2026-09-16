@@ -100,9 +100,39 @@ static void _write_word(Bus *self, u32 adr, u32 val)
         return;
     }
 
-    printf("[BUS] unmapped write 0x%08x to 0x%08x\n", val, adr);
     assert(!"bus write error");
     abort();
+}
+static void _write_byte(Bus *self, u32 adr, u32 val)
+{
+    const u32 off = ram_offset(adr);
+    if (off != RAM_OFFSET_INVALID) {
+        *((u8 *)self->ram + off) = (val) & 0xFF;
+        return;
+    }
+
+    if (in_ipl(self, adr)) {
+        return;
+    }
+
+    assert(!"bus write error");
+    abort();
+}
+// TODO: combine all read and write functions
+static u8 _read_byte(Bus *self, u32 adr)
+{
+    if (in_ipl(self, adr))
+        return *((const u8 *)self->ipl + (adr - IPL_BASE));
+
+    const u32 off = ram_offset(adr);
+    if (off != RAM_OFFSET_INVALID)
+        return *((const u8 *)self->ram + off);
+    if (adr >= 0xCC003000 && adr < 0xCC004000) {
+        return (u8)pi_read(adr);
+    }
+
+    assert(!"mem map adr not implemented");
+    return 0;
 }
 static u32 _read_word(Bus *self, u32 adr)
 {
@@ -116,7 +146,6 @@ static u32 _read_word(Bus *self, u32 adr)
         return pi_read(adr);
     }
 
-    printf("[BUS] unmapped read from 0x%08x\n", adr);
     assert(!"mem map adr not implemented");
     return 0;
 }
@@ -131,6 +160,8 @@ static const Bus BUS_TEMPLATE = {
     .get_ram_location = &_get_ram_location,
     .read = &_read_word,
     .write = &_write_word,
+    .write_byte = &_write_byte,
+    .read_byte = &_read_byte,
     .read_word = &_read_word,
     .read_dword = &_read_double_word,
 };

@@ -11,6 +11,7 @@
 #define OPC_LFD 50
 
 #define OPC_PS_NEG 4
+#define OPC_PS_NEG_EXT 40
 
 #define OPC_CMPLI 10
 #define OPC_CMPI 11
@@ -44,7 +45,9 @@
 #define OPC_ADDCX_EXT 10
 #define OPC_ADDEX_EXT 138
 #define OPC_LWZ 32
+#define OPC_LBZU 35
 #define OPC_STW 36
+#define OPC_STBU 39
 #define OPC_STMW 47
 #define OPC_STWU 37
 #define OPC_LFD 50

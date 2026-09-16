@@ -2374,6 +2374,48 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         return curr_instruction;
         break;
     }
+    case OPC_STBU: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        printf("[0x%08x] : stbu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+
+        assert(regA != 0);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_stbu(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_LBZU: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        printf("[0x%08x] : lbzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lbzu(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
     case OPC_RLWINM: {
         u32 *curr_instruction = code_buffer;
         const u32 regS = _get_field(insn, 6, 10);
@@ -2739,6 +2781,35 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 *main_block, *main_block_end;
         emit_stfdu(&main_block, &main_block_end);
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    // TODO: add interrupt
+    case OPC_PS_NEG: {
+        assert(_get_field(insn, 21, 30) == OPC_PS_NEG_EXT);
+        *tb_type |= TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS;
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regB = _get_field(insn, 16, 20);
+        const u32 rc = _get_field(insn, 31, 31);
+        printf("[0x%08x] : ps_neg f%d, f%d\n", pc_buffer[pc_buffer_counter], regD, regB);
+
+        // TODO: if this happens envoke exception
+        assert(cpu->fpu.get_pse_bit(cpu) != 0);
+
+        curr_instruction = emit_fneg_ps(curr_instruction, regD, regB);
+
+        if (rc == 1) {
+            curr_instruction = emit_load_u64(curr_instruction, 15, (u64)&cpu->state.cr);
+            curr_instruction = emit_load_u64(curr_instruction, 16, (u64)&cpu->state.fpscr);
+
+            u32 *blk, *blk_end;
+            copy_fpscr_to_cr1(&blk, &blk_end);
+            curr_instruction = write_to_buffer(curr_instruction, {blk, blk_end});
+        }
 
         *pc_after_instruction += 4;
 
