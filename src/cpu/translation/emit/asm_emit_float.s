@@ -30,9 +30,22 @@ FUNCTION_ARRAY_POINTER .req x20
 
 
 .macro CALL_HELPER_FUNCTION function_num_register
-  .irp reg, d0, d1, d2, d3, d4, d5, d6, d7, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29, d30, d31
-    PUSH_64 \reg
-  .endr  
+  stp q0, q1, [sp, #-32]!
+  stp q2, q3, [sp, #-32]!
+  stp q4, q5, [sp, #-32]!
+  stp q6, q7, [sp, #-32]!
+  stp q8, q9, [sp, #-32]!
+  stp q10, q11, [sp, #-32]!
+  stp q12, q13, [sp, #-32]!
+  stp q14, q15, [sp, #-32]!
+  stp q16, q17, [sp, #-32]!
+  stp q18, q19, [sp, #-32]!
+  stp q20, q21, [sp, #-32]!
+  stp q22, q23, [sp, #-32]!
+  stp q24, q25, [sp, #-32]!
+  stp q26, q27, [sp, #-32]!
+  stp q28, q29, [sp, #-32]!
+  stp q30, q31, [sp, #-32]!
   PUSH_64 GUEST_REGISTER_POINTER
 
   PUSH_64 FUNCTION_ARRAY_POINTER
@@ -49,9 +62,22 @@ FUNCTION_ARRAY_POINTER .req x20
   POP_64 FUNCTION_ARRAY_POINTER
   POP_64 GUEST_REGISTER_POINTER
 
-  .irp reg, d0, d1, d2, d3, d4, d5, d6, d7, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29, d30, d31
-    POP_64 \reg
-  .endr  
+  ldp q30, q31, [sp], #32
+  ldp q28, q29, [sp], #32
+  ldp q26, q27, [sp], #32
+  ldp q24, q25, [sp], #32
+  ldp q22, q23, [sp], #32
+  ldp q20, q21, [sp], #32
+  ldp q18, q19, [sp], #32
+  ldp q16, q17, [sp], #32
+  ldp q14, q15, [sp], #32
+  ldp q12, q13, [sp], #32
+  ldp q10, q11, [sp], #32
+  ldp q8, q9, [sp], #32
+  ldp q6, q7, [sp], #32
+  ldp q4, q5, [sp], #32
+  ldp q2, q3, [sp], #32
+  ldp q0, q1, [sp], #32
 .endm
 
 
@@ -99,17 +125,8 @@ stfd_1:
 stfd_2:
         add w0, w0, w2
 
-        PUSH_64 x0
-        PUSH_64 x4
-        lsr x1, x4, #32
-        mov w2, 0
-        CALL_HELPER_FUNCTION w2
-        POP_64 x4
-        POP_64 x0
-
-        add w0, w0, #4
-        mov w1, w4
-        mov w2, 0
+        mov x1, x4
+        mov w2, 7
         CALL_HELPER_FUNCTION w2
       _emit_stfd_after:
 
@@ -214,16 +231,8 @@ _emit_stfdu:
         add w0, w0, w2
         PUSH_64 x1
         PUSH_64 x0
-        PUSH_64 x4
-        lsr x1, x4, #32
-        mov w2, 0
-        CALL_HELPER_FUNCTION w2
-        POP_64 x4
-        POP_64 x0
-        PUSH_64 x0
-        add w0, w0, #4
-        mov w1, w4
-        mov w2, 0
+        mov x1, x4
+        mov w2, 7
         CALL_HELPER_FUNCTION w2
         POP_64 x0
         POP_64 x1
@@ -247,16 +256,8 @@ stfdx_1:
         LOAD_REGISTER w1, w0
 stfdx_2:
         add w0, w0, w2
-        PUSH_64 x0
-        PUSH_64 x4
-        lsr x1, x4, #32
-        mov w2, 0
-        CALL_HELPER_FUNCTION w2
-        POP_64 x4
-        POP_64 x0
-        add w0, w0, #4
-        mov w1, w4
-        mov w2, 0
+        mov x1, x4
+        mov w2, 7
         CALL_HELPER_FUNCTION w2
         _emit_stfdx_after:
 
@@ -274,16 +275,8 @@ _emit_stfdux:
         add w0, w0, w2
         PUSH_64 x1
         PUSH_64 x0
-        PUSH_64 x4
-        lsr x1, x4, #32
-        mov w2, 0
-        CALL_HELPER_FUNCTION w2
-        POP_64 x4
-        POP_64 x0
-        PUSH_64 x0
-        add w0, w0, #4
-        mov w1, w4
-        mov w2, 0
+        mov x1, x4
+        mov w2, 7
         CALL_HELPER_FUNCTION w2
         POP_64 x0
         POP_64 x1

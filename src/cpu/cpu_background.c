@@ -1,6 +1,7 @@
 #include "core/config/config.h"
 #include "cpu.h"
 #include "cpu/cpu_types.h"
+#include <assert.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <sys/_pthread/_pthread_mutex_t.h>
@@ -37,6 +38,13 @@ void run_background(CPU *self)
         pthread_mutex_lock(&my_mutex);
         self->special_purpose_registers.buf[268] = gekko_base & U32_MAX;
         self->special_purpose_registers.buf[269] = gekko_base >> 32;
+
+        // debug checks for not implemented machine states
+
+        assert(((self->state.msr >> 17) & 1) == 0);
+        assert(((self->state.msr >> 26) & 1) == 0);
+        assert(((self->state.msr >> 27) & 1) == 0);
+
         pthread_mutex_unlock(&my_mutex);
     }
 }

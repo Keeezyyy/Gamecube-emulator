@@ -22,20 +22,15 @@ void init_exi(void)
 
 u64 exi_read(CPU *cpu, u32 adr, u32 size)
 {
-    if (adr < 0xCC006814) {
-        if (adr == 0xCC006800 + 0x0) {
-            return exi_registers.channels[0].EXInCSR;
-        }
+    u8 ch_index = (adr - 0xCC006800) / 0x14;
+    u32 offset = (adr - 0xCC006800) % 0x14;
 
-    } else if (adr < 0xCC006828) {
-        if (adr == 0xCC006814 + 0x0) {
-            return exi_registers.channels[1].EXInCSR;
-        }
+    switch (offset) {
+    case 0x00:
+        return exi_registers.channels[ch_index].EXInCSR;
 
-    } else {
-        if (adr == 0xCC006828 + 0x0) {
-            return exi_registers.channels[2].EXInCSR;
-        }
+    case 0x0C:
+        return exi_registers.channels[ch_index].EXInCR;
     }
 
     assert(!"read exi not implemented");

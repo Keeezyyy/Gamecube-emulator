@@ -119,6 +119,10 @@ static void _helper_write_half_to_bus(u32 adr, u32 val)
 {
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xffff, 2);
 }
+static void _helper_write_double_word_to_bus(u32 adr, u64 val)
+{
+    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 8);
+}
 static u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = (u32)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 4);
@@ -191,6 +195,7 @@ static const CPU CPU_TEMPLATE = {
     .helper_functions[4] = (u64)&_helper_write_byte_to_bus,
     .helper_functions[5] = (u64)&_helper_write_half_to_bus,
     .helper_functions[6] = (u64)&_helper_read_half_word_from_bus,
+    .helper_functions[7] = (u64)&_helper_write_double_word_to_bus,
     //------------------------------------------------------------------------------------------
 };
 

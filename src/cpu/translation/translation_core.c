@@ -2122,6 +2122,378 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+        if (_get_field(insn, 21, 30) == OPC_LBZX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lbzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lbzx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LBZUX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lbzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            assert(regA != 0);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lbzux(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LHZX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lhzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lhzx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LHZUX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lhzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            assert(regA != 0);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lhzux(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LHAX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lhax r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lhax(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LHAUX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lhaux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            assert(regA != 0);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lhaux(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STBX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : stbx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_stbx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STBUX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : stbux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            assert(regA != 0);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_stbux(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STHX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : sthx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_sthx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STHUX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : sthux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            assert(regA != 0);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_sthux(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LWBRX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lwbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lwbrx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LHBRX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lhbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lhbrx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STWBRX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : stwbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_stwbrx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STHBRX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : sthbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_sthbrx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LSWI_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 NB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lswi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter], regD, regA,
+                        NB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, NB == 0 ? 32 : NB);
+
+            const u32 *main_block, *main_block_end;
+            emit_lswi(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_LSWX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regD = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : lswx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+            curr_instruction = emit_load_u64(curr_instruction, 3, (u64)&cpu->state.xer);
+
+            const u32 *main_block, *main_block_end;
+            emit_lswx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STSWI_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 NB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : stswi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter], regS, regA,
+                        NB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, NB == 0 ? 32 : NB);
+
+            const u32 *main_block, *main_block_end;
+            emit_stswi(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_STSWX_EXT) {
+            u32 *curr_instruction = code_buffer;
+            const u32 regS = _get_field(insn, 6, 10);
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            DEBUG_PRINT("[0x%08x] : stswx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                        regA, regB);
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+            curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+            curr_instruction = emit_load_u32(curr_instruction, 2, regB);
+            curr_instruction = emit_load_u64(curr_instruction, 3, (u64)&cpu->state.xer);
+
+            const u32 *main_block, *main_block_end;
+            emit_stswx(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
         if (_get_field(insn, 21, 30) == OPC_LFDX_EXT) {
             *tb_type |= TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS;
             u32 *curr_instruction = code_buffer;
@@ -2311,20 +2683,19 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         return curr_instruction;
         break;
     }
-    case OPC_LHZX: {
+    case OPC_LHZ: {
         u32 *curr_instruction = code_buffer;
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i32 d = _sign_extend(_get_field(insn, 16, 31), 16);
-        DEBUG_PRINT("[0x%08x] : lhzx r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    d);
+        DEBUG_PRINT("[0x%08x] : lhz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
         curr_instruction = emit_load_u32(curr_instruction, 2, d);
 
         const u32 *main_block, *main_block_end;
-        emit_lhzx(&main_block, &main_block_end);
+        emit_lhz(&main_block, &main_block_end);
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
         *pc_after_instruction += 4;
@@ -2476,6 +2847,135 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         const u32 *main_block, *main_block_end;
         emit_lbzu(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_LBZ: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        DEBUG_PRINT("[0x%08x] : lbz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lbz(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_LHZU: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        DEBUG_PRINT("[0x%08x] : lhzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
+                    d);
+
+        assert(regA != 0);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lhzu(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_LHA: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        DEBUG_PRINT("[0x%08x] : lha r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lha(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_LHAU: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        DEBUG_PRINT("[0x%08x] : lhau r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
+                    d);
+
+        assert(regA != 0);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lhau(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_STB: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        DEBUG_PRINT("[0x%08x] : stb r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_stb(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
+        break;
+    }
+    case OPC_STHU: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regS = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i16 d = _get_field(insn, 16, 31);
+        DEBUG_PRINT("[0x%08x] : sthu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                    d);
+
+        assert(regA != 0);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regS);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
+
+        const u32 *main_block, *main_block_end;
+        emit_sthu(&main_block, &main_block_end);
         curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
         *pc_after_instruction += 4;

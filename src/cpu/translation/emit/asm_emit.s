@@ -1843,6 +1843,216 @@ _emit_stbu:
 
 
 
+.globl _emit_lhz
+_emit_lhz:
+          adr x2, _emit_lhz_start
+          adr x3, _emit_lhz_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhz_start:
+        cbnz w1, _emit_lhz_else
+        mov w3, 0
+        b _emit_lhz_finally
+        _emit_lhz_else:
+        LOAD_REGISTER w1, w3
+        _emit_lhz_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 6
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lhz_after:
+
+
+.globl _emit_lbz
+_emit_lbz:
+          adr x2, _emit_lbz_start
+          adr x3, _emit_lbz_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lbz_start:
+        cbnz w1, _emit_lbz_else
+        mov w3, 0
+        b _emit_lbz_finally
+        _emit_lbz_else:
+        LOAD_REGISTER w1, w3
+        _emit_lbz_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 3
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lbz_after:
+
+
+.globl _emit_lha
+_emit_lha:
+          adr x2, _emit_lha_start
+          adr x3, _emit_lha_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lha_start:
+        cbnz w1, _emit_lha_else
+        mov w3, 0
+        b _emit_lha_finally
+        _emit_lha_else:
+        LOAD_REGISTER w1, w3
+        _emit_lha_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 6
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        sxth w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lha_after:
+
+
+.globl _emit_lhzu
+_emit_lhzu:
+          adr x2, _emit_lhzu_start
+          adr x3, _emit_lhzu_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhzu_start:
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 6
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        mov w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lhzu_after:
+
+
+.globl _emit_lhau
+_emit_lhau:
+          adr x2, _emit_lhau_start
+          adr x3, _emit_lhau_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhau_start:
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 6
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        sxth w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lhau_after:
+
+
+.globl _emit_stb
+_emit_stb:
+          adr x2, _emit_stb_start
+          adr x3, _emit_stb_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_stb_start:
+        cbnz w1, _emit_stb_else
+        mov w4, 0
+        b _emit_stb_finaly
+        _emit_stb_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        _emit_stb_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        and w1, w6, 0xff
+        mov x7, 4
+        CALL_HELPER_FUNCTION w7
+        _emit_stb_after:
+
+
+.globl _emit_sthu
+_emit_sthu:
+          adr x2, _emit_sthu_start
+          adr x3, _emit_sthu_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_sthu_start:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w8, w1
+        mov w0, w5
+        and w1, w6, 0xffff
+        mov w7, 5
+        PUSH_32 w5
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w7
+        POP_32 w8
+        POP_32 w5
+        str w5, [GUEST_REGISTER_POINTER, w8, uxtw 2]
+        _emit_sthu_after:
+
+
+.globl _emit_lbzx
+_emit_lbzx:
+          adr x2, _emit_lbzx_start
+          adr x3, _emit_lbzx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lbzx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lbzx_else
+        mov w3, 0
+        b _emit_lbzx_finally
+        _emit_lbzx_else:
+        LOAD_REGISTER w1, w3
+        _emit_lbzx_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 3
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lbzx_after:
+
+
 .globl _emit_lhzx
 _emit_lhzx:
           adr x2, _emit_lhzx_start
@@ -1851,6 +2061,7 @@ _emit_lhzx:
           str x3, [x1]
           ret  
         _emit_lhzx_start:
+        LOAD_REGISTER w2, w2
         cbnz w1, _emit_lhzx_else
         mov w3, 0
         b _emit_lhzx_finally
@@ -1870,3 +2081,519 @@ _emit_lhzx:
         _emit_lhzx_after:
 
 
+.globl _emit_lhax
+_emit_lhax:
+          adr x2, _emit_lhax_start
+          adr x3, _emit_lhax_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhax_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lhax_else
+        mov w3, 0
+        b _emit_lhax_finally
+        _emit_lhax_else:
+        LOAD_REGISTER w1, w3
+        _emit_lhax_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 6
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        sxth w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lhax_after:
+
+
+.globl _emit_lwbrx
+_emit_lwbrx:
+          adr x2, _emit_lwbrx_start
+          adr x3, _emit_lwbrx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lwbrx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lwbrx_else
+        mov w3, 0
+        b _emit_lwbrx_finally
+        _emit_lwbrx_else:
+        LOAD_REGISTER w1, w3
+        _emit_lwbrx_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 1
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        rev w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lwbrx_after:
+
+
+.globl _emit_lhbrx
+_emit_lhbrx:
+          adr x2, _emit_lhbrx_start
+          adr x3, _emit_lhbrx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhbrx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lhbrx_else
+        mov w3, 0
+        b _emit_lhbrx_finally
+        _emit_lhbrx_else:
+        LOAD_REGISTER w1, w3
+        _emit_lhbrx_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 6
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        and w0, w0, 0xffff
+        rev16 w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lhbrx_after:
+
+
+.globl _emit_lbzux
+_emit_lbzux:
+          adr x2, _emit_lbzux_start
+          adr x3, _emit_lbzux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lbzux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 3
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        mov w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lbzux_after:
+
+
+.globl _emit_lhzux
+_emit_lhzux:
+          adr x2, _emit_lhzux_start
+          adr x3, _emit_lhzux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhzux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 6
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        mov w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lhzux_after:
+
+
+.globl _emit_lhaux
+_emit_lhaux:
+          adr x2, _emit_lhaux_start
+          adr x3, _emit_lhaux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhaux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w3
+        add w6, w3, w2
+        mov w5, w0
+        mov w8, w1
+        mov w0, w6
+        mov w1, 6
+        PUSH_32 w5
+        PUSH_32 w6
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w1
+        sxth w9, w0
+        POP_32 w8
+        POP_32 w6
+        POP_32 w5
+        STORE_REGISTER w5, w9
+        STORE_REGISTER w8, w6
+        _emit_lhaux_after:
+
+
+.globl _emit_stbx
+_emit_stbx:
+          adr x2, _emit_stbx_start
+          adr x3, _emit_stbx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stbx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_stbx_else
+        mov w4, 0
+        b _emit_stbx_finaly
+        _emit_stbx_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        _emit_stbx_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        and w1, w6, 0xff
+        mov x7, 4
+        CALL_HELPER_FUNCTION w7
+        _emit_stbx_after:
+
+
+.globl _emit_sthx
+_emit_sthx:
+          adr x2, _emit_sthx_start
+          adr x3, _emit_sthx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_sthx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_sthx_else
+        mov w4, 0
+        b _emit_sthx_finaly
+        _emit_sthx_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        _emit_sthx_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        and w1, w6, 0xffff
+        mov x7, 5
+        CALL_HELPER_FUNCTION w7
+        _emit_sthx_after:
+
+
+.globl _emit_stwbrx
+_emit_stwbrx:
+          adr x2, _emit_stwbrx_start
+          adr x3, _emit_stwbrx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stwbrx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_stwbrx_else
+        mov w4, 0
+        b _emit_stwbrx_finaly
+        _emit_stwbrx_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        _emit_stwbrx_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        rev w1, w6
+        mov x7, 0
+        CALL_HELPER_FUNCTION w7
+        _emit_stwbrx_after:
+
+
+.globl _emit_sthbrx
+_emit_sthbrx:
+          adr x2, _emit_sthbrx_start
+          adr x3, _emit_sthbrx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_sthbrx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_sthbrx_else
+        mov w4, 0
+        b _emit_sthbrx_finaly
+        _emit_sthbrx_else:
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        _emit_sthbrx_finaly:
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w0, w5
+        and w6, w6, 0xffff
+        rev16 w1, w6
+        mov x7, 5
+        CALL_HELPER_FUNCTION w7
+        _emit_sthbrx_after:
+
+
+.globl _emit_stbux
+_emit_stbux:
+          adr x2, _emit_stbux_start
+          adr x3, _emit_stbux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stbux_start:
+        LOAD_REGISTER w2, w2
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w8, w1
+        mov w0, w5
+        and w1, w6, 0xff
+        mov w7, 4
+        PUSH_32 w5
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w7
+        POP_32 w8
+        POP_32 w5
+        str w5, [GUEST_REGISTER_POINTER, w8, uxtw 2]
+        _emit_stbux_after:
+
+
+.globl _emit_sthux
+_emit_sthux:
+          adr x2, _emit_sthux_start
+          adr x3, _emit_sthux_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_sthux_start:
+        LOAD_REGISTER w2, w2
+        ldr w4, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+        add w5, w4, w2
+        ldr w6, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        mov w8, w1
+        mov w0, w5
+        and w1, w6, 0xffff
+        mov w7, 5
+        PUSH_32 w5
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w7
+        POP_32 w8
+        POP_32 w5
+        str w5, [GUEST_REGISTER_POINTER, w8, uxtw 2]
+        _emit_sthux_after:
+
+
+.globl _emit_lswi
+_emit_lswi:
+          adr x2, _emit_lswi_start
+          adr x3, _emit_lswi_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lswi_start:
+        cbnz w1, _emit_lswi_else
+        mov w5, 0
+        b _emit_lswi_finally
+        _emit_lswi_else:
+        LOAD_REGISTER w1, w5
+        _emit_lswi_finally:
+        mov w9, w2
+        sub w10, w0, 1
+        mov w11, 0
+        _emit_lswi_loop:
+        cbz w9, _emit_lswi_after
+        cbnz w11, _emit_lswi_read
+        add w10, w10, 1
+        and w10, w10, 31
+        STORE_REGISTER w10, wzr
+        _emit_lswi_read:
+        PUSH_32 w5
+        PUSH_32 w9
+        PUSH_32 w10
+        PUSH_32 w11
+        mov w0, w5
+        mov w1, 3
+        CALL_HELPER_FUNCTION w1
+        mov w12, w0
+        POP_32 w11
+        POP_32 w10
+        POP_32 w9
+        POP_32 w5
+        mov w13, 24
+        sub w13, w13, w11
+        lsl w12, w12, w13
+        LOAD_REGISTER w10, w14
+        orr w14, w14, w12
+        STORE_REGISTER w10, w14
+        add w11, w11, 8
+        and w11, w11, 31
+        add w5, w5, 1
+        sub w9, w9, 1
+        b _emit_lswi_loop
+        _emit_lswi_after:
+
+
+.globl _emit_lswx
+_emit_lswx:
+          adr x2, _emit_lswx_start
+          adr x3, _emit_lswx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lswx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lswx_else
+        mov w5, 0
+        b _emit_lswx_finally
+        _emit_lswx_else:
+        LOAD_REGISTER w1, w5
+        _emit_lswx_finally:
+        add w5, w5, w2
+        ldr w9, [x3]
+        and w9, w9, 0x7f
+        sub w10, w0, 1
+        mov w11, 0
+        _emit_lswx_loop:
+        cbz w9, _emit_lswx_after
+        cbnz w11, _emit_lswx_read
+        add w10, w10, 1
+        and w10, w10, 31
+        STORE_REGISTER w10, wzr
+        _emit_lswx_read:
+        PUSH_32 w5
+        PUSH_32 w9
+        PUSH_32 w10
+        PUSH_32 w11
+        mov w0, w5
+        mov w1, 3
+        CALL_HELPER_FUNCTION w1
+        mov w12, w0
+        POP_32 w11
+        POP_32 w10
+        POP_32 w9
+        POP_32 w5
+        mov w13, 24
+        sub w13, w13, w11
+        lsl w12, w12, w13
+        LOAD_REGISTER w10, w14
+        orr w14, w14, w12
+        STORE_REGISTER w10, w14
+        add w11, w11, 8
+        and w11, w11, 31
+        add w5, w5, 1
+        sub w9, w9, 1
+        b _emit_lswx_loop
+        _emit_lswx_after:
+
+
+.globl _emit_stswi
+_emit_stswi:
+          adr x2, _emit_stswi_start
+          adr x3, _emit_stswi_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stswi_start:
+        cbnz w1, _emit_stswi_else
+        mov w5, 0
+        b _emit_stswi_finally
+        _emit_stswi_else:
+        LOAD_REGISTER w1, w5
+        _emit_stswi_finally:
+        mov w9, w2
+        sub w10, w0, 1
+        mov w11, 0
+        _emit_stswi_loop:
+        cbz w9, _emit_stswi_after
+        cbnz w11, _emit_stswi_write
+        add w10, w10, 1
+        and w10, w10, 31
+        _emit_stswi_write:
+        LOAD_REGISTER w10, w12
+        mov w13, 24
+        sub w13, w13, w11
+        lsr w12, w12, w13
+        and w12, w12, 0xff
+        PUSH_32 w5
+        PUSH_32 w9
+        PUSH_32 w10
+        PUSH_32 w11
+        mov w0, w5
+        mov w1, w12
+        mov w7, 4
+        CALL_HELPER_FUNCTION w7
+        POP_32 w11
+        POP_32 w10
+        POP_32 w9
+        POP_32 w5
+        add w11, w11, 8
+        and w11, w11, 31
+        add w5, w5, 1
+        sub w9, w9, 1
+        b _emit_stswi_loop
+        _emit_stswi_after:
+
+
+.globl _emit_stswx
+_emit_stswx:
+          adr x2, _emit_stswx_start
+          adr x3, _emit_stswx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_stswx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_stswx_else
+        mov w5, 0
+        b _emit_stswx_finally
+        _emit_stswx_else:
+        LOAD_REGISTER w1, w5
+        _emit_stswx_finally:
+        add w5, w5, w2
+        ldr w9, [x3]
+        and w9, w9, 0x7f
+        sub w10, w0, 1
+        mov w11, 0
+        _emit_stswx_loop:
+        cbz w9, _emit_stswx_after
+        cbnz w11, _emit_stswx_write
+        add w10, w10, 1
+        and w10, w10, 31
+        _emit_stswx_write:
+        LOAD_REGISTER w10, w12
+        mov w13, 24
+        sub w13, w13, w11
+        lsr w12, w12, w13
+        and w12, w12, 0xff
+        PUSH_32 w5
+        PUSH_32 w9
+        PUSH_32 w10
+        PUSH_32 w11
+        mov w0, w5
+        mov w1, w12
+        mov w7, 4
+        CALL_HELPER_FUNCTION w7
+        POP_32 w11
+        POP_32 w10
+        POP_32 w9
+        POP_32 w5
+        add w11, w11, 8
+        and w11, w11, 31
+        add w5, w5, 1
+        sub w9, w9, 1
+        b _emit_stswx_loop
+        _emit_stswx_after:

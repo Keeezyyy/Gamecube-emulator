@@ -64,7 +64,7 @@
 #define OPC_ANDI 28
 #define OPC_ANDIS 29
 #define OPC_LWZU 33
-#define OPC_LHZX 40
+#define OPC_LHZ 40
 #define OPC_LMW 46
 #define OPC_LFDU 51
 #define OPC_STFDU 55
@@ -120,6 +120,30 @@
 #define OPC_FNEG_EXT 40
 #define OPC_FABS_EXT 264
 #define OPC_FNABS_EXT 136
+#define OPC_LBZ 34
+#define OPC_STB 38
+#define OPC_LHZU 41
+#define OPC_LHA 42
+#define OPC_LHAU 43
+#define OPC_STHU 45
+#define OPC_LBZX_EXT 87
+#define OPC_LBZUX_EXT 119
+#define OPC_LHZX_EXT 279
+#define OPC_LHZUX_EXT 311
+#define OPC_LHAX_EXT 343
+#define OPC_LHAUX_EXT 375
+#define OPC_STBX_EXT 215
+#define OPC_STBUX_EXT 247
+#define OPC_STHX_EXT 407
+#define OPC_STHUX_EXT 439
+#define OPC_LWBRX_EXT 534
+#define OPC_LHBRX_EXT 790
+#define OPC_STWBRX_EXT 662
+#define OPC_STHBRX_EXT 918
+#define OPC_LSWX_EXT 533
+#define OPC_LSWI_EXT 597
+#define OPC_STSWX_EXT 661
+#define OPC_STSWI_EXT 725
 
 #define _CAT(a, b) a##b
 #define CAT(a, b) _CAT(a, b)
