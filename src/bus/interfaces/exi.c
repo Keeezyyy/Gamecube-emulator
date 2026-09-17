@@ -1,6 +1,11 @@
 #include "exi.h"
+#include "bus/ipl.h"
 #include "core/config/config.h"
+#include <_abort.h>
 #include <assert.h>
+#include <stdio.h>
+
+#define CH0_IPL 1
 
 typedef struct {
     u64 EXInCSR;
@@ -28,7 +33,6 @@ u64 exi_read(CPU *cpu, u32 adr, u32 size)
     switch (offset) {
     case 0x00:
         return exi_registers.channels[ch_index].EXInCSR;
-
     case 0x0C:
         return exi_registers.channels[ch_index].EXInCR;
     }
@@ -39,15 +43,48 @@ u64 exi_read(CPU *cpu, u32 adr, u32 size)
 
 void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
 {
+    u8 ch_index = (adr - 0xCC006800) / 0x14;
+    u32 offset = (adr - 0xCC006800) % 0x14;
 
-    u32 value = (u32)val;
-    if (adr < 0xCC006814) {
-        if (adr == 0xCC006800 + 0x0) {
-            exi_registers.channels[0].EXInCSR &= ~(val & ((1 << 3) | (1 << 11) | (1 << 1))); // w1c
+    u8 current_chip_selected = (exi_registers.channels[ch_index].EXInCSR >> 4) & 0x5;
+
+    switch (offset) {
+    case 0x00:
+        exi_registers.channels[ch_index].EXInCSR =
+            (val & ~(val & ((1 << 3) | (1 << 11) | (1 << 1)))); // w1c
+        return;
+    case 0x04:
+
+        if (current_chip_selected == CH0_IPL && ch_index == 0) {
+            // ipl write
+            set_ipl_dma_adr(val & 0x03FFFFE0);
+
+            return;
         }
 
-    } else if (adr < 0xCC006828) {
+        break;
 
-    } else {
+    case 0x08:
+
+        if (current_chip_selected == CH0_IPL && ch_index == 0) {
+            // ipl write
+            set_ipl_dma_size(val);
+
+            return;
+        }
+    case 0x10:
+        if (current_chip_selected == CH0_IPL && ch_index == 0) {
+            // ipl write
+            set_ipl_command(val);
+            return;
+        }
+    case 0x0C:
+        if (current_chip_selected == CH0_IPL && ch_index == 0 && val & 1) {
+            // ipl write
+            ipl_start_dma_transfer(cpu->bus);
+            return;
+        }
     }
+
+    assert(!"exi write");
 }

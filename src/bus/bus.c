@@ -1,4 +1,5 @@
 #include "bus.h"
+#include "bus/interfaces/di.h"
 #include "bus/interfaces/exi.h"
 #include "bus/interfaces/mi.h"
 #include "bus/interfaces/pi.h"
@@ -109,11 +110,13 @@ static u64 _read(Bus *self, u32 adr, u32 size)
 
     } else if (adr >= 0xCC004000 && adr < 0xCC005000) {
         assert(!"notaksdlfj aksldfl a");
+    } else if (adr >= 0xCC005000 && adr < 0xCC006000) {
+        return ai_read(self->cpu, adr, size);
+    } else if (adr >= 0xCC006000 && adr < 0xCC006400) {
+        return di_read(self->cpu, adr, size);
     } else if (adr >= 0xCC006400 && adr < 0xCC006800) {
         // si interface
         return si_read(self->cpu, adr, size);
-    } else if (adr >= 0xCC005000 && adr < 0xCC006000) {
-        return ai_read(self->cpu, adr, size);
     } else if (adr >= 0xCC006800 && adr < 0xCC006C00) {
         // exi interface
         return exi_read(self->cpu, adr, size);
