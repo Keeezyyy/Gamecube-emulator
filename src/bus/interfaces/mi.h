@@ -2,4 +2,4 @@
 
 #include "cpu/cpu_types.h"
 
-u64 *mi_write(CPU *cpu, u32 adr);
+void mi_write(CPU *cpu, u32 adr, u64 val, u32 size);

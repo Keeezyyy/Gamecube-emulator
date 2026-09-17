@@ -21,8 +21,9 @@ struct Bus {
     int (*load_ipl)(Bus *self, char *ipl_location);
     void (*free)(Bus *self);
     void (*set_cpu_ptr)(Bus *self, CPU *cpu);
-    u64 *(*read)(Bus *self, u32 adr);
-    u64 *(*write)(Bus *self, u32 adr);
+    u64 (*read)(Bus *self, u32 adr, u32 size);
+    // val is the guest value in host byte order, size in bytes (1, 2, 4 or 8)
+    void (*write)(Bus *self, u32 adr, u64 val, u32 size);
 };
 
 void init_bus(Bus *self);

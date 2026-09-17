@@ -2040,6 +2040,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+
         if (_get_field(insn, 21, 30) == OPC_LWZX_EXT) {
             u32 *curr_instruction = code_buffer;
             const u32 regD = _get_field(insn, 6, 10);
@@ -2308,6 +2309,26 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         return curr_instruction;
         break;
+    }
+    case OPC_LHZX: {
+        u32 *curr_instruction = code_buffer;
+        const u32 regD = _get_field(insn, 6, 10);
+        const u32 regA = _get_field(insn, 11, 15);
+        const i32 d = _sign_extend(_get_field(insn, 16, 31), 16);
+        DEBUG_PRINT("[0x%08x] : lhzx r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
+                    d);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, regD);
+        curr_instruction = emit_load_u32(curr_instruction, 1, regA);
+        curr_instruction = emit_load_u32(curr_instruction, 2, d);
+
+        const u32 *main_block, *main_block_end;
+        emit_lhzx(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        return curr_instruction;
     }
     case OPC_STH: {
         u32 *curr_instruction = code_buffer;
@@ -2943,8 +2964,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
         out = (u32 *)(cb.code + cb.size);
 
-        const u32 guest_instruction =
-            __builtin_bswap32(*(u32 *)cpu->bus->read(cpu->bus, pc));
+        const u32 guest_instruction = (u32)cpu->bus->read(cpu->bus, pc, 4);
         if (guest_instruction == 0) {
             TB_TRACE("fetch fault at 0x%08x\n", pc);
             code_buffer_destroy(&cb);

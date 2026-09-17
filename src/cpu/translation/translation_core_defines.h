@@ -64,6 +64,7 @@
 #define OPC_ANDI 28
 #define OPC_ANDIS 29
 #define OPC_LWZU 33
+#define OPC_LHZX 40
 #define OPC_LMW 46
 #define OPC_LFDU 51
 #define OPC_STFDU 55

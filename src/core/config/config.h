@@ -69,8 +69,6 @@
 #define ALIGNOF(type) sizeof(type)
 #endif
 
-#define DEBUG
-
 #include <stdio.h>
 
 #if defined(DEBUG)

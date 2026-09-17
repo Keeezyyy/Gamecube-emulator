@@ -2,24 +2,22 @@
 #include <_abort.h>
 #include <assert.h>
 
-static u64 read_buffer = 0;
-
-u64 *pi_read(u32 adr)
+u64 pi_read(CPU *cpu, u32 adr, u32 size)
 {
     if (adr == 0xcc00302c) {
-        read_buffer = 0x20000000;
-        return &read_buffer;
-    } else {
-        assert(!"read pi not implemented\n");
+        return 0x20000000;
     }
+
+    assert(!"read pi not implemented\n");
+    return 0;
 }
 
-u64 *pi_write(CPU *cpu, u32 adr)
+void pi_write(CPU *cpu, u32 adr, u64 val, u32 size)
 {
     if (adr == 0xCC003004) {
         // set interrupt mask
 
-        &cpu->exception.interrupt_mask_register;
+        cpu->exception.interrupt_mask_register = val;
     } else {
 
         assert(!"write pi not implemented\n");

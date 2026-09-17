@@ -60,6 +60,7 @@ typedef struct {
 typedef struct {
     // Upper 32 Bits are ignored
     u64 interrupt_mask_register; //
+    u64 interrupt_source_register;
 } CpuExcpetion;
 
 struct CPU {

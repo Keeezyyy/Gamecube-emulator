@@ -1842,3 +1842,31 @@ _emit_stbu:
         _emit_stbu_after:
 
 
+
+.globl _emit_lhzx
+_emit_lhzx:
+          adr x2, _emit_lhzx_start
+          adr x3, _emit_lhzx_after
+          str x2, [x0]
+          str x3, [x1]
+          ret  
+        _emit_lhzx_start:
+        cbnz w1, _emit_lhzx_else
+        mov w3, 0
+        b _emit_lhzx_finally
+        _emit_lhzx_else:
+        LOAD_REGISTER w1, w3
+        _emit_lhzx_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 6
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_lhzx_after:
+
+

@@ -8,6 +8,7 @@ extern void copy_fpscr_to_cr1(u32 **start, u32 **end);
 extern void emit_addi(u32 **start, u32 **end);
 extern void emit_ori(u32 **start, u32 **end);
 extern void emit_stbu(u32 **start, u32 **end);
+extern void emit_lhzx(u32 **start, u32 **end);
 extern void emit_mtmsr(u32 **start, u32 **end);
 extern void emit_mfspr(u32 **start, u32 **end);
 extern void emit_stw(u32 **start, u32 **end);

@@ -109,32 +109,35 @@ static void print_cpu_state(CPU *self)
 
 static void _helper_write_word_to_bus(u32 adr, u32 val)
 {
-    *(u32 *)static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr) = __builtin_bswap32(val);
+    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 4);
 }
 static void _helper_write_byte_to_bus(u32 adr, u32 val)
 {
-
-    *(u8 *)static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr) = (u8)val;
+    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xff, 1);
 }
 static void _helper_write_half_to_bus(u32 adr, u32 val)
 {
-
-    *(u16 *)static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr) = __builtin_bswap16((u16)val);
+    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xffff, 2);
 }
 static u32 _helper_read_word_from_bus(u32 adr)
 {
-    u32 val = __builtin_bswap32(*((u32 *)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr)));
+    u32 val = (u32)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 4);
+    return val;
+}
+static u32 _helper_read_half_word_from_bus(u32 adr)
+{
+    u32 val = (u16)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 2);
     return val;
 }
 static u64 _helper_read_double_word_from_bus(u32 adr)
 {
-    u64 val = __builtin_bswap64(*static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr));
+    u64 val = static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 8);
 
     return val;
 }
 static u32 _helper_read_byte(u32 adr)
 {
-    u32 val = *((u8 *)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr));
+    u32 val = (u8)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 1);
 
     return val & 0xff;
 }
@@ -187,6 +190,7 @@ static const CPU CPU_TEMPLATE = {
     .helper_functions[3] = (u64)&_helper_read_byte,
     .helper_functions[4] = (u64)&_helper_write_byte_to_bus,
     .helper_functions[5] = (u64)&_helper_write_half_to_bus,
+    .helper_functions[6] = (u64)&_helper_read_half_word_from_bus,
     //------------------------------------------------------------------------------------------
 };
 

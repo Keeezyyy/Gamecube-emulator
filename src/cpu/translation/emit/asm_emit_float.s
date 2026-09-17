@@ -30,9 +30,9 @@ FUNCTION_ARRAY_POINTER .req x20
 
 
 .macro CALL_HELPER_FUNCTION function_num_register
-  //irp reg, d0, d1, d2, d3, d4, d5, d6, d7, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29, d30, d31
+  //.irp reg, d0, d1, d2, d3, d4, d5, d6, d7, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29, d30, d31
     //PUSH_64 \reg
-  //endr  
+  //.endr  
   PUSH_64 GUEST_REGISTER_POINTER
 
   PUSH_64 FUNCTION_ARRAY_POINTER
@@ -48,9 +48,10 @@ FUNCTION_ARRAY_POINTER .req x20
 
   POP_64 FUNCTION_ARRAY_POINTER
   POP_64 GUEST_REGISTER_POINTER
-  //irp reg, d0, d1, d2, d3, d4, d5, d6, d7, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29, d30, d31
-    //POP_64 \reg
-  //endr  
+
+  //.irp reg, d0, d1, d2, d3, d4, d5, d6, d7, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29, d30, d31
+   // POP_64 \reg
+  //.endr  
 .endm
 
 
