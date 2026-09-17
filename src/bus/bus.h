@@ -16,6 +16,9 @@ struct Bus {
     void *ipl;
     size_t ipl_size;
 
+    // Einsprungpunkt des geladenen Images (aus dem DOL-Header)
+    u32 entry_point;
+
     CPU *cpu;
 
     int (*load_ipl)(Bus *self, char *ipl_location);

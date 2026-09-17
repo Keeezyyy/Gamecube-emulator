@@ -12,8 +12,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 static u8 ram_buffer[RAM_SIZE];
+
+static int dol_load_into_ram(Bus *self);
 
 static int _load_ipl(Bus *self, char *ipl_location)
 {
@@ -40,7 +43,7 @@ static int _load_ipl(Bus *self, char *ipl_location)
 
     fclose(f);
 
-    return 0;
+    return dol_load_into_ram(self);
 }
 static void _free(ARG)
 {
@@ -76,6 +79,72 @@ static inline u32 ram_offset(u32 adr)
 
     const u32 off = adr & 0x0fffffff;
     return (off < RAM_SIZE) ? off : RAM_OFFSET_INVALID;
+}
+
+#define DOL_HEADER_SIZE 0x100u
+#define DOL_SECTIONS 18u
+#define DOL_OFFSET_TABLE 0x00u
+#define DOL_ADDRESS_TABLE 0x48u
+#define DOL_SIZE_TABLE 0x90u
+#define DOL_BSS_ADDRESS 0xd8u
+#define DOL_BSS_SIZE 0xdcu
+#define DOL_ENTRY_POINT 0xe0u
+
+static inline u32 be32(const u8 *p)
+{
+    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | (u32)p[3];
+}
+
+static int dol_load_into_ram(Bus *self)
+{
+    const u8 *const dol = (const u8 *)self->ipl;
+
+    if (self->ipl_size < DOL_HEADER_SIZE) {
+        printf("[DOL] image too small : %zu bytes\n", self->ipl_size);
+        return 1;
+    }
+
+    for (u32 i = 0; i < DOL_SECTIONS; i++) {
+        const u32 file_offset = be32(dol + DOL_OFFSET_TABLE + i * 4);
+        const u32 adr = be32(dol + DOL_ADDRESS_TABLE + i * 4);
+        const u32 size = be32(dol + DOL_SIZE_TABLE + i * 4);
+
+        if (size == 0)
+            continue;
+
+        if ((u64)file_offset + size > (u64)self->ipl_size) {
+            printf("[DOL] section %u exceeds file : offset 0x%08x size 0x%08x\n", i, file_offset,
+                   size);
+            return 1;
+        }
+
+        const u32 off = ram_offset(adr);
+        if (off == RAM_OFFSET_INVALID || (u64)off + size > RAM_SIZE) {
+            printf("[DOL] section %u has no ram mapping : adr 0x%08x size 0x%08x\n", i, adr, size);
+            return 1;
+        }
+
+        DEBUG_PRINT("[DOL] section %u : file 0x%06x -> 0x%08x, size 0x%06x\n", i, file_offset, adr,
+                    size);
+
+        memcpy((u8 *)self->ram + off, dol + file_offset, size);
+    }
+
+    const u32 bss_adr = be32(dol + DOL_BSS_ADDRESS);
+    const u32 bss_size = be32(dol + DOL_BSS_SIZE);
+    if (bss_size != 0) {
+        const u32 off = ram_offset(bss_adr);
+        if (off == RAM_OFFSET_INVALID || (u64)off + bss_size > RAM_SIZE) {
+            printf("[DOL] bss has no ram mapping : adr 0x%08x size 0x%08x\n", bss_adr, bss_size);
+            return 1;
+        }
+        memset((u8 *)self->ram + off, 0, bss_size);
+    }
+
+    self->entry_point = be32(dol + DOL_ENTRY_POINT);
+    DEBUG_PRINT("[DOL] entry point : 0x%08x\n", self->entry_point);
+
+    return 0;
 }
 
 static inline bool in_ipl(const Bus *self, u32 adr)

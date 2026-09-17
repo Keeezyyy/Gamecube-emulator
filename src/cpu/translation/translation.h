@@ -3,6 +3,7 @@
 #include "cpu/cpu_types.h"
 #include "disc/disc.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #define TB_INITIAL_CAPACITY 0x2000
 #define TB_MAX_CAPACITY (0x1000 * 16)
@@ -73,13 +74,14 @@ void deconstruct_translation(void);
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode);
 
-bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb);
+bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool print_debug);
 
 int tb_finilize(TranslationBlock *tb);
 
 void run_tb(TranslationBlock *block, CPU *cpu);
 
 void run_tb_with_fpu(const void *code, FPU *fpu);
+void move_from_to_scratch_regs(FPU *src, FPU *dest);
 // code buffer
 
 bool code_buffer_init(CodeBuffer *cb, u32 capacity);

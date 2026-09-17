@@ -71,7 +71,7 @@
 
 #include <stdio.h>
 
-#define DEBUG
+// #define DEBUG
 #if defined(DEBUG)
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
 #else

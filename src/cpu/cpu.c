@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/_pthread/_pthread_t.h>
+#include <sys/cdefs.h>
 static CPU *static_cpu_ptr;
 
 static void deconstruct_cpu(CPU *self)
@@ -49,7 +50,7 @@ static void main_loop(CPU *self)
 
             assert(new_tb != NULL_PTR);
 
-            if (!tb_translate(self, m, new_tb)) {
+            if (!tb_translate(self, m, new_tb, false)) {
                 fprintf(stderr, "translation failed at pc 0x%08x\n", self->state.pc);
                 free(new_tb);
                 assert(!"tb_translate failed: guest code block could not be translated");
@@ -75,8 +76,7 @@ static void _boot(CPU *self)
     self->state.msr = 0;
 
     self->state.msr = BIT_SET(self->state.msr, 25); // boot bit
-
-    self->state.pc = 0xfff00100;
+    self->state.pc = self->bus->entry_point;
 }
 static void print_cpu_state(CPU *self)
 {
@@ -146,6 +146,26 @@ static u32 _helper_read_byte(u32 adr)
     return val & 0xff;
 }
 
+static void _helper_write_switch_to_exception(u32 cia)
+{
+    move_from_to_scratch_regs(&static_cpu_ptr->fpu, &static_cpu_ptr->fpu_scratch);
+
+    static_cpu_ptr->special_purpose_registers.buf[26] = cia + 4;
+    static_cpu_ptr->special_purpose_registers.buf[27] = static_cpu_ptr->state.msr & 0xCEFF03E1;
+
+    if ((static_cpu_ptr->state.msr >> 25) & 1) {
+        static_cpu_ptr->state.pc = 0xFFF00C00;
+    } else {
+
+        static_cpu_ptr->state.pc = 0x00000C00;
+    }
+
+    static_cpu_ptr->state.msr = ((static_cpu_ptr->state.msr << 16) & 1) |
+                                (static_cpu_ptr->state.msr & ((1 << 25) | (1 << 19)));
+
+    return;
+}
+
 static u8 _fpu_get_sep_bit(CPU *self)
 {
     return (self->special_purpose_registers.hid2 >> 31 - 2) & 1;
@@ -196,7 +216,7 @@ static const CPU CPU_TEMPLATE = {
     .helper_functions[5] = (u64)&_helper_write_half_to_bus,
     .helper_functions[6] = (u64)&_helper_read_half_word_from_bus,
     .helper_functions[7] = (u64)&_helper_write_double_word_to_bus,
-    //------------------------------------------------------------------------------------------
+    .helper_functions[8] = (u64)&_helper_write_switch_to_exception,
 };
 
 void init_cpu(CPU *self, Disc *disc, Bus *bus)

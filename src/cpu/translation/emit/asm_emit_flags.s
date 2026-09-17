@@ -1,3 +1,38 @@
+GUEST_REGISTER_POINTER .req x19
+FUNCTION_ARRAY_POINTER .req x20
+
+.macro PUSH_64 reg
+  str \reg, [sp, #-16]!
+.endm
+
+.macro POP_64 reg
+  ldr \reg, [sp], #16
+.endm
+
+
+
+.macro CALL_HELPER_FUNCTION function_num_register
+
+
+  PUSH_64 GUEST_REGISTER_POINTER
+  PUSH_64 FUNCTION_ARRAY_POINTER
+  stp  x29, x30, [sp, #-16]!   
+  mov  x29, sp
+  sub sp, sp, #32
+
+  ldr FUNCTION_ARRAY_POINTER, [FUNCTION_ARRAY_POINTER, \function_num_register, uxtw 3]
+  blr FUNCTION_ARRAY_POINTER
+
+  add sp, sp, #32
+  ldp x29, x30, [sp], #16
+
+  POP_64 FUNCTION_ARRAY_POINTER
+  POP_64 GUEST_REGISTER_POINTER
+.endm
+
+
+
+
 .globl _set_cr0_from_w15
 _set_cr0_from_w15:
           adr x2, _set_cr0_from_w15_start
@@ -71,4 +106,20 @@ _set_xer_ca_from_w15:
           str  w11, [x16]        
         _set_xer_ca_from_w15_after:
 
+
+
+
+.globl _emit_sc
+_emit_sc:
+          adr x2, _emit_sc_start
+          adr x3, _emit_sc_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_sc_start:
+        mov w1, 8 //switch to exception function index
+        CALL_HELPER_FUNCTION w1
+
+        ret
+        _emit_sc_after:
 

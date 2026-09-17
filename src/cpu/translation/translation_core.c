@@ -27,6 +27,9 @@
 #define TERMINATING_TYPE_RET 4
 
 #define ASM_RET 0xD65F03C0
+
+// runtime debug switch, set by tb_translate(..., print_debug)
+static bool g_print_debug = false;
 static inline uint32_t _endian32(uint32_t x, bool is_little_endian)
 {
     if (!is_little_endian) {
@@ -73,11 +76,14 @@ static inline void _print_code_block(u32 *block, size_t max_len)
     for (size_t i = 0; hex[i] && hex[i + 1]; i += 2)
         n += snprintf(spaced + n, sizeof(spaced) - n, "0x%c%c ", hex[i], hex[i + 1]);
 
-    DEBUG_PRINT(
-        "---------------------------------------------------------------------------------------"
-        "---------------------------------------------------------------------------------------"
-        "------------------------------------\n");
-    DEBUG_PRINT("disasm %s\n", hex);
+    if (g_print_debug)
+        printf("-----------------------------------------------------------------------------------"
+               "----"
+               "-----------------------------------------------------------------------------------"
+               "----"
+               "------------------------------------\n");
+    if (g_print_debug)
+        printf("disasm %s\n", hex);
     fflush(stdout);
 
     FILE *p = popen("xcrun llvm-mc --disassemble -triple=arm64", "w");
@@ -88,10 +94,12 @@ static inline void _print_code_block(u32 *block, size_t max_len)
     fprintf(p, "%s\n", spaced);
     pclose(p);
 
-    DEBUG_PRINT(
-        "---------------------------------------------------------------------------------------"
-        "---------------------------------------------------------------------------------------"
-        "------------------------------------\n");
+    if (g_print_debug)
+        printf("-----------------------------------------------------------------------------------"
+               "----"
+               "-----------------------------------------------------------------------------------"
+               "----"
+               "------------------------------------\n");
 }
 // NOTE: a instuction, that flips the 31st bit in the msr register is a therminating instruction
 // !!!!
@@ -127,7 +135,8 @@ static bool is_pc_in_current_tb(u32 *pc_buffer, u32 current_pc_index, u32 dest_p
 }
 void special()
 {
-    DEBUG_PRINT("b");
+    if (g_print_debug)
+        printf("b");
 }
 
 static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction, u32 *pc_buffer,
@@ -137,8 +146,10 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
     u32 host_instruction_counter = 0;
     const u8 op = _get_op_from_instruction(insn);
-    DEBUG_PRINT("instuction : 0x%08x\n", insn);
-    DEBUG_PRINT("op : %d\n", op);
+    if (g_print_debug)
+        printf("instuction : 0x%08x\n", insn);
+    if (g_print_debug)
+        printf("op : %d\n", op);
 
     // NOTE: the after_instruction_pc must be set in every case
     switch (op) {
@@ -155,8 +166,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regA = _get_field(insn, 11, 15);
             const i32 d = _sign_extend(_get_field(insn, 16, 31), 16);
 
-            DEBUG_PRINT("[0x%08x] : lfd f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA,
-                        d);
+            if (g_print_debug)
+                printf("[0x%08x] : lfd f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA,
+                       d);
 
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
             curr_instruction = emit_load_u32(curr_instruction, 2, (u32)d);
@@ -180,8 +192,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regA = _get_field(insn, 11, 15);
             const i32 d = _sign_extend(_get_field(insn, 16, 31), 16);
 
-            DEBUG_PRINT("[0x%08x] : lfdu f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA,
-                        d);
+            if (g_print_debug)
+                printf("[0x%08x] : lfdu f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], fD, regA,
+                       d);
 
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
             curr_instruction = emit_load_u32(curr_instruction, 2, (u32)d);
@@ -205,8 +218,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 const u32 b = _get_field(insn, 16, 20);
                 const u32 rc = _get_field(insn, 31, 31);
 
-                DEBUG_PRINT("[0x%08x] : fmr%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
-                            rc ? "." : "", d, b);
+                if (g_print_debug)
+                    printf("[0x%08x] : fmr%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
+                           rc ? "." : "", d, b);
 
                 u32 *curr = code_buffer;
                 curr = emit_set_ps0_from_float(curr, d, b);
@@ -229,8 +243,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 const u32 b = _get_field(insn, 16, 20);
                 const u32 rc = _get_field(insn, 31, 31);
 
-                DEBUG_PRINT("[0x%08x] : fneg%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
-                            rc ? "." : "", d, b);
+                if (g_print_debug)
+                    printf("[0x%08x] : fneg%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
+                           rc ? "." : "", d, b);
 
                 u32 *curr = code_buffer;
                 curr = emit_fmov_into_gpr_64(curr, 9, b);
@@ -258,8 +273,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 const u32 b = _get_field(insn, 16, 20);
                 const u32 rc = _get_field(insn, 31, 31);
 
-                DEBUG_PRINT("[0x%08x] : fabs%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
-                            rc ? "." : "", d, b);
+                if (g_print_debug)
+                    printf("[0x%08x] : fabs%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
+                           rc ? "." : "", d, b);
 
                 u32 *curr = code_buffer;
                 curr = emit_fmov_into_gpr_64(curr, 9, b);
@@ -287,8 +303,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 const u32 b = _get_field(insn, 16, 20);
                 const u32 rc = _get_field(insn, 31, 31);
 
-                DEBUG_PRINT("[0x%08x] : fnabs%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
-                            rc ? "." : "", d, b);
+                if (g_print_debug)
+                    printf("[0x%08x] : fnabs%s f%d, f%d\n", pc_buffer[pc_buffer_counter],
+                           rc ? "." : "", d, b);
 
                 u32 *curr = code_buffer;
                 curr = emit_fmov_into_gpr_64(curr, 9, b);
@@ -322,10 +339,11 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     }
     case OPC_ADDI: {
 
-        DEBUG_PRINT("[0x%08x] : addi r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+        if (g_print_debug)
+            printf("[0x%08x] : addi r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
 
-                    _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
-                    _get_field(insn, 16, 31));
+                   _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
+                   _get_field(insn, 16, 31));
 
         const u32 rD_field = _get_field(insn, 6, 10);
         const u32 rA_field = _get_field(insn, 11, 15);
@@ -358,8 +376,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         const i32 imm = _sign_extend(_get_field(insn, 16, 31), 16);
 
-        DEBUG_PRINT("[0x%08x] : addic r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
-                    rD_field, rA_field, imm);
+        if (g_print_debug)
+            printf("[0x%08x] : addic r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+                   rD_field, rA_field, imm);
         u32 *curr = code_buffer;
 
         const u32 *regA = &cpu->registers.gpio[rA_field];
@@ -384,8 +403,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 rA_field = _get_field(insn, 11, 15);
         const i32 imm = _sign_extend(_get_field(insn, 16, 31), 16);
 
-        DEBUG_PRINT("[0x%08x] : addic. r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
-                    rD_field, rA_field, imm);
+        if (g_print_debug)
+            printf("[0x%08x] : addic. r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+                   rD_field, rA_field, imm);
         u32 *curr = code_buffer;
 
         const u32 *regA = &cpu->registers.gpio[rA_field];
@@ -409,9 +429,10 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     }
     case OPC_ORI: {
 
-        DEBUG_PRINT("[0x%08x] : ori r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
-                    _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
-                    _get_field(insn, 16, 31));
+        if (g_print_debug)
+            printf("[0x%08x] : ori r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+                   _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31),
+                   _get_field(insn, 16, 31));
 
         u32 *curr_instruction = code_buffer;
         const u32 regS = _get_field(insn, 6, 10);
@@ -437,8 +458,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const i32 LI = _sign_extend(_get_field(insn, 6, 29), 24);
         const i32 offset = LI * 4;
 
-        DEBUG_PRINT("[0x%08x] : b%s%s  %d\n", pc_buffer[pc_buffer_counter], LK ? "l" : "",
-                    AA ? "a" : "", offset);
+        if (g_print_debug)
+            printf("[0x%08x] : b%s%s  %d\n", pc_buffer[pc_buffer_counter], LK ? "l" : "",
+                   AA ? "a" : "", offset);
 
         u32 *curr_instruction = code_buffer;
         if (LK) {
@@ -477,7 +499,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         if (is_pc_in_current_tb(pc_buffer, pc_buffer_counter, nia, &pc_index) == true) {
             // pc deistination is in current tb
             //  optimize to jump inside the tb
-            DEBUG_PRINT("[0x%08x] : bcx   %d\n", pc_buffer[pc_buffer_counter], bi);
+            if (g_print_debug)
+                printf("[0x%08x] : bcx   %d\n", pc_buffer[pc_buffer_counter], bi);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, (u64)b0);
@@ -506,7 +529,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             return curr_instruction;
         } else {
 
-            DEBUG_PRINT("[0x%08x] : bcx   %d\n", pc_buffer[pc_buffer_counter], bi);
+            if (g_print_debug)
+                printf("[0x%08x] : bcx   %d\n", pc_buffer[pc_buffer_counter], bi);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, (u64)b0);
@@ -537,8 +561,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     }
     case OPC_ADDIS: {
 
-        DEBUG_PRINT("[0x%08x] : addis r%d, r%d, %d\n", pc_buffer[pc_buffer_counter],
-                    _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31));
+        if (g_print_debug)
+            printf("[0x%08x] : addis r%d, r%d, %d\n", pc_buffer[pc_buffer_counter],
+                   _get_field(insn, 6, 10), _get_field(insn, 11, 15), _get_field(insn, 16, 31));
 
         u32 *curr_instruction = code_buffer;
         const u32 regD = _get_field(insn, 6, 10);
@@ -571,9 +596,11 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             if (insn == 0x4e800020) {
                 // uncodininial branch (ret)
 
-                DEBUG_PRINT("[0x%08x] : blr  (RET)\n", pc_buffer[pc_buffer_counter]);
+                if (g_print_debug)
+                    printf("[0x%08x] : blr  (RET)\n", pc_buffer[pc_buffer_counter]);
 
-                DEBUG_PRINT("pc after : [0x%08x]   (RET)\n", cpu->special_purpose_registers.lr);
+                if (g_print_debug)
+                    printf("pc after : [0x%08x]   (RET)\n", cpu->special_purpose_registers.lr);
                 *pc_after_instruction = cpu->special_purpose_registers.lr;
 
                 const u32 *main_block, *main_block_end;
@@ -593,7 +620,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 const u32 bo = _get_field(insn, 6, 10);
                 const u32 bi = _get_field(insn, 11, 15);
                 const u32 LK = _get_field(insn, 31, 31);
-                DEBUG_PRINT("[0x%08x] : bclr %d, %d \n", pc_buffer[pc_buffer_counter], bo, bi);
+                if (g_print_debug)
+                    printf("[0x%08x] : bclr %d, %d \n", pc_buffer[pc_buffer_counter], bo, bi);
                 u32 *curr_instruction = code_buffer;
 
                 curr_instruction = emit_load_u32(curr_instruction, 0, (u64)bo);
@@ -620,7 +648,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 return curr_instruction;
             }
         } else if (_get_field(insn, 21, 30) == OPC_ISYNC_EXT) {
-            DEBUG_PRINT("[0x%08x] : isync \n", pc_buffer[pc_buffer_counter]);
+            if (g_print_debug)
+                printf("[0x%08x] : isync \n", pc_buffer[pc_buffer_counter]);
             u32 *curr_instruction = code_buffer;
             *pc_after_instruction += 4;
 
@@ -630,8 +659,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : crxor %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : crxor %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -651,8 +681,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : crand %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : crand %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -672,8 +703,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : crandc %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : crandc %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -693,8 +725,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : creqv %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : creqv %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -714,8 +747,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : crnand %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : crnand %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -735,8 +769,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : crnor %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : crnor %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -756,8 +791,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : cror %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : cror %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -777,8 +813,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 crbA = _get_field(insn, 11, 15);
             const u32 crbB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : crorc %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
-                        crbB);
+            if (g_print_debug)
+                printf("[0x%08x] : crorc %d, %d, %d \n", pc_buffer[pc_buffer_counter], crbD, crbA,
+                       crbB);
 
             u32 *curr_instruction = code_buffer;
             curr_instruction = emit_load_u32(curr_instruction, 0, 31 - crbD);
@@ -797,7 +834,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 bo = _get_field(insn, 6, 10);
             const u32 bi = _get_field(insn, 11, 15);
             const u32 LK = _get_field(insn, 31, 31);
-            DEBUG_PRINT("[0x%08x] : bcctr %d, %d \n", pc_buffer[pc_buffer_counter], bo, bi);
+            if (g_print_debug)
+                printf("[0x%08x] : bcctr %d, %d \n", pc_buffer[pc_buffer_counter], bo, bi);
             u32 *curr_instruction = code_buffer;
 
             curr_instruction = emit_load_u32(curr_instruction, 0, (u64)bo);
@@ -826,8 +864,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     }
     case OPC_MFMSR | OPC_MTMSR: {
         if (_get_field(insn, 21, 30) == OPC_MFMSR_EXT) {
-            DEBUG_PRINT("[0x%08x] : mfmsr r%d, \n", pc_buffer[pc_buffer_counter],
-                        _get_field(insn, 6, 10));
+            if (g_print_debug)
+                printf("[0x%08x] : mfmsr r%d, \n", pc_buffer[pc_buffer_counter],
+                       _get_field(insn, 6, 10));
 
             const u32 regD = _get_field(insn, 6, 10);
 
@@ -848,14 +887,16 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         // TODO: check manual for deeper functions and if it changes machine context
         // TODO: check manual for deeper functions and if it changes machine context
         if (_get_field(insn, 21, 30) == OPC_MTMSR_EXT) {
-            DEBUG_PRINT("[0x%08x] : mtmsr r%d, \n", pc_buffer[pc_buffer_counter],
-                        _get_field(insn, 6, 10));
+            if (g_print_debug)
+                printf("[0x%08x] : mtmsr r%d, \n", pc_buffer[pc_buffer_counter],
+                       _get_field(insn, 6, 10));
 
             const u32 regD = _get_field(insn, 6, 10);
 
             u32 *curr_instruction = code_buffer;
 
-            DEBUG_PRINT("regd : 0x%016x, msr : 0x%016x\n", (u64)regD, (u64)&cpu->state.msr);
+            if (g_print_debug)
+                printf("regd : 0x%016x, msr : 0x%016x\n", (u64)regD, (u64)&cpu->state.msr);
             curr_instruction = emit_load_u64(curr_instruction, 0, (u64)&cpu->state.msr);
             curr_instruction = emit_load_u32(curr_instruction, 1, (u64)regD);
 
@@ -874,11 +915,13 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 spr = (hi << 5) | lo;
 
             if (_get_field(insn, 21, 30) == OPC_MFSPR_EXT) {
-                DEBUG_PRINT("[0x%08x] : mfspr r%d, spr%d\n", pc_buffer[pc_buffer_counter],
-                            _get_field(insn, 6, 10), spr);
+                if (g_print_debug)
+                    printf("[0x%08x] : mfspr r%d, spr%d\n", pc_buffer[pc_buffer_counter],
+                           _get_field(insn, 6, 10), spr);
             } else {
-                DEBUG_PRINT("[0x%08x] : mftb r%d, spr%d\n", pc_buffer[pc_buffer_counter],
-                            _get_field(insn, 6, 10), spr);
+                if (g_print_debug)
+                    printf("[0x%08x] : mftb r%d, spr%d\n", pc_buffer[pc_buffer_counter],
+                           _get_field(insn, 6, 10), spr);
                 assert(spr == 268 || spr == 269);
             }
 
@@ -910,7 +953,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             // TODO: maybe simulate working cache
             u32 *curr_instruction = code_buffer;
 
-            DEBUG_PRINT("[0x%08x] : dcbf (NOP) \n", pc_buffer[pc_buffer_counter]);
+            if (g_print_debug)
+                printf("[0x%08x] : dcbf (NOP) \n", pc_buffer[pc_buffer_counter]);
 
             *pc_after_instruction += 4;
 
@@ -921,8 +965,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 lo = _get_field(insn, 11, 15);
             const u32 hi = _get_field(insn, 16, 20);
             const u32 spr = (hi << 5) | lo;
-            DEBUG_PRINT("[0x%08x] : mtspr spr%d, r%d, \n", pc_buffer[pc_buffer_counter], spr,
-                        _get_field(insn, 6, 10));
+            if (g_print_debug)
+                printf("[0x%08x] : mtspr spr%d, r%d, \n", pc_buffer[pc_buffer_counter], spr,
+                       _get_field(insn, 6, 10));
 
             const u8 regD = _get_field(insn, 6, 10);
 
@@ -957,7 +1002,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         // TODO: read inner specifications and if everything matches the specifications
         if (_get_field(insn, 21, 30) == OPC_SYNC_EXT) {
-            DEBUG_PRINT("[0x%08x] : sync \n", pc_buffer[pc_buffer_counter]);
+            if (g_print_debug)
+                printf("[0x%08x] : sync \n", pc_buffer[pc_buffer_counter]);
             u32 *curr_instruction = code_buffer;
             *pc_after_instruction += 4;
 
@@ -969,7 +1015,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : or r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : or r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -998,7 +1045,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : nor r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : nor r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1028,7 +1076,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : add r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : add r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1065,7 +1114,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 L = _get_field(insn, 10, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : cmpi  r%d, r%d\n", pc_buffer[pc_buffer_counter], regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : cmpi  r%d, r%d\n", pc_buffer[pc_buffer_counter], regA, regB);
 
             assert(L == 0);
 
@@ -1092,7 +1142,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : addex r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : addex r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1129,7 +1180,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : addcx r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : addcx r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1166,7 +1218,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : and r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : and r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1195,7 +1248,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : andc r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : andc r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1224,7 +1278,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : orc r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : orc r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1253,7 +1308,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : xor r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : xor r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1282,7 +1338,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : nand r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : nand r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1311,7 +1368,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : eqv r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : eqv r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1340,7 +1398,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : slw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : slw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1369,7 +1428,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : srw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : srw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1398,7 +1458,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : sraw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : sraw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1431,7 +1492,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : srawi r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : srawi r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1464,8 +1526,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : cntlzw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a,
-                        b);
+            if (g_print_debug)
+                printf("[0x%08x] : cntlzw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1494,7 +1556,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : extsb r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : extsb r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1523,7 +1586,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : extsh r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : extsh r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], s, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1552,7 +1616,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 L = _get_field(insn, 10, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : cmpl  r%d, r%d\n", pc_buffer[pc_buffer_counter], regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : cmpl  r%d, r%d\n", pc_buffer[pc_buffer_counter], regA, regB);
 
             assert(L == 0);
 
@@ -1579,7 +1644,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : subf r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : subf r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1616,7 +1682,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : neg r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : neg r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1653,7 +1720,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : mullw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : mullw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1690,7 +1758,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : divw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : divw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1727,7 +1796,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : divwu r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : divwu r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1763,7 +1833,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : mulhw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : mulhw r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1792,8 +1863,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 b = _get_field(insn, 16, 20);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : mulhwu r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a,
-                        b);
+            if (g_print_debug)
+                printf("[0x%08x] : mulhwu r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1823,7 +1894,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : subfc r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : subfc r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1861,7 +1933,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : subfe r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : subfe r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1898,7 +1971,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : addze r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : addze r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1935,7 +2009,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : addme r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
+            if (g_print_debug)
+                printf("[0x%08x] : addme r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -1972,8 +2047,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : subfze r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a,
-                        b);
+            if (g_print_debug)
+                printf("[0x%08x] : subfze r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -2010,8 +2085,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 oe = _get_field(insn, 21, 21);
             const u32 rc = _get_field(insn, 31, 31);
 
-            DEBUG_PRINT("[0x%08x] : subfme r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a,
-                        b);
+            if (g_print_debug)
+                printf("[0x%08x] : subfme r%d, r%d, r%d \n", pc_buffer[pc_buffer_counter], d, a, b);
 
             u32 *curr_instruction = code_buffer;
 
@@ -2047,8 +2122,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lwzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lwzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2067,8 +2143,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lwzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lwzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2087,8 +2164,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stwx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stwx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2107,8 +2185,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stwux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stwux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2127,8 +2206,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lbzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lbzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2147,8 +2227,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lbzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lbzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             assert(regA != 0);
 
@@ -2169,8 +2250,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lhzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lhzx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2189,8 +2271,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lhzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lhzux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             assert(regA != 0);
 
@@ -2211,8 +2294,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lhax r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lhax r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2231,8 +2315,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lhaux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lhaux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             assert(regA != 0);
 
@@ -2253,8 +2338,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stbx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stbx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regS);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2273,8 +2359,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stbux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stbux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             assert(regA != 0);
 
@@ -2295,8 +2382,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : sthx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : sthx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regS);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2315,8 +2403,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : sthux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : sthux r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             assert(regA != 0);
 
@@ -2337,8 +2426,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lwbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lwbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2357,8 +2447,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lhbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lhbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2377,8 +2468,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stwbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stwbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regS);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2397,8 +2489,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : sthbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : sthbrx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regS);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2417,8 +2510,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 NB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lswi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter], regD, regA,
-                        NB);
+            if (g_print_debug)
+                printf("[0x%08x] : lswi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter], regD, regA,
+                       NB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2437,8 +2531,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regD = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : lswx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lswx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regD,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regD);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2458,8 +2553,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 NB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stswi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter], regS, regA,
-                        NB);
+            if (g_print_debug)
+                printf("[0x%08x] : stswi r%d, r%d, %d\n", pc_buffer[pc_buffer_counter], regS, regA,
+                       NB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regS);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2478,8 +2574,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stswx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stswx r%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 0, regS);
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2501,8 +2598,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : lfdx f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], fD, regA,
-                        regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lfdx f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], fD, regA,
+                       regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
             curr_instruction = emit_load_u32(curr_instruction, 2, regB);
@@ -2525,8 +2623,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
 
-            DEBUG_PRINT("[0x%08x] : lfdux f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], fD,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : lfdux f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], fD, regA,
+                       regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
             curr_instruction = emit_load_u32(curr_instruction, 2, regB);
@@ -2548,8 +2647,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stfdx f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stfdx f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
             curr_instruction = emit_load_u32(curr_instruction, 2, regB);
@@ -2569,8 +2669,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             const u32 regS = _get_field(insn, 6, 10);
             const u32 regA = _get_field(insn, 11, 15);
             const u32 regB = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : stfdux f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
-                        regA, regB);
+            if (g_print_debug)
+                printf("[0x%08x] : stfdux f%d, [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regS,
+                       regA, regB);
 
             curr_instruction = emit_load_u32(curr_instruction, 1, regA);
             curr_instruction = emit_load_u32(curr_instruction, 2, regB);
@@ -2587,7 +2688,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         if (_get_field(insn, 21, 30) == OPC_MFSR_EXT) {
             const u32 reg = _get_field(insn, 6, 10);
             const u32 sr = _get_field(insn, 12, 15);
-            DEBUG_PRINT("[0x%08x] : mfsr r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
+            if (g_print_debug)
+                printf("[0x%08x] : mfsr r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
 
             u32 *curr_instruction = code_buffer;
 
@@ -2606,7 +2708,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         if (_get_field(insn, 21, 30) == OPC_MTSR_EXT) {
             const u32 reg = _get_field(insn, 6, 10);
             const u32 sr = _get_field(insn, 12, 15);
-            DEBUG_PRINT("[0x%08x] : mtsr r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
+            if (g_print_debug)
+                printf("[0x%08x] : mtsr r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
 
             u32 *curr_instruction = code_buffer;
 
@@ -2625,7 +2728,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         if (_get_field(insn, 21, 30) == OPC_MFSRIN_EXT) {
             const u32 reg = _get_field(insn, 6, 10);
             const u32 sr = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : mfsrin r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
+            if (g_print_debug)
+                printf("[0x%08x] : mfsrin r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
 
             u32 *curr_instruction = code_buffer;
 
@@ -2644,7 +2748,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         if (_get_field(insn, 21, 30) == OPC_MTSRIN_EXT) {
             const u32 reg = _get_field(insn, 6, 10);
             const u32 sr = _get_field(insn, 16, 20);
-            DEBUG_PRINT("[0x%08x] : mtsrin r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
+            if (g_print_debug)
+                printf("[0x%08x] : mtsrin r%d, %d\n", pc_buffer[pc_buffer_counter], reg, sr);
 
             u32 *curr_instruction = code_buffer;
 
@@ -2668,7 +2773,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : stw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : stw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2688,7 +2794,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i32 d = _sign_extend(_get_field(insn, 16, 31), 16);
-        DEBUG_PRINT("[0x%08x] : lhz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : lhz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2707,7 +2814,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : sth r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : sth r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2727,8 +2835,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : stwu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : stwu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2751,8 +2859,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regA = _get_field(insn, 11, 15);
 
         const i32 simm = _sign_extend(_get_field(insn, 16, 31), 16);
-        DEBUG_PRINT("[0x%08x] : stmw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    simm);
+        if (g_print_debug)
+            printf("[0x%08x] : stmw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   simm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2774,8 +2883,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const u16 uimm = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : oris r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    uimm);
+        if (g_print_debug)
+            printf("[0x%08x] : oris r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   uimm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2795,7 +2905,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lwz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : lwz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2815,8 +2926,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : stbu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : stbu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         assert(regA != 0);
 
@@ -2838,8 +2949,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lbzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : lbzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2859,7 +2970,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lbz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : lbz r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2879,8 +2991,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lhzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : lhzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         assert(regA != 0);
 
@@ -2902,7 +3014,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lha r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : lha r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2922,8 +3035,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lhau r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : lhau r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         assert(regA != 0);
 
@@ -2945,7 +3058,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : stb r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
+        if (g_print_debug)
+            printf("[0x%08x] : stb r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -2965,8 +3079,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : sthu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : sthu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         assert(regA != 0);
 
@@ -2991,8 +3105,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 MB = _get_field(insn, 21, 25);
         const u32 ME = _get_field(insn, 26, 30);
         const u32 RC = _get_field(insn, 31, 31);
-        DEBUG_PRINT("[0x%08x] : rlwinm r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS,
-                    regA, SH, MB, ME);
+        if (g_print_debug)
+            printf("[0x%08x] : rlwinm r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS,
+                   regA, SH, MB, ME);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3022,7 +3137,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 L = _get_field(insn, 10, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const u32 uimm = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : cmpli  r%d, %d\n", pc_buffer[pc_buffer_counter], regA, uimm);
+        if (g_print_debug)
+            printf("[0x%08x] : cmpli  r%d, %d\n", pc_buffer[pc_buffer_counter], regA, uimm);
 
         assert(L == 0);
 
@@ -3048,8 +3164,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : stfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : stfd f%d, [f%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
         curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
@@ -3070,7 +3186,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 L = _get_field(insn, 10, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i32 simm = _sign_extend(_get_field(insn, 16, 31), 16);
-        DEBUG_PRINT("[0x%08x] : cmpi  r%d, %d\n", pc_buffer[pc_buffer_counter], regA, simm);
+        if (g_print_debug)
+            printf("[0x%08x] : cmpi  r%d, %d\n", pc_buffer[pc_buffer_counter], regA, simm);
 
         assert(L == 0);
 
@@ -3097,8 +3214,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         const i32 imm = _sign_extend(_get_field(insn, 16, 31), 16);
 
-        DEBUG_PRINT("[0x%08x] : subfic r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
-                    rD_field, rA_field, imm);
+        if (g_print_debug)
+            printf("[0x%08x] : subfic r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+                   rD_field, rA_field, imm);
         u32 *curr = code_buffer;
 
         u32 *blk, *blk_end;
@@ -3123,8 +3241,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         const i32 imm = _sign_extend(_get_field(insn, 16, 31), 16);
 
-        DEBUG_PRINT("[0x%08x] : mulli r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
-                    rD_field, rA_field, imm);
+        if (g_print_debug)
+            printf("[0x%08x] : mulli r%d, r%d, imm(#%d / 0x%08x)\n", pc_buffer[pc_buffer_counter],
+                   rD_field, rA_field, imm);
         u32 *curr = code_buffer;
 
         u32 *blk, *blk_end;
@@ -3142,8 +3261,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const u16 uimm = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : xori r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    uimm);
+        if (g_print_debug)
+            printf("[0x%08x] : xori r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   uimm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3163,8 +3283,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const u16 uimm = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : xoris r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    uimm);
+        if (g_print_debug)
+            printf("[0x%08x] : xoris r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   uimm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3184,8 +3305,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const u16 uimm = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : andi. r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    uimm);
+        if (g_print_debug)
+            printf("[0x%08x] : andi. r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   uimm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3210,8 +3332,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const u16 uimm = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : andis. r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    uimm);
+        if (g_print_debug)
+            printf("[0x%08x] : andis. r%d, r%d %u]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   uimm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3236,8 +3359,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : lwzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : lwzu r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA, d);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3258,8 +3381,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regA = _get_field(insn, 11, 15);
 
         const i32 simm = _sign_extend(_get_field(insn, 16, 31), 16);
-        DEBUG_PRINT("[0x%08x] : lmw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
-                    simm);
+        if (g_print_debug)
+            printf("[0x%08x] : lmw r%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regD, regA,
+                   simm);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regD);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3282,8 +3406,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 MB = _get_field(insn, 21, 25);
         const u32 ME = _get_field(insn, 26, 30);
         const u32 RC = _get_field(insn, 31, 31);
-        DEBUG_PRINT("[0x%08x] : rlwnm r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS,
-                    regA, SH, MB, ME);
+        if (g_print_debug)
+            printf("[0x%08x] : rlwnm r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS,
+                   regA, SH, MB, ME);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3315,8 +3440,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 MB = _get_field(insn, 21, 25);
         const u32 ME = _get_field(insn, 26, 30);
         const u32 RC = _get_field(insn, 31, 31);
-        DEBUG_PRINT("[0x%08x] : rlwimi r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS,
-                    regA, SH, MB, ME);
+        if (g_print_debug)
+            printf("[0x%08x] : rlwimi r%d, r%d, %d, %d, %d\n", pc_buffer[pc_buffer_counter], regS,
+                   regA, SH, MB, ME);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, regS);
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
@@ -3346,8 +3472,9 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regS = _get_field(insn, 6, 10);
         const u32 regA = _get_field(insn, 11, 15);
         const i16 d = _get_field(insn, 16, 31);
-        DEBUG_PRINT("[0x%08x] : stfdu f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
-                    d);
+        if (g_print_debug)
+            printf("[0x%08x] : stfdu f%d, [r%d, %d]\n", pc_buffer[pc_buffer_counter], regS, regA,
+                   d);
 
         curr_instruction = emit_load_u32(curr_instruction, 1, regA);
         curr_instruction = emit_load_u32(curr_instruction, 2, (i32)d);
@@ -3370,7 +3497,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regB = _get_field(insn, 16, 20);
         const u32 rc = _get_field(insn, 31, 31);
-        DEBUG_PRINT("[0x%08x] : ps_neg f%d, f%d\n", pc_buffer[pc_buffer_counter], regD, regB);
+        if (g_print_debug)
+            printf("[0x%08x] : ps_neg f%d, f%d\n", pc_buffer[pc_buffer_counter], regD, regB);
 
         // TODO: if this happens envoke exception
         assert(cpu->fpu.get_pse_bit(cpu) != 0);
@@ -3391,6 +3519,24 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         return curr_instruction;
         break;
     }
+    case SYSTEM_CALL_OPCODE: {
+        u32 *curr_instruction = code_buffer;
+        if (g_print_debug)
+            printf("[0x%08x] : sc\n", pc_buffer[pc_buffer_counter]);
+
+        curr_instruction = emit_load_u32(curr_instruction, 0, pc_buffer[pc_buffer_counter]);
+
+        const u32 *main_block, *main_block_end;
+        emit_sc(&main_block, &main_block_end);
+        curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+        *pc_after_instruction += 4;
+
+        *termination_type = TERMINATING_TYPE_RET;
+
+        return curr_instruction;
+        break;
+    }
     default:
 
         printf("insn : 0x%08x\n", insn);
@@ -3400,7 +3546,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
 static u32 *emit_pc_store(u32 pc_to_push, u32 *code_buffer, CPU *cpu)
 {
-    DEBUG_PRINT("pc store emit\n");
+    if (g_print_debug)
+        printf("pc store emit\n");
     u32 *curr_instruction = code_buffer;
     const u32 *pc_register_ptr = &cpu->state.pc;
 
@@ -3424,11 +3571,14 @@ static u32 *emit_nop(u32 *out)
 }
 
 // TODO: add variable sizing for the code blocks
-bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
+bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool print_debug)
 {
+    g_print_debug = print_debug;
+
     const u32 pc_at_start = cpu->state.pc;
 
-    DEBUG_PRINT("pc at start : 0x%08x\n", pc_at_start);
+    if (g_print_debug)
+        printf("pc at start : 0x%08x\n", pc_at_start);
 
     CodeBuffer cb;
     if (!code_buffer_init(&cb, TB_INITIAL_CAPACITY)) {
@@ -3460,7 +3610,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
     while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
 
         if (!code_buffer_reserve(&cb, TB_MAX_BYTES_PER_GUEST_INSTRUCTION + TB_EPILOGUE_MAX_BYTES)) {
-            TB_TRACE("tb full after %u guest instructions\n", pc_count);
+            if (g_print_debug)
+                printf("tb full after %u guest instructions\n", pc_count);
             break;
         }
 
@@ -3468,12 +3619,19 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
         const u32 guest_instruction = (u32)cpu->bus->read(cpu->bus, pc, 4);
         if (guest_instruction == 0) {
-            TB_TRACE("fetch fault at 0x%08x\n", pc);
+            if (g_print_debug)
+                printf("fetch fault at 0x%08x\n", pc);
             code_buffer_destroy(&cb);
+
+            if (g_print_debug == false)
+                tb_translate(cpu, cpu_mode, out_tb, true);
+
+            assert(!"guest instruction 0 \n");
             return false;
         }
 
-        TB_TRACE("current pc: 0x%08x\n", pc);
+        if (g_print_debug)
+            printf("current pc: 0x%08x\n", pc);
         pc_buffer[pc_count] = pc;
         host_block_buffer[pc_count] = out;
 
@@ -3482,15 +3640,19 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
                                      pc_count, out, &termination_type, &out_tb->type, &fpr_bitmap);
         pc_count += 1;
 
-        DEBUG_PRINT("code size : %llu\n", (u64)((u8 *)out - (u8 *)block_start));
+        if (g_print_debug)
+            printf("code size : %llu\n", (u64)((u8 *)out - (u8 *)block_start));
         assert((u64)((u8 *)out - (u8 *)block_start) <= TB_MAX_BYTES_PER_GUEST_INSTRUCTION);
-        TB_TRACE_CODE(block_start, (u32)(out - block_start));
+        if (g_print_debug)
+            _print_code_block(block_start, (u32)(out - block_start));
 
         cb.size = (u32)((u8 *)out - cb.code);
     }
 
     if (!code_buffer_reserve(&cb, TB_EPILOGUE_MAX_BYTES)) {
         code_buffer_destroy(&cb);
+
+        assert(!"code buffer reserve\n");
         return false;
     }
     out = (u32 *)(cb.code + cb.size);
@@ -3504,14 +3666,18 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb)
 
     if (!code_buffer_make_executable(&cb)) {
         code_buffer_destroy(&cb);
+        assert(!"code buffer make exec\n");
         return false;
     }
 
-    TB_TRACE_CODE((u32 *)cb.code, (cb.size / 4) + 0xa000);
+    if (g_print_debug)
+        _print_code_block((u32 *)cb.code, (cb.size / 4) + 0xa000);
 
-    DEBUG_PRINT("adr of ret : 0x%016llx\n", ((u64)out) - 4);
+    if (g_print_debug)
+        printf("adr of ret : 0x%016llx\n", ((u64)out) - 4);
 
-    DEBUG_PRINT("pc at end : 0x%08x\n", pc_at_start);
+    if (g_print_debug)
+        printf("pc at end : 0x%08x\n", pc_at_start);
 
     const TranslationBlockCore core = {.code = cb.code, cb.size};
 

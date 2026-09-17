@@ -13,6 +13,8 @@
 #define OPC_PS_NEG 4
 #define OPC_PS_NEG_EXT 40
 
+#define SYSTEM_CALL_OPCODE 17
+
 #define OPC_CMPLI 10
 #define OPC_CMPI 11
 #define OPC_ADDIC 12
@@ -67,6 +69,7 @@
 #define OPC_LHZ 40
 #define OPC_LMW 46
 #define OPC_LFDU 51
+#define OPC_STFDU 55
 #define OPC_STFDU 55
 #define OPC_BCCTR_EXT 528
 #define OPC_CRAND_EXT 257

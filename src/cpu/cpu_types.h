@@ -18,14 +18,14 @@ typedef struct PACKED {
     u32 gpio[32];
     u32 sr[16];
 
-} CpuRegisters;
+} PACKED CpuRegisters;
 
 typedef struct {
     u32 val;
 
 } CpuMode;
 typedef union {
-    struct {
+    struct PACKED {
         u32 spr0_7[8];
         u32 lr;
         u32 ctr;
@@ -39,7 +39,7 @@ typedef union {
     };
 
     u32 buf[1024];
-} CpuSpecialPurposeRegisters;
+} PACKED CpuSpecialPurposeRegisters;
 
 typedef struct CPU CPU;
 
@@ -49,13 +49,14 @@ enum FPRPrecision {
 };
 
 typedef struct {
-    u8 (*get_pse_bit)(CPU *self);
 
+    u8 (*get_pse_bit)(CPU *self);
     // ps0 - bei HID2[PSE] = 0 der gewoehnliche FPR-Inhalt
     double fpr[32];
     // ps1 - wie beim Gekko intern als double abgelegt, nicht als single
     double ps1[32];
-} FPU;
+
+} PACKED FPU;
 
 typedef struct {
     // Upper 32 Bits are ignored
@@ -66,6 +67,7 @@ typedef struct {
 struct CPU {
     CpuState state;
     CpuRegisters registers;
+    CpuRegisters registers_scratch;
     CpuSpecialPurposeRegisters special_purpose_registers;
     CpuState state_on_start_of_tb;
     CpuExcpetion exception;
@@ -74,6 +76,7 @@ struct CPU {
 
     Bus *bus;
     FPU fpu;
+    FPU fpu_scratch;
 
     void (*main)(CPU *self);
     void (*background)(CPU *self);
