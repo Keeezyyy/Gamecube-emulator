@@ -15,6 +15,11 @@ static struct {
 
 } exi_registers;
 
+void init_exi(void)
+{
+    exi_registers.channels[1].EXInCSR = 0;
+}
+
 u64 exi_read(CPU *cpu, u32 adr, u32 size)
 {
     if (adr < 0xCC006814) {
@@ -23,8 +28,14 @@ u64 exi_read(CPU *cpu, u32 adr, u32 size)
         }
 
     } else if (adr < 0xCC006828) {
+        if (adr == 0xCC006814 + 0x0) {
+            return exi_registers.channels[1].EXInCSR;
+        }
 
     } else {
+        if (adr == 0xCC006828 + 0x0) {
+            return exi_registers.channels[2].EXInCSR;
+        }
     }
 
     assert(!"read exi not implemented");

@@ -78,6 +78,8 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb);
 int tb_finilize(TranslationBlock *tb);
 
 void run_tb(TranslationBlock *block, CPU *cpu);
+
+void run_tb_with_fpu(const void *code, FPU *fpu);
 // code buffer
 
 bool code_buffer_init(CodeBuffer *cb, u32 capacity);

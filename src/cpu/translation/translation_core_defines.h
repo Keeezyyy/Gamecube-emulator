@@ -92,6 +92,7 @@
 #define OPC_CMPL_EXT 32
 #define OPC_DCBF_EXT 86
 #define OPC_ICBI_EXT 982
+#define OPC_DCBI_EXT 470
 #define OPC_SUBFX_EXT 40
 #define OPC_SUBFCX_EXT 8
 #define OPC_SUBFEX_EXT 136

@@ -905,7 +905,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
-        if (_get_field(insn, 21, 30) == OPC_DCBF_EXT || _get_field(insn, 21, 30) == OPC_ICBI_EXT) {
+        if (_get_field(insn, 21, 30) == OPC_DCBF_EXT || _get_field(insn, 21, 30) == OPC_ICBI_EXT ||
+            _get_field(insn, 21, 30) == OPC_DCBI_EXT) {
             // TODO: maybe simulate working cache
             u32 *curr_instruction = code_buffer;
 
@@ -2287,7 +2288,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
-        DEBUG_PRINT("not implemented : %d\n", _get_field(insn, 21, 30));
+        printf("not implemented : %d\n", _get_field(insn, 21, 30));
         assert(!"not implemented guest instruction");
     }
     case OPC_STW: {
@@ -2892,6 +2893,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     }
     default:
 
+        printf("insn : 0x%08x\n", insn);
         assert(!"not implemented guest instruction");
     }
 }

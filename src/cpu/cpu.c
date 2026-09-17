@@ -52,13 +52,13 @@ static void main_loop(CPU *self)
             if (!tb_translate(self, m, new_tb)) {
                 fprintf(stderr, "translation failed at pc 0x%08x\n", self->state.pc);
                 free(new_tb);
-                abort();
+                assert(!"tb_translate failed: guest code block could not be translated");
             }
 
             if (tb_finilize(new_tb) != 0) {
                 fprintf(stderr, "tb_finilize failed at pc 0x%08x\n", self->state.pc);
                 free(new_tb);
-                abort();
+                assert(!"tb_finilize failed: translated block could not be finalized");
             }
 
             tb = new_tb;
@@ -159,10 +159,10 @@ static void start(CPU *self)
     // NOTE: pthread_create writes the new handle through the first argument, so it must be the
     // address of the pthread_t, not its (uninitialized) value
     if (pthread_create(&main_thread, NULL, (void *)self->main, self) != 0) {
-        abort();
+        assert(!"pthread_create failed for main_thread");
     }
     if (pthread_create(&background_thread, NULL, (void *)self->background, self) != 0) {
-        abort();
+        assert(!"pthread_create failed for background_thread");
     }
 
     pthread_join(main_thread, NULL);
