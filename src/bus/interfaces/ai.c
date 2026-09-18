@@ -21,6 +21,8 @@ static u32 mmaddr;
 static u32 araddr;
 static u32 dma_cnt;
 
+static u32 ar_refresh;
+
 static u8 ARAM[MB(ARAM_CAPACITY_IN_MB)];
 
 void ai_write_to_streaming_interface(CPU *cpu, u32 adr, u64 val, u32 size)
@@ -111,6 +113,9 @@ void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size)
         }
 
         return;
+    } else if (adr == DSP_AR_REFRESH) {
+        ar_refresh = val & 0x07FF;
+        return;
     }
 
     assert(!"sound dsp write");
@@ -125,6 +130,36 @@ u64 dsp_read(CPU *cpu, u32 adr, u32 size)
         return mailbox_from_dsp_hi;
     } else if (adr == DSP_MAIL_FROM_DSP_LO) {
         return mailbox_from_dsp_lo;
+    } else if (adr == DSP_AR_REFRESH) {
+        return ar_refresh;
+    } else if (adr == AR_MODE) {
+        return 1;
+    } else if (adr == DSP_AR_INFO) {
+        return dsp_aram;
+    } else if (adr >= 0xCC005020 && adr <= 0xCC005022) {
+
+        if (size == 4) {
+            return mmaddr;
+
+        } else {
+            return mmaddr >> (adr == 0xCC005022 ? 16 : 0);
+        }
+    } else if (adr >= 0xCC005024 && adr <= 0xCC005026) {
+
+        if (size == 4) {
+            return araddr;
+
+        } else {
+            return araddr >> (adr == 0xCC005026 ? 16 : 0);
+        }
+    } else if (adr >= 0xCC005028 && adr <= 0xCC00502a) {
+
+        if (size == 4) {
+            return dma_cnt;
+
+        } else {
+            return dma_cnt >> (adr == 0xCC00502a ? 16 : 0);
+        }
     }
 
     printf("[DSP_READ] :  adr : 0x%08x\n", adr);

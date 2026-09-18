@@ -125,18 +125,8 @@
 #define OPC_FNEG_EXT 40
 #define OPC_FABS_EXT 264
 #define OPC_FNABS_EXT 136
-#define OPC_FRSP_EXT 12
 
 #define OPC_FADDS 59
-#define OPC_FADDS_EXT 21
-#define OPC_FSUBS_EXT 20
-#define OPC_FMULS_EXT 25
-#define OPC_FDIVS_EXT 18
-#define OPC_FRES_EXT 24
-#define OPC_FMSUBS_EXT 28
-#define OPC_FMADDS_EXT 29
-#define OPC_FNMSUBS_EXT 30
-#define OPC_FNMADDS_EXT 31
 #define OPC_LBZ 34
 #define OPC_STB 38
 #define OPC_LHZU 41

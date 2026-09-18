@@ -12,8 +12,10 @@ u64 ai_read_from_streaming_interface(CPU *cpu, u32 adr, u32 size);
 #define DSP_MAIL_FROM_DSP_HI 0xCC005004
 #define DSP_MAIL_FROM_DSP_LO 0xCC005006
 #define DSP_AR_INFO 0xCC005012
+#define DSP_AR_REFRESH 0xCC00501A
 #define DSP_MAIL_TO_DSP_HI 0xCC005000
 #define AR_DMA_MMADDR 0xCC005020
+#define AR_MODE 0xCC005016
 
 #define ARAM_CAPACITY_IN_MB 16
 
