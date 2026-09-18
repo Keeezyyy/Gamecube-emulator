@@ -140,6 +140,28 @@ u32 *emit_set_ps0_from_gpr(u32 *out, u8 fd, u8 rn)
     return out;
 }
 
+static inline u32 a64_ins_d1_from_x(u8 dd, u8 xn)
+{
+    return 0x4E181C00u | ((u32)(xn & 31) << 5) | (dd & 31);
+}
+
+u32 *emit_set_ps1_from_gpr(u32 *out, u8 fd, u8 rn)
+{
+    *out++ = a64_ins_d1_from_x(fd, rn);
+    return out;
+}
+
+static inline u32 a64_umov_x_from_d1(u8 xd, u8 vn)
+{
+    return 0x4E183C00u | ((u32)(vn & 31) << 5) | (xd & 31);
+}
+
+u32 *emit_get_ps1_into_gpr(u32 *out, u8 rd, u8 fn)
+{
+    *out++ = a64_umov_x_from_d1(rd, fn);
+    return out;
+}
+
 static inline u32 a64_fneg_2d(u8 dd, u8 dn)
 {
     return 0x6EE0F800u | ((u32)(dn & 31) << 5) | (dd & 31);

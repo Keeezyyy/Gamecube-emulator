@@ -81,6 +81,72 @@ FUNCTION_ARRAY_POINTER .req x20
 .endm
 
 
+.macro SINGLE_TO_DOUBLE
+        lsr  w5, w0, #31
+        ubfx w6, w0, #23, #8
+        and  w7, w0, #0x7fffff
+        lsl  x5, x5, #63
+        cbz  w6, 8f
+
+        mov  w9, #0x7ff
+        add  w6, w6, #896
+        cmp  w6, #1151
+        csel w6, w9, w6, eq
+        orr  x0, x5, x6, lsl #52
+        orr  x0, x0, x7, lsl #29
+        b    9f
+8:
+        mov  x0, x5
+        cbz  w7, 9f
+        clz  w8, w7
+        mov  w9, #31
+        sub  w8, w9, w8
+        mov  w9, #1
+        lsl  w9, w9, w8
+        sub  w7, w7, w9
+        mov  w9, #52
+        sub  w9, w9, w8
+        lsl  x7, x7, x9
+        add  w8, w8, #874
+        orr  x0, x5, x8, lsl #52
+        orr  x0, x0, x7
+9:
+.endm
+
+
+.macro DOUBLE_TO_SINGLE
+        lsr  x5, x0, #63
+        ubfx x6, x0, #52, #11
+        and  x7, x0, #0xfffffffffffff
+        cmp  x6, #896
+        b.hi 8f
+        cbnz x6, 7f
+        cbz  x7, 8f
+        b    6f
+7:
+        cmp  x6, #874
+        b.lo 6f
+        orr  x7, x7, #0x10000000000000
+        mov  w9, #926
+        sub  w9, w9, w6
+        lsr  x7, x7, x9
+        and  w0, w7, #0x7fffff
+        orr  w0, w0, w5, lsl #31
+        b    9f
+6:
+        lsl  w0, w5, #31
+        b    9f
+8:
+        ubfx w8, w6, #10, #1
+        and  w9, w6, #0x7f
+        orr  w8, w9, w8, lsl #7
+        lsr  x7, x7, #29
+        orr  w0, w7, w8, lsl #23
+        orr  w0, w0, w5, lsl #31
+9:
+.endm
+
+
 .globl _emit_lfd
 _emit_lfd:
           adr x22, _emit_lfd_start
@@ -325,3 +391,409 @@ _emit_fnabs:
 
 
 
+
+
+.globl _emit_lfs
+_emit_lfs:
+          adr x22, _emit_lfs_start
+          adr x23, _emit_lfs_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_lfs_start:
+        cbnz w1, lfs_1
+        mov w0, 0
+        b lfs_2
+lfs_1:
+        LOAD_REGISTER w1, w0
+lfs_2:
+        add w0, w0, w2
+        PUSH_64 x4
+        mov w2, 1
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        SINGLE_TO_DOUBLE
+        str x0, [x4]
+        _emit_lfs_after:
+
+
+.globl _emit_lfsu
+_emit_lfsu:
+          adr x22, _emit_lfsu_start
+          adr x23, _emit_lfsu_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_lfsu_start:
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x4
+        PUSH_64 x0
+        PUSH_64 x1
+        mov w2, 1
+        CALL_HELPER_FUNCTION w2
+        POP_64 x1
+        POP_64 x5
+        POP_64 x4
+        STORE_REGISTER w1, w5
+        SINGLE_TO_DOUBLE
+        str x0, [x4]
+        _emit_lfsu_after:
+
+
+.globl _emit_lfsx
+_emit_lfsx:
+          adr x22, _emit_lfsx_start
+          adr x23, _emit_lfsx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_lfsx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, lfsx_1
+        mov w0, 0
+        b lfsx_2
+lfsx_1:
+        LOAD_REGISTER w1, w0
+lfsx_2:
+        add w0, w0, w2
+        PUSH_64 x4
+        mov w2, 1
+        CALL_HELPER_FUNCTION w2
+        POP_64 x4
+        SINGLE_TO_DOUBLE
+        str x0, [x4]
+        _emit_lfsx_after:
+
+
+.globl _emit_lfsux
+_emit_lfsux:
+          adr x22, _emit_lfsux_start
+          adr x23, _emit_lfsux_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_lfsux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x4
+        PUSH_64 x0
+        PUSH_64 x1
+        mov w2, 1
+        CALL_HELPER_FUNCTION w2
+        POP_64 x1
+        POP_64 x5
+        POP_64 x4
+        STORE_REGISTER w1, w5
+        SINGLE_TO_DOUBLE
+        str x0, [x4]
+        _emit_lfsux_after:
+
+
+.globl _emit_stfs
+_emit_stfs:
+          adr x22, _emit_stfs_start
+          adr x23, _emit_stfs_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_stfs_start:
+        mov x0, x4
+        DOUBLE_TO_SINGLE
+        mov w3, w0
+        cbnz w1, stfs_1
+        mov w0, 0
+        b stfs_2
+stfs_1:
+        LOAD_REGISTER w1, w0
+stfs_2:
+        add w0, w0, w2
+        mov w1, w3
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        _emit_stfs_after:
+
+
+.globl _emit_stfsu
+_emit_stfsu:
+          adr x22, _emit_stfsu_start
+          adr x23, _emit_stfsu_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_stfsu_start:
+        mov x0, x4
+        DOUBLE_TO_SINGLE
+        mov w3, w0
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x1
+        mov w1, w3
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x1
+        POP_64 x0
+        STORE_REGISTER w1, w0
+        _emit_stfsu_after:
+
+
+.globl _emit_stfsx
+_emit_stfsx:
+          adr x22, _emit_stfsx_start
+          adr x23, _emit_stfsx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_stfsx_start:
+        LOAD_REGISTER w2, w2
+        mov x0, x4
+        DOUBLE_TO_SINGLE
+        mov w3, w0
+        cbnz w1, stfsx_1
+        mov w0, 0
+        b stfsx_2
+stfsx_1:
+        LOAD_REGISTER w1, w0
+stfsx_2:
+        add w0, w0, w2
+        mov w1, w3
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        _emit_stfsx_after:
+
+
+.globl _emit_stfsux
+_emit_stfsux:
+          adr x22, _emit_stfsux_start
+          adr x23, _emit_stfsux_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_stfsux_start:
+        LOAD_REGISTER w2, w2
+        mov x0, x4
+        DOUBLE_TO_SINGLE
+        mov w3, w0
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x1
+        mov w1, w3
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x1
+        POP_64 x0
+        STORE_REGISTER w1, w0
+        _emit_stfsux_after:
+
+
+.globl _emit_stfiwx
+_emit_stfiwx:
+          adr x22, _emit_stfiwx_start
+          adr x23, _emit_stfiwx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_stfiwx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, stfiwx_1
+        mov w0, 0
+        b stfiwx_2
+stfiwx_1:
+        LOAD_REGISTER w1, w0
+stfiwx_2:
+        add w0, w0, w2
+        mov w1, w4
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        _emit_stfiwx_after:
+
+
+.globl _emit_psq_l
+_emit_psq_l:
+          adr x22, _emit_psq_l_start
+          adr x23, _emit_psq_l_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_l_start:
+        cbnz w1, psq_l_1
+        mov w0, 0
+        b psq_l_2
+psq_l_1:
+        LOAD_REGISTER w1, w0
+psq_l_2:
+        add w0, w0, w2
+        ldr w1, [x3]
+        mov w2, w4
+        mov w5, 9
+        CALL_HELPER_FUNCTION w5
+        _emit_psq_l_after:
+
+
+.globl _emit_psq_lu
+_emit_psq_lu:
+          adr x22, _emit_psq_lu_start
+          adr x23, _emit_psq_lu_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_lu_start:
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x1
+        ldr w1, [x3]
+        mov w2, w4
+        mov w5, 9
+        CALL_HELPER_FUNCTION w5
+        POP_64 x2
+        POP_64 x3
+        STORE_REGISTER w2, w3
+        _emit_psq_lu_after:
+
+
+.globl _emit_psq_lx
+_emit_psq_lx:
+          adr x22, _emit_psq_lx_start
+          adr x23, _emit_psq_lx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_lx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, psq_lx_1
+        mov w0, 0
+        b psq_lx_2
+psq_lx_1:
+        LOAD_REGISTER w1, w0
+psq_lx_2:
+        add w0, w0, w2
+        ldr w1, [x3]
+        mov w2, w4
+        mov w5, 9
+        CALL_HELPER_FUNCTION w5
+        _emit_psq_lx_after:
+
+
+.globl _emit_psq_lux
+_emit_psq_lux:
+          adr x22, _emit_psq_lux_start
+          adr x23, _emit_psq_lux_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_lux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x1
+        ldr w1, [x3]
+        mov w2, w4
+        mov w5, 9
+        CALL_HELPER_FUNCTION w5
+        POP_64 x2
+        POP_64 x3
+        STORE_REGISTER w2, w3
+        _emit_psq_lux_after:
+
+
+.globl _emit_psq_st
+_emit_psq_st:
+          adr x22, _emit_psq_st_start
+          adr x23, _emit_psq_st_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_st_start:
+        cbnz w1, psq_st_1
+        mov w0, 0
+        b psq_st_2
+psq_st_1:
+        LOAD_REGISTER w1, w0
+psq_st_2:
+        add w0, w0, w2
+        ldr w1, [x3]
+        mov w2, w4
+        mov x3, x5
+        mov x4, x6
+        mov w7, 10
+        CALL_HELPER_FUNCTION w7
+        _emit_psq_st_after:
+
+
+.globl _emit_psq_stu
+_emit_psq_stu:
+          adr x22, _emit_psq_stu_start
+          adr x23, _emit_psq_stu_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_stu_start:
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x1
+        ldr w1, [x3]
+        mov w2, w4
+        mov x3, x5
+        mov x4, x6
+        mov w7, 10
+        CALL_HELPER_FUNCTION w7
+        POP_64 x1
+        POP_64 x0
+        STORE_REGISTER w1, w0
+        _emit_psq_stu_after:
+
+
+.globl _emit_psq_stx
+_emit_psq_stx:
+          adr x22, _emit_psq_stx_start
+          adr x23, _emit_psq_stx_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_stx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, psq_stx_1
+        mov w0, 0
+        b psq_stx_2
+psq_stx_1:
+        LOAD_REGISTER w1, w0
+psq_stx_2:
+        add w0, w0, w2
+        ldr w1, [x3]
+        mov w2, w4
+        mov x3, x5
+        mov x4, x6
+        mov w7, 10
+        CALL_HELPER_FUNCTION w7
+        _emit_psq_stx_after:
+
+
+.globl _emit_psq_stux
+_emit_psq_stux:
+          adr x22, _emit_psq_stux_start
+          adr x23, _emit_psq_stux_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret
+        _emit_psq_stux_start:
+        LOAD_REGISTER w2, w2
+        LOAD_REGISTER w1, w0
+        add w0, w0, w2
+        PUSH_64 x0
+        PUSH_64 x1
+        ldr w1, [x3]
+        mov w2, w4
+        mov x3, x5
+        mov x4, x6
+        mov w7, 10
+        CALL_HELPER_FUNCTION w7
+        POP_64 x1
+        POP_64 x0
+        STORE_REGISTER w1, w0
+        _emit_psq_stux_after:

@@ -7,7 +7,7 @@
 #include <stddef.h>
 #define TB_INITIAL_CAPACITY 0x2000
 #define TB_MAX_CAPACITY (0x1000 * 16)
-#define TB_MAX_BYTES_PER_GUEST_INSTRUCTION 300
+#define TB_MAX_BYTES_PER_GUEST_INSTRUCTION 512
 #define TB_EPILOGUE_MAX_BYTES 32
 #define HOST_INSTRUCTION_RET 0xD65F03C0u
 #define TB_TRACE(...) DEBUG_PRINT(__VA_ARGS__)
@@ -29,6 +29,7 @@
 #define SPR_TBL_WRITE 284
 #define SPR_TBU_WRITE 285
 #define SPR_HID2 920
+#define SPR_GQR0 912
 #define SPR_TERMINATING_INDEXES(spr) (spr == SPR_LR || spr == SPR_HID2)
 
 #define write_to_buffer(buffer, ...)                                                               \

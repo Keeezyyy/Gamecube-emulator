@@ -17,7 +17,8 @@ static void _print_rom_header(Disc *self)
     DEBUG_PRINT("disc_id             : 0x%02X (%u)\n", h->disc_id, h->disc_id);
     DEBUG_PRINT("version             : 0x%02X (%u)\n", h->version, h->version);
     DEBUG_PRINT("audio_streaming     : 0x%02X (%u)\n", h->audio_streaming, h->audio_streaming);
-    DEBUG_PRINT("stream_buffer_size  : 0x%02X (%u)\n", h->stream_buffer_size, h->stream_buffer_size);
+    DEBUG_PRINT("stream_buffer_size  : 0x%02X (%u)\n", h->stream_buffer_size,
+                h->stream_buffer_size);
     DEBUG_PRINT("dvd_magic_word      : 0x%08X\n", be32(h->dvd_magic_word));
 
     DEBUG_PRINT("dol_offset          : 0x%08X\n", be32(h->dol_offset));
@@ -26,7 +27,8 @@ static void _print_rom_header(Disc *self)
 
     DEBUG_PRINT("fst_size            : 0x%08X (%u)\n", be32(h->fst_size), be32(h->fst_size));
 
-    DEBUG_PRINT("fst_max_size        : 0x%08X (%u)\n", be32(h->fst_max_size), be32(h->fst_max_size));
+    DEBUG_PRINT("fst_max_size        : 0x%08X (%u)\n", be32(h->fst_max_size),
+                be32(h->fst_max_size));
     DEBUG_PRINT("user_position       : 0x%08X\n", h->user_position);
     DEBUG_PRINT("user_length         : 0x%08X (%u)\n", h->user_length, h->user_length);
 

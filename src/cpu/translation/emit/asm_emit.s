@@ -2597,3 +2597,129 @@ _emit_stswx:
         sub w9, w9, 1
         b _emit_stswx_loop
         _emit_stswx_after:
+
+
+.globl _emit_lwarx
+_emit_lwarx:
+          adr x22, _emit_lwarx_start
+          adr x23, _emit_lwarx_after
+          str x22, [x0]
+          str x23, [x1]
+          ret
+        _emit_lwarx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_lwarx_else
+        mov w4, 0
+        b _emit_lwarx_finally
+        _emit_lwarx_else:
+        LOAD_REGISTER w1, w4
+        _emit_lwarx_finally:
+        add w4, w4, w2
+        mov w5, 1
+        str w5, [x3]
+        mov w6, w0
+        mov w0, w4
+        mov w1, 1
+        PUSH_32 w6
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w6
+        STORE_REGISTER w6, w8
+        _emit_lwarx_after:
+
+
+.globl _emit_stwcx
+_emit_stwcx:
+          adr x22, _emit_stwcx_start
+          adr x23, _emit_stwcx_after
+          str x22, [x0]
+          str x23, [x1]
+          ret
+        _emit_stwcx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_stwcx_else
+        mov w6, 0
+        b _emit_stwcx_finally
+        _emit_stwcx_else:
+        LOAD_REGISTER w1, w6
+        _emit_stwcx_finally:
+        add w6, w6, w2
+        ldr w7, [x3]
+        cbz w7, _emit_stwcx_no_store
+        LOAD_REGISTER w0, w8
+        mov w0, w6
+        mov w1, w8
+        PUSH_64 x3
+        PUSH_64 x5
+        PUSH_64 x16
+        mov w2, 0
+        CALL_HELPER_FUNCTION w2
+        POP_64 x16
+        POP_64 x5
+        POP_64 x3
+        str wzr, [x3]
+        mov w9, 1
+        b _emit_stwcx_cr0
+        _emit_stwcx_no_store:
+        mov w9, 0
+        _emit_stwcx_cr0:
+        ldr w10, [x5]
+        ldr w11, [x16]
+        lsr w11, w11, #31
+        and w10, w10, #0x0FFFFFFF
+        orr w10, w10, w9, lsl #29
+        orr w10, w10, w11, lsl #28
+        str w10, [x5]
+        _emit_stwcx_after:
+
+
+.globl _emit_eciwx
+_emit_eciwx:
+          adr x22, _emit_eciwx_start
+          adr x23, _emit_eciwx_after
+          str x22, [x0]
+          str x23, [x1]
+          ret
+        _emit_eciwx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_eciwx_else
+        mov w3, 0
+        b _emit_eciwx_finally
+        _emit_eciwx_else:
+        LOAD_REGISTER w1, w3
+        _emit_eciwx_finally:
+        mov w5, w0
+        add w0, w3, w2
+        mov w1, 1
+        PUSH_32 w0
+        PUSH_32 w5
+        CALL_HELPER_FUNCTION w1
+        mov w8, w0
+        POP_32 w5
+        POP_32 w0
+        STORE_REGISTER w5, w8
+        _emit_eciwx_after:
+
+
+.globl _emit_ecowx
+_emit_ecowx:
+          adr x22, _emit_ecowx_start
+          adr x23, _emit_ecowx_after
+          str x22, [x0]
+          str x23, [x1]
+          ret
+        _emit_ecowx_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_ecowx_else
+        mov w4, 0
+        b _emit_ecowx_finally
+        _emit_ecowx_else:
+        LOAD_REGISTER w1, w4
+        _emit_ecowx_finally:
+        add w5, w4, w2
+        LOAD_REGISTER w0, w6
+        mov w0, w5
+        mov w1, w6
+        mov x7, 0
+        CALL_HELPER_FUNCTION w7
+        _emit_ecowx_after:

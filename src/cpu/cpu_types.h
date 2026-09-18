@@ -72,6 +72,8 @@ struct CPU {
     CpuState state_on_start_of_tb;
     CpuExcpetion exception;
 
+    u32 reserve;
+
     u64 helper_functions[64];
 
     Bus *bus;
