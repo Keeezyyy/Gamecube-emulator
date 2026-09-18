@@ -172,6 +172,7 @@ static u64 _read(Bus *self, u32 adr, u32 size)
         return be_load((u8 *)self->ipl + (adr - IPL_BASE), size);
     }
 
+    printf("[read2] :  adr : 0x%08x, size : 0x%08x\n", adr, size);
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
 
@@ -229,6 +230,9 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         return;
     } else if (adr >= 0xCC005000 && adr < 0xCC006000) {
         dsp_write(self->cpu, adr, val, size);
+        return;
+    } else if (adr >= 0xCC006000 && adr < 0xCC006400) {
+        di_write(self->cpu, adr, val, size);
         return;
     } else if (adr >= 0xCC006400 && adr < 0xCC006800) {
 

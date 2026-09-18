@@ -7,6 +7,9 @@ u64 pi_read(CPU *cpu, u32 adr, u32 size)
     if (adr == 0xcc00302c) {
         return 0x20000000;
     }
+    if (adr == 0xcc003024) {
+        return 0x0;
+    }
 
     assert(!"read pi not implemented\n");
     return 0;

@@ -56,9 +56,8 @@ void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size)
         }
 
         DSP_CTRL = val & ~0x1;
-        DSP_CTRL &= W1C(val, 3);
-        DSP_CTRL &= W1C(val, 5);
-        DSP_CTRL &= W1C(val, 7);
+        int w1cs[] = {3, 5, 7};
+        set_register(&DSP_CTRL, val, w1cs, ARRAY_SIZE(w1cs));
         return;
 
     } else if (adr == DSP_AR_INFO) {
