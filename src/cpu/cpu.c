@@ -1,4 +1,5 @@
 #include "cpu/cpu.h"
+#include <alloca.h>
 #include <pthread.h>
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
@@ -46,7 +47,7 @@ static void main_loop(CPU *self)
 
             // NOTE: if I add thread make sure to use locks here
 
-            TranslationBlock *new_tb = malloc(sizeof(TranslationBlock));
+            TranslationBlock *new_tb = calloc(1, sizeof(TranslationBlock));
 
             assert(new_tb != NULL_PTR);
 

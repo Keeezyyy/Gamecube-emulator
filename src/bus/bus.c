@@ -1,4 +1,5 @@
 #include "bus.h"
+#include "bus/hardware_registers.h"
 #include "bus/interfaces/di.h"
 #include "bus/interfaces/exi.h"
 #include "bus/interfaces/mi.h"
@@ -7,6 +8,7 @@
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "graphics/pe.h"
 #include "graphics/vi.h"
 #include <assert.h>
 #include <stdint.h>
@@ -177,6 +179,8 @@ static u64 _read(Bus *self, u32 adr, u32 size)
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
 
+    } else if (adr >= 0xCC001000 && adr < 0xCC002000) {
+        return pe_read(self->cpu, adr, size);
     } else if (adr >= 0xCC002000 && adr < 0xCC003000) {
         return vi_read(self->cpu, adr, size);
     } else if (adr >= 0xCC004000 && adr < 0xCC005000) {
@@ -222,7 +226,14 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
     }
 
     printf("[write] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
-    if (adr >= 0xCC003000 && adr < 0xCC004000) {
+    if (adr >= 0xCC000000 && adr <= 0xCC001000) {
+        cp_write(self->cpu, adr, val, size);
+        return;
+    } else if (adr >= 0xCC001000 && adr < 0xCC002000) {
+        pe_write(self->cpu, adr, val, size);
+        return;
+
+    } else if (adr >= 0xCC003000 && adr < 0xCC004000) {
         // pi interface
         pi_write(self->cpu, adr, val, size);
         return;

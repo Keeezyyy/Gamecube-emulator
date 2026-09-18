@@ -149,8 +149,7 @@ static u32 *_emit_fpu_call(u32 insn, CPU *cpu, u32 *code_buffer, u32 pc)
     const bool pse = cpu->fpu.get_pse_bit(cpu) != 0;
 
     if (g_print_debug)
-        printf("[0x%08x] : %s%s (0x%08x)\n", pc, fpu_mnemonic(insn), (insn & 1u) ? "." : "",
-               insn);
+        printf("[0x%08x] : %s%s (0x%08x)\n", pc, fpu_mnemonic(insn), (insn & 1u) ? "." : "", insn);
 
     u32 *curr = code_buffer;
     curr = emit_load_u64(curr, 9, (u64)cpu->fp_args);
@@ -171,7 +170,7 @@ static u32 *_emit_fpu_call(u32 insn, CPU *cpu, u32 *code_buffer, u32 pc)
 }
 
 static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction, u32 *pc_buffer,
-                                   u32 **host_block_buffer, u32 pc_buffer_counter, u32 *code_buffer,
+                                   u32 *host_block_offsets, u32 pc_buffer_counter, u32 *code_buffer,
                                    u8 *termination_type, u8 *tb_type, FPRUsageBitmap *fpr_bitmap)
 {
 
@@ -622,8 +621,10 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 emit_load_u64(curr_instruction, 14, (u64)&cpu->special_purpose_registers.lr);
             curr_instruction =
                 emit_load_u64(curr_instruction, 15, (u64)&cpu->special_purpose_registers.ctr);
+            const u32 adr_offset = host_block_offsets[pc_buffer_counter] +
+                                   (u32)((u8 *)curr_instruction - (u8 *)code_buffer);
             curr_instruction =
-                emit_load_u64(curr_instruction, 16, (u64)host_block_buffer[pc_index]);
+                emit_adr(curr_instruction, 16, (s32)host_block_offsets[pc_index] - (s32)adr_offset);
 
             const u32 *main_block;
             const u32 *main_block_end;
@@ -4183,7 +4184,6 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
 
     u32 *out = (u32 *)cb.code;
 
-    // for init calls in the future
     out = emit_nop(out);
     out = emit_nop(out);
     out = emit_nop(out);
@@ -4193,14 +4193,12 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
     cb.size = (u32)((u8 *)out - cb.code);
 
     u32 pc_buffer[MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK];
-    u32 *host_block_buffer[MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK];
+    u32 host_block_offsets[MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK];
     u16 pc_count = 0;
 
     u32 pc = cpu->state.pc;
     u8 termination_type = 0;
 
-    // for future optimization
-    //(only load required registers)
     FPRUsageBitmap fpr_bitmap = 0;
 
     while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
@@ -4229,10 +4227,10 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
         if (g_print_debug)
             printf("current pc: 0x%08x\n", pc);
         pc_buffer[pc_count] = pc;
-        host_block_buffer[pc_count] = out;
+        host_block_offsets[pc_count] = cb.size;
 
         u32 *block_start = out;
-        out = _translate_instruction(guest_instruction, cpu, &pc, pc_buffer, host_block_buffer,
+        out = _translate_instruction(guest_instruction, cpu, &pc, pc_buffer, host_block_offsets,
                                      pc_count, out, &termination_type, &out_tb->type, &fpr_bitmap);
         pc_count += 1;
 

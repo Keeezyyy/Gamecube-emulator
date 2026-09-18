@@ -41,6 +41,14 @@ static inline u32 a64_movn_w(u8 rd, u16 imm16, u8 hw)
     return 0x12800000u | ((u32)(hw & 1) << 21) | ((u32)imm16 << 5) | (rd & 31);
 }
 
+u32 *emit_adr(u32 *out, u8 rd, s32 rel)
+{
+    assert(rel >= -(1 << 20) && rel < (1 << 20));
+    const u32 imm = (u32)rel & 0x1FFFFFu;
+    *out++ = 0x10000000u | ((imm & 3u) << 29) | ((imm >> 2) << 5) | (rd & 31);
+    return out;
+}
+
 u32 *emit_load_u32(u32 *out, u8 rd, u32 v)
 {
 

@@ -53,10 +53,10 @@ static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hi
     (void)written;
 }
 
-void _empty(u32 pc)
+void _empty(u64 pc)
 {
 
-    DEBUG_PRINT("run tb block for pc : 0x%08x\n", pc);
+    printf("run tb block for pc : 0x%016llx\n", pc);
 }
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
@@ -98,8 +98,12 @@ _Static_assert(offsetof(FPU, ps1) == 264, "FPU_PS1_OFFSET in run_tb_fpu.s");
 
 void run_tb(TranslationBlock *block, CPU *cpu)
 {
-    //    printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start,
-    //    block->core.code);
+    // printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start,
+    // block->core.code);
+
+    if (block->pc_at_start == 0x81373574) {
+        _empty((u64)block->core.code);
+    }
 
     assert(block->core.code != NULL);
 
