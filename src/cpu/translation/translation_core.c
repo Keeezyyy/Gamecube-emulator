@@ -151,8 +151,6 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     if (g_print_debug)
         printf("op : %d\n", op);
 
-    assert(insn != 0x4c000064);
-
     // NOTE: the after_instruction_pc must be set in every case
     switch (op) {
     case OPC_LFS:
@@ -735,6 +733,22 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
             *pc_after_instruction += 4;
+
+            return curr_instruction;
+
+        } else if (_get_field(insn, 21, 30) == OPC_RFI_EXT) {
+
+            if (true)
+                printf("[0x%08x] : rfi \n", pc_buffer[pc_buffer_counter]);
+
+            u32 *curr_instruction = code_buffer;
+            const u32 *main_block, *main_block_end;
+            emit_rfi(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            *termination_type = TERMINATING_TYPE_RET;
 
             return curr_instruction;
 

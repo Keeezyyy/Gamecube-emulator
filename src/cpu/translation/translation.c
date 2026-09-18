@@ -98,8 +98,8 @@ _Static_assert(offsetof(FPU, ps1) == 264, "FPU_PS1_OFFSET in run_tb_fpu.s");
 
 void run_tb(TranslationBlock *block, CPU *cpu)
 {
-    ////printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start,
-    ///block->core.code);
+    // printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start,
+    // block->core.code);
 
     assert(block->core.code != NULL);
 

@@ -74,6 +74,7 @@
 #define OPC_STFDU 55
 #define OPC_BCCTR_EXT 528
 #define OPC_CRAND_EXT 257
+#define OPC_RFI_EXT 50
 #define OPC_CRANDC_EXT 129
 #define OPC_CREQV_EXT 289
 #define OPC_CRNAND_EXT 225

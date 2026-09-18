@@ -233,6 +233,16 @@ static void _helper_write_switch_to_exception(u32 cia)
     return;
 }
 
+static void _helper_write_switch_from_exception(void)
+{
+    static_cpu_ptr->state.pc = static_cpu_ptr->special_purpose_registers.buf[26] & ~3u;
+    static_cpu_ptr->state.msr =
+        ((static_cpu_ptr->state.msr & ~0x87C0FFFFu) |
+         (static_cpu_ptr->special_purpose_registers.buf[27] & 0x87C0FFFFu)) &
+        ~(1u << (31 - 13));
+
+    return;
+}
 void set_cpu_helper(CPU *self)
 {
     static_cpu_ptr = self;
@@ -247,4 +257,5 @@ void set_cpu_helper(CPU *self)
     self->helper_functions[8] = (u64)&_helper_write_switch_to_exception,
     self->helper_functions[9] = (u64)&_helper_quantized_load,
     self->helper_functions[10] = (u64)&_helper_quantized_store;
+    self->helper_functions[11] = (u64)&_helper_write_switch_from_exception;
 }

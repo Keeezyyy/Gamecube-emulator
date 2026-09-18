@@ -123,3 +123,17 @@ _emit_sc:
         ret
         _emit_sc_after:
 
+.globl _emit_rfi
+_emit_rfi:
+          adr x2, _emit_rfi_start
+          adr x3, _emit_rfi_after
+          str x2, [x0]
+          str x3, [x1]
+          ret          
+        _emit_rfi_start:
+        mov w1,11
+        CALL_HELPER_FUNCTION w1
+
+        ret
+        _emit_rfi_after:
+
