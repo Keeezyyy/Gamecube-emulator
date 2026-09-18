@@ -7,3 +7,15 @@ void ai_write(CPU *cpu, u32 adr, u64 val, u32 size);
 void ai_write_to_streaming_interface(CPU *cpu, u32 adr, u64 val, u32 size);
 
 u64 ai_read_from_streaming_interface(CPU *cpu, u32 adr, u32 size);
+
+#define DSP_CONTROL 0xCC00500A
+#define DSP_MAIL_FROM_DSP_HI 0xCC005004
+#define DSP_MAIL_FROM_DSP_LO 0xCC005006
+#define DSP_AR_INFO 0xCC005012
+#define DSP_MAIL_TO_DSP_HI 0xCC005000
+#define AR_DMA_MMADDR 0xCC005020
+
+#define ARAM_CAPACITY_IN_MB 16
+
+void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size);
+u64 dsp_read(CPU *cpu, u32 adr, u32 size);
