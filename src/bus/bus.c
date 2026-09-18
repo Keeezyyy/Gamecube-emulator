@@ -7,6 +7,7 @@
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "graphics/vi.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -176,6 +177,8 @@ static u64 _read(Bus *self, u32 adr, u32 size)
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
 
+    } else if (adr >= 0xCC002000 && adr < 0xCC003000) {
+        return vi_read(self->cpu, adr, size);
     } else if (adr >= 0xCC004000 && adr < 0xCC005000) {
         assert(!"notaksdlfj aksldfl a");
     } else if (adr >= 0xCC005000 && adr < 0xCC006000) {
@@ -224,6 +227,10 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         pi_write(self->cpu, adr, val, size);
         return;
 
+    } else if (adr >= 0xCC002000 && adr < 0xCC003000) {
+        vi_write(self->cpu, adr, val, size);
+
+        return;
     } else if (adr >= 0xCC004000 && adr < 0xCC005000) {
         mi_write(self->cpu, adr, val, size);
 
