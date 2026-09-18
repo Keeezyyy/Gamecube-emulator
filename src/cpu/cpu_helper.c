@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "cpu/cpu_types.h"
+#include "cpu/fpu.h"
 #include <stdio.h>
 
 static CPU *static_cpu_ptr;
@@ -252,6 +253,11 @@ static void _helper_write_switch_from_exception(void)
 
     return;
 }
+static void _helper_fpu(u32 insn, u32 pse)
+{
+    fpu_execute(static_cpu_ptr, insn, pse != 0);
+}
+
 void set_cpu_helper(CPU *self)
 {
     static_cpu_ptr = self;
@@ -267,4 +273,5 @@ void set_cpu_helper(CPU *self)
     self->helper_functions[9] = (u64)&_helper_quantized_load,
     self->helper_functions[10] = (u64)&_helper_quantized_store;
     self->helper_functions[11] = (u64)&_helper_write_switch_from_exception;
+    self->helper_functions[12] = (u64)&_helper_fpu;
 }

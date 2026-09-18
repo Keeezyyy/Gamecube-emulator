@@ -172,3 +172,27 @@ u32 *emit_fneg_ps(u32 *out, u8 fd, u8 fn)
     *out++ = a64_fneg_2d(fd, fn);
     return out;
 }
+
+static inline u32 a64_str_q_uimm(u8 qt, u8 xn, u32 offset)
+{
+    return 0x3D800000u | ((offset / 16u) << 10) | ((u32)(xn & 31) << 5) | (qt & 31);
+}
+
+u32 *emit_store_q(u32 *out, u8 qt, u8 xn, u32 offset)
+{
+    assert((offset & 15u) == 0 && offset < 65536u);
+    *out++ = a64_str_q_uimm(qt, xn, offset);
+    return out;
+}
+
+static inline u32 a64_ldr_q_uimm(u8 qt, u8 xn, u32 offset)
+{
+    return 0x3DC00000u | ((offset / 16u) << 10) | ((u32)(xn & 31) << 5) | (qt & 31);
+}
+
+u32 *emit_load_q(u32 *out, u8 qt, u8 xn, u32 offset)
+{
+    assert((offset & 15u) == 0 && offset < 65536u);
+    *out++ = a64_ldr_q_uimm(qt, xn, offset);
+    return out;
+}

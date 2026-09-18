@@ -79,6 +79,7 @@ struct CPU {
     Bus *bus;
     FPU fpu;
     FPU fpu_scratch;
+    u64 fp_args[8];
 
     void (*main)(CPU *self);
     void (*background)(CPU *self);

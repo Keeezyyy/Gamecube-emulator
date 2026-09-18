@@ -24,3 +24,5 @@ u32 *emit_set_ps0_from_gpr(u32 *out, u8 fd, u8 rn);
 u32 *emit_set_ps1_from_gpr(u32 *out, u8 fd, u8 rn);
 u32 *emit_get_ps1_into_gpr(u32 *out, u8 rd, u8 fn);
 u32 *emit_fneg_ps(u32 *out, u8 fd, u8 fn);
+u32 *emit_store_q(u32 *out, u8 qt, u8 xn, u32 offset);
+u32 *emit_load_q(u32 *out, u8 qt, u8 xn, u32 offset);

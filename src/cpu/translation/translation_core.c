@@ -1,5 +1,6 @@
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "cpu/fpu.h"
 #include "cpu/translation/emit/asm_emit.h"
 #include "cpu/translation/emit/emit.h"
 #include "translation.h"
@@ -139,6 +140,36 @@ void special()
         printf("b");
 }
 
+static u32 *_emit_fpu_call(u32 insn, CPU *cpu, u32 *code_buffer, u32 pc)
+{
+    const u32 d = _get_field(insn, 6, 10);
+    const u32 a = _get_field(insn, 11, 15);
+    const u32 b = _get_field(insn, 16, 20);
+    const u32 c = _get_field(insn, 21, 25);
+    const bool pse = cpu->fpu.get_pse_bit(cpu) != 0;
+
+    if (g_print_debug)
+        printf("[0x%08x] : %s%s (0x%08x)\n", pc, fpu_mnemonic(insn), (insn & 1u) ? "." : "",
+               insn);
+
+    u32 *curr = code_buffer;
+    curr = emit_load_u64(curr, 9, (u64)cpu->fp_args);
+    curr = emit_store_q(curr, a, 9, FPU_ARG_A * 8);
+    curr = emit_store_q(curr, b, 9, FPU_ARG_B * 8);
+    curr = emit_store_q(curr, c, 9, FPU_ARG_C * 8);
+    curr = emit_store_q(curr, d, 9, FPU_ARG_D * 8);
+    curr = emit_load_u32(curr, 0, insn);
+    curr = emit_load_u32(curr, 1, pse ? 1u : 0u);
+
+    u32 *blk, *blk_end;
+    emit_fpu_call(&blk, &blk_end);
+    curr = write_to_buffer(curr, {blk, blk_end});
+
+    curr = emit_load_u64(curr, 9, (u64)cpu->fp_args);
+    curr = emit_load_q(curr, d, 9, FPU_ARG_D * 8);
+    return curr;
+}
+
 static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction, u32 *pc_buffer,
                                    u32 **host_block_buffer, u32 pc_buffer_counter, u32 *code_buffer,
                                    u8 *termination_type, u8 *tb_type, FPRUsageBitmap *fpr_bitmap)
@@ -157,7 +188,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     case OPC_LFSU:
     case OPC_LFD:
     case OPC_LFDU:
-    case OPC_FMR: {
+    case OPC_FMR:
+    case OPC_FADDS: {
         // FLOATING POINT OPERATION
 
         *tb_type |= TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS;
@@ -387,9 +419,23 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 *pc_after_instruction += 4;
                 return curr;
 
+            } else if (fpu_mnemonic(insn) != NULL) {
+                u32 *curr = _emit_fpu_call(insn, cpu, code_buffer, pc_buffer[pc_buffer_counter]);
+                *pc_after_instruction += 4;
+                return curr;
             } else {
+                printf("float operation : 0x%08x\n", insn);
                 assert(!"not implemented floating point");
             }
+        }
+        case OPC_FADDS: {
+            if (fpu_mnemonic(insn) == NULL) {
+                printf("float operation : 0x%08x\n", insn);
+                assert(!"not implemented floating point");
+            }
+            u32 *curr = _emit_fpu_call(insn, cpu, code_buffer, pc_buffer[pc_buffer_counter]);
+            *pc_after_instruction += 4;
+            return curr;
         }
         default:
             assert(!"not implemented floating point");
@@ -4031,7 +4077,17 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             return curr;
         }
 
-        assert(_get_field(insn, 21, 30) == OPC_PS_NEG_EXT);
+        if (_get_field(insn, 21, 30) != OPC_PS_NEG_EXT) {
+            assert(cpu->fpu.get_pse_bit(cpu) != 0);
+            if (fpu_mnemonic(insn) == NULL) {
+                printf("paired single operation : 0x%08x\n", insn);
+                assert(!"not implemented paired single");
+            }
+            u32 *curr = _emit_fpu_call(insn, cpu, code_buffer, pc_buffer[pc_buffer_counter]);
+            *pc_after_instruction += 4;
+            return curr;
+        }
+
         u32 *curr_instruction = code_buffer;
         const u32 regD = _get_field(insn, 6, 10);
         const u32 regB = _get_field(insn, 16, 20);

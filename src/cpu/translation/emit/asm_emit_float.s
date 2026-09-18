@@ -386,6 +386,19 @@ _emit_fnabs:
         _emit_fnabs_after:
 
 
+.globl _emit_fpu_call
+_emit_fpu_call:
+          adr x22, _emit_fpu_call_start
+          adr x23, _emit_fpu_call_after
+          STR x22, [x0]
+          STR x23, [x1]
+          ret          
+        _emit_fpu_call_start:
+        mov w6, 12
+        CALL_HELPER_FUNCTION w6
+        _emit_fpu_call_after:
+
+
 
 
 

@@ -98,6 +98,7 @@ extern void emit_stfdux(u32 **start, u32 **end);
 extern void emit_fneg(u32 **start, u32 **end);
 extern void emit_fabs(u32 **start, u32 **end);
 extern void emit_fnabs(u32 **start, u32 **end);
+extern void emit_fpu_call(u32 **start, u32 **end);
 extern void emit_lbzu(u32 **start, u32 **end);
 extern void emit_lbz(u32 **start, u32 **end);
 extern void emit_lha(u32 **start, u32 **end);
