@@ -172,8 +172,6 @@ static u64 _read(Bus *self, u32 adr, u32 size)
         return be_load((u8 *)self->ipl + (adr - IPL_BASE), size);
     }
 
-    printf("[read] :  adr : 0x%08x, size : %d\n", adr, size);
-
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
 
@@ -184,6 +182,8 @@ static u64 _read(Bus *self, u32 adr, u32 size)
     } else if (adr >= 0xCC006000 && adr < 0xCC006400) {
         return di_read(self->cpu, adr, size);
     } else if (adr >= 0xCC006400 && adr < 0xCC006800) {
+
+        printf("[read] :  adr : 0x%08x, size : %d\n", adr, size);
         // si interface
         return si_read(self->cpu, adr, size);
     } else if (adr >= 0xCC006800 && adr < 0xCC006C00) {
@@ -219,8 +219,6 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         return;
     }
 
-    printf("[write] : adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
-
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         // pi interface
         pi_write(self->cpu, adr, val, size);
@@ -234,6 +232,8 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         ai_write(self->cpu, adr, val, size);
         return;
     } else if (adr >= 0xCC006400 && adr < 0xCC006800) {
+        printf("[write] : adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
+
         si_write(self->cpu, adr, val, size);
         return;
     } else if (adr >= 0xCC006800 && adr < 0xCC006C00) {

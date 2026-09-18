@@ -151,6 +151,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
     if (g_print_debug)
         printf("op : %d\n", op);
 
+    assert(insn != 0x4c000064);
+
     // NOTE: the after_instruction_pc must be set in every case
     switch (op) {
     case OPC_LFS:
@@ -4046,6 +4048,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         u32 *curr_instruction = code_buffer;
         if (g_print_debug)
             printf("[0x%08x] : sc\n", pc_buffer[pc_buffer_counter]);
+        printf("SYSCALL at : 0x%08x\n", pc_buffer[pc_buffer_counter]);
 
         curr_instruction = emit_load_u32(curr_instruction, 0, pc_buffer[pc_buffer_counter]);
 
