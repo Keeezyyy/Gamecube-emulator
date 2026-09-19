@@ -1,4 +1,6 @@
 #include "exi.h"
+#include "bus/interfaces/interface_utils.h"
+#include "bus/interfaces/pi.h"
 #include "bus/ipl.h"
 #include "core/config/config.h"
 #include <_abort.h>
@@ -25,6 +27,11 @@ void init_exi(void)
     exi_registers.channels[1].EXInCSR = 0;
 }
 static u32 ch0_dev_1_imm;
+
+u32 exi_get_csr(u8 channel)
+{
+    return (u32)exi_registers.channels[channel].EXInCSR;
+}
 
 u64 exi_read(CPU *cpu, u32 adr, u32 size)
 {
@@ -63,10 +70,17 @@ void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
     }
 
     switch (offset) {
-    case 0x00:
-        exi_registers.channels[ch_index].EXInCSR =
-            (val & ~(val & ((1 << 3) | (1 << 11) | (1 << 1)))); // w1c
+    case 0x00: {
+        u32 csr = (u32)exi_registers.channels[ch_index].EXInCSR;
+        u32 v = (u32)val | (csr & ROMDIS);
+        if (ch_index != 0)
+            v &= ~ROMDIS;
+        int w1cs[] = {EXIINT_OFF, TCINT_OFF, EXTINT_OFF};
+        set_register_read_only(&csr, v, w1cs, ARRAY_SIZE(w1cs), EXT);
+        exi_registers.channels[ch_index].EXInCSR = csr;
+        pi_update_interrupts(cpu);
         return;
+    }
     case 0x04:
 
         if (current_chip_selected == CH0_IPL && ch_index == 0) {
@@ -94,10 +108,13 @@ void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
     case 0x0C:
         if (current_chip_selected == CH0_IPL && ch_index == 0 && val & 1) {
             // ipl write
+            exi_registers.channels[0].EXInCR = val & 0x3E;
 
             if (((val >> 1) & 1) == 1) {
                 printf("[EXI] start IPL dma\n");
                 ipl_start_dma_transfer(cpu->bus);
+                exi_registers.channels[0].EXInCSR |= TCINT;
+                pi_update_interrupts(cpu);
             } else {
                 printf("[EXI] start IPL imma\n");
                 ipl_start_imm_data(cpu->bus);

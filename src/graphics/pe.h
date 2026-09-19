@@ -24,3 +24,4 @@ typedef struct PERegs {
 
 void pe_write(CPU *cpu, u32 adr, u32 val, u32 size);
 u64 pe_read(CPU *cpu, u32 adr, u32 size);
+u16 pe_get_ctrl(void);

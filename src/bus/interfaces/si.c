@@ -1,5 +1,6 @@
 #include "si.h"
 #include "bus/interfaces/interface_utils.h"
+#include "bus/interfaces/pi.h"
 #include "core/config/config.h"
 #include <_abort.h>
 #include <assert.h>
@@ -10,12 +11,16 @@ static u32 SISR;
 
 static u32 SI_BUF_CMD;
 
+u32 si_get_comcsr(void)
+{
+    return SICOMCSR;
+}
+
 static u32 SIIOBUF_HI[4] = {0};
 static u32 SIIOBUF_LO[4] = {0};
 
-static void si_start_transfer(u32 val)
+static void si_start_transfer(void)
 {
-    SICOMCSR = val;
     switch (SI_BUF_CMD) {
     case SI_CMD_STATUS_REQ: {
     }
@@ -23,8 +28,8 @@ static void si_start_transfer(u32 val)
         SIIOBUF_HI[1] = SI_TYPE_NOT_CONNECTED;
         SIIOBUF_HI[2] = SI_TYPE_NOT_CONNECTED;
     }
-    SICOMCSR &= ~((1 << 0) | (1 << 0));
-    SICOMCSR |= ((1 << 31));
+    SICOMCSR &= ~BIT(0);
+    SICOMCSR |= BIT(31);
 }
 
 void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
@@ -34,12 +39,13 @@ void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
         return;
     }
     if (adr == 0xCC006400 + 0x34) {
+        int w1cs[] = {31};
+        set_register_read_only(&SICOMCSR, (u32)val, w1cs, ARRAY_SIZE(w1cs), BIT(28) | BIT(29));
         if (val & 1) {
             // start transfer
-            si_start_transfer(val);
-        } else {
-            SICOMCSR &= W1C(val, 31);
+            si_start_transfer();
         }
+        pi_update_interrupts(cpu);
 
         return;
     }

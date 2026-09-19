@@ -10,6 +10,11 @@
 
 static DisplayRegisters dpr;
 
+u32 vi_get_display_interrupt(u8 index)
+{
+    return (&dpr.DI0)[index];
+}
+
 static u32 vi_offset(u32 adr, u32 size)
 {
     u32 off = adr - 0xCC002000;
@@ -35,7 +40,7 @@ static void vi_clock(CPU *cpu)
         u32 di = (&dpr.DI0)[i];
         if ((di >> 28 & 1) && (di & 0x3FF) == hP && ((di >> 16) & 0x3FF) == vP) {
             (&dpr.DI0)[i] |= BIT(31);
-            pi_activate_external_interrupt(cpu, INTERRUPT_SOURCE_VI);
+            pi_update_interrupts(cpu);
         }
     }
 
@@ -57,7 +62,7 @@ void vi_write(CPU *cpu, u32 adr, u32 val, u32 size)
     if (adr == 0xCC002002 && (val >> 1) & 1) {
         // rst interrupts
         for (int i = 0; i < 4; i++) {
-            (&dpr.DI0)[i] &= ~BIT(31);
+            (&dpr.DI0)[i] = 0;
         }
     }
 
@@ -84,11 +89,7 @@ void vi_write(CPU *cpu, u32 adr, u32 val, u32 size)
         *(volatile u32 *)p = val;
     }
 
-    for (int i = 0; i < 4; i++) {
-        if (((&dpr.DI0)[i] >> 31))
-            return;
-        pi_deactivate_external_interrupt(cpu, INTERRUPT_SOURCE_VI);
-    }
+    pi_update_interrupts(cpu);
 }
 
 u32 vi_read(CPU *cpu, u32 adr, u32 size)

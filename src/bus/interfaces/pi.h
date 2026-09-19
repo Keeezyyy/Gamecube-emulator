@@ -61,3 +61,4 @@ void pi_recieve_gx_gather_piper(CPU *cpu, u32 *buffer);
 
 void pi_activate_external_interrupt(CPU *cpu, u8 interrupt_source);
 void pi_deactivate_external_interrupt(CPU *cpu, u8 interrupt_source);
+void pi_update_interrupts(CPU *cpu);

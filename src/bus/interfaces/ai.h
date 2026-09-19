@@ -68,3 +68,5 @@ u64 dsp_read(CPU *cpu, u32 adr, u32 size);
 u64 ai_read(CPU *cpu, u32 adr, u32 size);
 void ai_write(CPU *cpu, u32 adr, u64 val, u32 size);
 void ai_init(void);
+u32 ai_get_aicr(void);
+u16 dsp_get_csr(void);

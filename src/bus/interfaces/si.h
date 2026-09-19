@@ -9,3 +9,4 @@
 
 void si_write(CPU *cpu, u32 adr, u64 val, u32 size);
 u64 si_read(CPU *cpu, u32 adr, u64 val);
+u32 si_get_comcsr(void);

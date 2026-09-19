@@ -61,13 +61,9 @@ static volatile u16 *dsp_reg(u32 adr)
     return (volatile u16 *)((volatile u8 *)&dsp + off);
 }
 
-static void dsp_update_interrupt(CPU *cpu)
+u16 dsp_get_csr(void)
 {
-    if ((dsp.CSR >> 1) & dsp.CSR & 0x00A8) {
-        pi_activate_external_interrupt(cpu, INTERRUPT_SOURCE_DSP);
-    } else {
-        pi_deactivate_external_interrupt(cpu, INTERRUPT_SOURCE_DSP);
-    }
+    return dsp.CSR;
 }
 
 static void dsp_write_csr(CPU *cpu, u16 val)
@@ -84,7 +80,7 @@ static void dsp_write_csr(CPU *cpu, u16 val)
     }
 
     dsp.CSR = (u16)((dsp.CSR & ~0x0956u & ~(val & 0x00A8u)) | (val & 0x0956u));
-    dsp_update_interrupt(cpu);
+    pi_update_interrupts(cpu);
 }
 
 static void dsp_aram_dma(CPU *cpu)
@@ -118,7 +114,7 @@ static void dsp_aram_dma(CPU *cpu)
 
     dsp.CSR &= ~0x0200;
     dsp.CSR |= 0x0020;
-    dsp_update_interrupt(cpu);
+    pi_update_interrupts(cpu);
 }
 
 static void dsp_write16(CPU *cpu, u32 adr, u16 val)
@@ -234,6 +230,12 @@ static u32 ai_offset(u32 adr, u32 size)
     return off;
 }
 static AudioRegs ai_regs;
+
+u32 ai_get_aicr(void)
+{
+    return ai_regs.AICR;
+}
+
 u64 ai_read(CPU *cpu, u32 adr, u32 size)
 {
 
@@ -265,10 +267,8 @@ void ai_write(CPU *cpu, u32 adr, u64 val, u32 size)
 
         int w1cs[] = {3};
         set_register((u32 *)&ai_regs.AICR, (u32)val, w1cs, ARRAY_SIZE(w1cs));
-        if ((val >> 3) & 1) {
-
-            pi_deactivate_external_interrupt(cpu, INTERRUPT_SOURCE_AI);
-        }
+        ai_regs.AICR &= ~BIT(5);
+        pi_update_interrupts(cpu);
 
         return;
     }
@@ -285,8 +285,7 @@ static void ai_clock(CPU *cpu)
     ai_regs.AISCNT++;
     if (ai_regs.AISCNT == ai_regs.AIIT && !(ai_regs.AICR & BIT(4))) {
         ai_regs.AICR |= BIT(3);
-        if (ai_regs.AICR & BIT(2))
-            pi_activate_external_interrupt(cpu, INTERRUPT_SOURCE_AI);
+        pi_update_interrupts(cpu);
     }
 }
 

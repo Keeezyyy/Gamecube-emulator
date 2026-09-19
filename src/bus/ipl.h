@@ -6,6 +6,7 @@
 
 #define CMD_SRAM_REQUEST 0x20000100
 #define CMD_SECONDS_SINCE_REQUEST 0x20000000
+#define CMD_FONT_REQUEST 0x07f3c000
 
 typedef struct OSSram {
     u16 checkSum;

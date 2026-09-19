@@ -1,5 +1,6 @@
 #include "di.h"
 #include "bus/interfaces/interface_utils.h"
+#include "bus/interfaces/pi.h"
 #include "core/config/config.h"
 #include <arm/types.h>
 #include <assert.h>
@@ -15,6 +16,17 @@ u64 di_read(CPU *cpu, u32 adr, u32 size)
 
 static u32 disc_register;
 static u32 disc_cover_register;
+
+u32 di_get_disr(void)
+{
+    return disc_register;
+}
+
+u32 di_get_dicvr(void)
+{
+    return disc_cover_register;
+}
+
 void di_write(CPU *cpu, u32 adr, u32 val, u32 size)
 {
     assert(size == 4);
@@ -22,12 +34,14 @@ void di_write(CPU *cpu, u32 adr, u32 val, u32 size)
     case 0xCC006000: {
         int w1cs[] = {2, 4, 6};
         set_register(&disc_register, val, w1cs, ARRAY_SIZE(w1cs));
+        pi_update_interrupts(cpu);
         return;
     }
     case 0xCC006004: {
         // DISC COVER REGISTER
         int w1cs[] = {2};
-        set_register(&disc_cover_register, val, w1cs, ARRAY_SIZE(w1cs));
+        set_register_read_only(&disc_cover_register, val, w1cs, ARRAY_SIZE(w1cs), BIT(0));
+        pi_update_interrupts(cpu);
         return;
     }
     }

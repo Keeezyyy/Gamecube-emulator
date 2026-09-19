@@ -1,7 +1,9 @@
 #include "ipl.h"
 #include "bus/bus.h"
+#include <_string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 static u32 current_command;
 
@@ -54,6 +56,12 @@ void ipl_start_imm_data(Bus *bus)
 
 void ipl_start_dma_transfer(Bus *bus)
 {
+    if (current_command < 0x20000000) {
+
+        u32 ipl_adr = ((current_command >> 6) & 0x1FFFFFF);
+        memcpy(&((u8 *)bus->ram)[physical_adr], &((u8 *)bus->ipl)[ipl_adr], dma_length);
+        return;
+    }
     switch (current_command) {
     case CMD_SRAM_REQUEST: {
         const OSSram *s = &ipl_sram;
@@ -72,6 +80,7 @@ void ipl_start_dma_transfer(Bus *bus)
             bus->write(bus, a + 0x14 + i, s->dummy[i], 1);
         return;
     }
+
     default:
         assert(!"ipl dma assert\n");
     }
