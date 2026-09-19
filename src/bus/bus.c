@@ -8,6 +8,7 @@
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "graphics/gx_fifo.h"
 #include "graphics/pe.h"
 #include "graphics/vi.h"
 #include <assert.h>
@@ -266,6 +267,11 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
             ai_write_to_streaming_interface(self->cpu, adr, val, size);
             return;
         }
+    } else if (adr >= 0xCC008000 && adr < 0xe0000000) {
+        // GX FIFO BUFFER
+
+        gx_write_to_fifo(val, size);
+        return;
     }
 
     DEBUG_PRINT("[BUS] write to unmapped adr : 0x%08x\n", adr);

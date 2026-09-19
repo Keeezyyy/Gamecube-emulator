@@ -75,6 +75,7 @@ static void main_loop(CPU *self)
 static void _boot(CPU *self)
 {
     self->state.msr = 0;
+    // self->state.msr = BIT_SET(self->state.msr, 25);
 
     self->state.pc = self->bus->entry_point;
 }

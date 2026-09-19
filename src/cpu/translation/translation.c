@@ -101,10 +101,6 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     // printf("[RUN TB] now running : 0x%08x, with adr : %p\n", block->pc_at_start,
     // block->core.code);
 
-    if (block->pc_at_start == 0x81373574) {
-        _empty((u64)block->core.code);
-    }
-
     assert(block->core.code != NULL);
 
     if (block->type & TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS) {
