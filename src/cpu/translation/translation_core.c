@@ -601,7 +601,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
         u32 nia = AA == 1 ? bd : bd + pc_buffer[pc_buffer_counter];
         u32 pc_index = 0;
-        if (is_pc_in_current_tb(pc_buffer, pc_buffer_counter, nia, &pc_index) == true) {
+        // this optimization breaks the emulator :(
+        if (false) {
             // pc deistination is in current tb
             //  optimize to jump inside the tb
             if (g_print_debug)
@@ -4263,9 +4264,9 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
 
     FPRUsageBitmap fpr_bitmap = 0;
 
-    out_tb->guest_instructions_count = 0;
+    u32 instruction_counter = 0;
     while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
-        out_tb->guest_instructions_count++;
+        instruction_counter++;
 
         if (!code_buffer_reserve(&cb, TB_MAX_BYTES_PER_GUEST_INSTRUCTION + TB_EPILOGUE_MAX_BYTES)) {
             if (g_print_debug)
@@ -4345,6 +4346,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
         .msr_at_start = cpu->state.msr,
         .hid2_at_start = cpu->special_purpose_registers.hid2,
         .type = out_tb->type,
+        .guest_instructions_count = instruction_counter,
     };
     return true;
 }
