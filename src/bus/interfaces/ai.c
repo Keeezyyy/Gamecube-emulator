@@ -11,7 +11,48 @@
 
 static DSPRegisters dsp = {.CSR = 0x0004, .AR_MODE = 1, .AR_REFRESH = 156};
 
-static u8 ARAM[MB(ARAM_CAPACITY_IN_MB)];
+#define ARAM_SIZE 0x01000000u
+#define ARAM_MASK (ARAM_SIZE - 1)
+
+static u8 ARAM[ARAM_SIZE];
+
+static bool ucode_start_pending;
+static bool ucode_running;
+static u32 ucode_cmd;
+static u32 ucode_mails_left;
+
+static u32 ucode_cmd_length(u32 cmd)
+{
+    switch (cmd) {
+    case 0x81:
+        return 5;
+    case 0x82:
+        return 3;
+    case 0x8B:
+    case 0x8C:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
+static void dsp_send_mail(u32 mail)
+{
+    dsp.MAIL_FROM_DSP_HI = (u16)(mail >> 16);
+    dsp.MAIL_FROM_DSP_LO = (u16)mail;
+}
+
+static void dsp_ucode_receive(u32 mail)
+{
+    if (ucode_mails_left == 0) {
+        ucode_cmd = mail >> 24;
+        ucode_mails_left = ucode_cmd_length(ucode_cmd);
+    }
+
+    if (--ucode_mails_left == 0) {
+        dsp_send_mail(0x88880000 | ucode_cmd);
+    }
+}
 
 static volatile u16 *dsp_reg(u32 adr)
 {
@@ -32,7 +73,10 @@ static void dsp_update_interrupt(CPU *cpu)
 static void dsp_write_csr(CPU *cpu, u16 val)
 {
     if ((dsp.CSR & 0x0004) && !(val & 0x0004)) {
-        dsp.MAIL_FROM_DSP_HI = 0xABCD;
+        dsp.MAIL_FROM_DSP_HI = 0x8071;
+        dsp.MAIL_FROM_DSP_LO = 0xFEED;
+        ucode_running = false;
+        ucode_start_pending = false;
     }
 
     if (val & 0x0001) {
@@ -45,19 +89,24 @@ static void dsp_write_csr(CPU *cpu, u16 val)
 
 static void dsp_aram_dma(CPU *cpu)
 {
-    u32 mm = (u32)dsp.AR_DMA_MMADDR_H << 16 | dsp.AR_DMA_MMADDR_L;
-    u32 ar = (u32)dsp.AR_DMA_ARADDR_H << 16 | dsp.AR_DMA_ARADDR_L;
-    u32 len = (u32)(dsp.AR_DMA_CNT_H & 0x03FF) << 16 | dsp.AR_DMA_CNT_L;
+    u32 mm = (u32)(dsp.AR_DMA_MMADDR_H & 0x03FF) << 16 | (dsp.AR_DMA_MMADDR_L & 0xFFE0);
+    u32 ar = (u32)(dsp.AR_DMA_ARADDR_H & 0x03FF) << 16 | (dsp.AR_DMA_ARADDR_L & 0xFFE0);
+    u32 len = (u32)((dsp.AR_DMA_CNT_H) & 0x03FF) << 16 | (dsp.AR_DMA_CNT_L & 0xFFE0);
+    int to_mram = dsp.AR_DMA_CNT_H & 0x8000; /* 1 = ARAM -> MRAM */
+    u8 *ram = (u8 *)cpu->bus->ram;
 
-    assert(mm + len <= RAM_SIZE);
-    assert(ar + len <= sizeof(ARAM));
-
-    if (dsp.AR_DMA_CNT_H & 0x8000) {
-        memcpy((u8 *)cpu->bus->ram + mm, ARAM + ar, len);
-    } else {
-        memcpy(ARAM + ar, (u8 *)cpu->bus->ram + mm, len);
+    for (u32 i = 0; i < len; i += 32) {
+        u32 a = (ar + i) & ARAM_MASK;
+        u32 m = mm + i;
+        if (m + 32 > RAM_SIZE) {
+            printf("ARAM DMA: MRAM out of range 0x%08x\n", m);
+            continue;
+        }
+        if (to_mram)
+            memcpy(ram + m, ARAM + a, 32);
+        else
+            memcpy(ARAM + a, ram + m, 32);
     }
-
     mm += len;
     ar += len;
     dsp.AR_DMA_MMADDR_H = (u16)(mm >> 16);
@@ -67,6 +116,7 @@ static void dsp_aram_dma(CPU *cpu)
     dsp.AR_DMA_CNT_H &= 0x8000;
     dsp.AR_DMA_CNT_L = 0;
 
+    dsp.CSR &= ~0x0200;
     dsp.CSR |= 0x0020;
     dsp_update_interrupt(cpu);
 }
@@ -77,10 +127,23 @@ static void dsp_write16(CPU *cpu, u32 adr, u16 val)
     case DSP_MAIL_TO_DSP_HI:
         dsp.MAIL_TO_DSP_HI = val;
         return;
-    case DSP_MAIL_TO_DSP_LO:
+    case DSP_MAIL_TO_DSP_LO: {
         dsp.MAIL_TO_DSP_LO = val;
+        u32 mail = (u32)dsp.MAIL_TO_DSP_HI << 16 | val;
         dsp.MAIL_TO_DSP_HI &= 0x7FFF;
+
+        if (ucode_running) {
+            dsp_ucode_receive(mail);
+        } else if (ucode_start_pending) {
+            ucode_start_pending = false;
+            ucode_running = true;
+            ucode_mails_left = 0;
+            dsp_send_mail(0x88881111);
+        } else if (mail == 0x80F3D001) {
+            ucode_start_pending = true;
+        }
         return;
+    }
     case DSP_CONTROL:
         dsp_write_csr(cpu, val);
         return;
