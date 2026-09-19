@@ -1,6 +1,9 @@
 #include "ai.h"
+#include "bus/bus.h"
 #include "bus/interfaces/interface_utils.h"
+#include "bus/interfaces/pi.h"
 #include "core/config/config.h"
+#include "scheduler/scheduler.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
@@ -25,23 +28,6 @@ static u32 ar_refresh;
 
 static u8 ARAM[MB(ARAM_CAPACITY_IN_MB)];
 
-void ai_write_to_streaming_interface(CPU *cpu, u32 adr, u64 val, u32 size)
-{
-
-    u32 value = (u32)val;
-
-    audio_interface_control_register &= ~(val & ((1 << 3)));
-    if (val & (1 << 5)) {
-        // 5 SCRESET 1 schreiben = AISCNT auf 0 setzen
-        audio_interface_sample_counter = 0;
-    }
-}
-
-u64 ai_read_from_streaming_interface(CPU *cpu, u32 adr, u32 size)
-{
-    return audio_interface_control_register;
-}
-
 void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size)
 {
     if (adr == DSP_MAIL_TO_DSP_HI) {
@@ -57,9 +43,8 @@ void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size)
             mailbox_from_dsp_hi = 0xABCD;
         }
 
-        DSP_CTRL = val & ~0x1;
         int w1cs[] = {3, 5, 7};
-        set_register(&DSP_CTRL, val, w1cs, ARRAY_SIZE(w1cs));
+        set_register(&DSP_CTRL, val & ~0x1u, w1cs, ARRAY_SIZE(w1cs));
         return;
 
     } else if (adr == DSP_AR_INFO) {
@@ -165,4 +150,78 @@ u64 dsp_read(CPU *cpu, u32 adr, u32 size)
     printf("[DSP_READ] :  adr : 0x%08x\n", adr);
     assert(!"sound not implemented");
     return 0;
+}
+
+static u32 ai_offset(u32 adr, u32 size)
+{
+    u32 off = adr - 0xCC006C00;
+    if (size == 2) {
+        off ^= 2;
+    }
+    return off;
+}
+static AudioRegs ai_regs;
+u64 ai_read(CPU *cpu, u32 adr, u32 size)
+{
+
+    volatile u8 *p = (volatile u8 *)&ai_regs + ai_offset(adr, size);
+    if (size == 2) {
+        return *(volatile u16 *)p;
+    }
+    return *(volatile u32 *)p;
+}
+
+static SchedulerEvent e;
+void ai_write(CPU *cpu, u32 adr, u64 val, u32 size)
+{
+
+    assert(size == 2 || size == 4);
+    u32 off = ai_offset(adr, size);
+
+    volatile u8 *p = (volatile u8 *)&ai_regs + off;
+
+    if (adr == 0xCC006C00 && size == 2) {
+        return;
+    }
+    if (adr == 0xCC006C00 || adr == 0xCC006C02) {
+        e.active = val & 1 ? true : false;
+        e.clock_speed = (val >> 1) & 1 ? 48000 : 32000;
+        ai_regs.AISCNT = (val >> 5) & 1 ? 0 : ai_regs.AISCNT;
+
+        scheduler_edit_event(SCHEDULER_EVENT_AI, e);
+
+        int w1cs[] = {3};
+        set_register((u32 *)&ai_regs.AICR, (u32)val, w1cs, ARRAY_SIZE(w1cs));
+        if ((val >> 3) & 1) {
+
+            pi_deactivate_external_interrupt(cpu, INTERRUPT_SOURCE_AI);
+        }
+
+        return;
+    }
+
+    if (size == 2) {
+        *(volatile u16 *)p = (u16)val;
+    } else {
+        *(volatile u32 *)p = val;
+    }
+}
+
+static void ai_clock(CPU *cpu)
+{
+    ai_regs.AISCNT++;
+    if (ai_regs.AISCNT == ai_regs.AIIT && !(ai_regs.AICR & BIT(4))) {
+        ai_regs.AICR |= BIT(3);
+        if (ai_regs.AICR & BIT(2))
+            pi_activate_external_interrupt(cpu, INTERRUPT_SOURCE_AI);
+    }
+}
+
+void ai_init(void)
+{
+    e.active = false;
+    e.callback = &ai_clock;
+    e.clock_speed = 48000;
+
+    scheduler_add_event_to_buffer(SCHEDULER_EVENT_AI, e);
 }

@@ -196,13 +196,10 @@ static u64 _read(Bus *self, u32 adr, u32 size)
     } else if (adr >= 0xCC006800 && adr < 0xCC006C00) {
         // exi interface
         return exi_read(self->cpu, adr, size);
-    } else if (adr >= 0xCC006C00 && adr < 0xCC008000) {
-        // reading streaming interface
 
-        if (adr == 0xCC006C00) {
+    } else if (adr >= 0xCC006C00 && adr < 0xCC006C10) {
 
-            return ai_read_from_streaming_interface(self->cpu, adr, size);
-        }
+        return ai_read(self->cpu, adr, size);
     }
 
     DEBUG_PRINT("[BUS] read from unmapped adr : 0x%08x\n", adr);
@@ -260,13 +257,11 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
     } else if (adr >= 0xCC006800 && adr < 0xCC006C00) {
         exi_write(self->cpu, adr, val, size);
         return;
-    } else if (adr >= 0xCC006C00 && adr < 0xCC008000) {
+    } else if (adr >= 0xCC006C00 && adr < 0xCC006C10) {
         // streming interface
 
-        if (adr == 0xCC006C00) {
-            ai_write_to_streaming_interface(self->cpu, adr, val, size);
-            return;
-        }
+        ai_write(self->cpu, adr, val, size);
+        return;
     } else if (adr >= 0xCC008000 && adr < 0xe0000000) {
         // GX FIFO BUFFER
 
@@ -297,4 +292,5 @@ void init_bus(Bus *self)
 
     init_exi();
     vi_init();
+    ai_init();
 }

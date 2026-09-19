@@ -9,20 +9,20 @@ void report_cycle_count(CPU *cpu, u32 cycle_count)
 {
     u64 next = global_cycle_counter + cycle_count;
     for (int j = 0; j < SCHEDULER_EVENT_COUNT; j++) {
+        if (!event_buffer[j].active || event_buffer[j].callback == NULL_PTR)
+            continue;
+
         u64 event_every_x_host_cycles = CPU_CLOCK_SPEED / event_buffer[j].clock_speed;
 
-        if (event_buffer[j].active && event_buffer[j].callback != NULL_PTR &&
-            (floor((double)global_cycle_counter / (double)event_every_x_host_cycles) !=
+        if ((floor((double)global_cycle_counter / (double)event_every_x_host_cycles) !=
              floor((double)next / (double)event_every_x_host_cycles))) {
-            // in the cycle span of last tb block and the end of the next block this event
-            // should trigger
 
             event_buffer[j].callback(cpu);
         }
     }
     global_cycle_counter = next;
 
-    u64 time_base = global_cycle_counter / 4;
+    u64 time_base = global_cycle_counter / 12;
     cpu->special_purpose_registers.buf[268] = time_base & U32_MAX;
     cpu->special_purpose_registers.buf[269] = time_base >> 32;
 }

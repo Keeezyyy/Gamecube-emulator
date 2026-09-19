@@ -6,6 +6,7 @@
 
 enum SchedulerEventTypes {
     SCHEDULER_EVENT_VI,
+    SCHEDULER_EVENT_AI,
     SCHEDULER_EVENT_COUNT,
 
 };
