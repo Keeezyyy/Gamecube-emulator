@@ -2,7 +2,7 @@
 #include "core/config/config.h"
 #include <math.h>
 
-static u64 global_cycle_counter;
+u64 global_cycle_counter;
 static SchedulerEvent event_buffer[SCHEDULER_EVENT_COUNT];
 
 void report_cycle_count(CPU *cpu, u32 cycle_count)

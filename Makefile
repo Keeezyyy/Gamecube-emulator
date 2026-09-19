@@ -98,6 +98,11 @@ ifeq ($(SANITIZE),1)
     SAN_SUFFIX := -asan
 endif
 
+ifeq ($(CLOCK_STATS),1)
+    CFLAGS += -DCLOCK_STATS
+    CLOCK_SUFFIX := -clock
+endif
+
 # ==== Ausgabeverzeichnis =====================================================
 # Jede Variante bekommt einen eigenen Ausgabebaum (Objekte und Binary), damit
 # sich Builds mit unterschiedlichen Flags nie gegenseitig ueberschreiben. Ein
@@ -107,7 +112,7 @@ endif
 #   build/debug-asan/gcemu       Sanitizer-Build
 #   build/release/gcemu          build/release/obj/...
 #   build/release-native/gcemu   Release mit -mcpu/-march=native
-BUILD_TAG := $(BUILD_TYPE)$(NATIVE_SUFFIX)$(SAN_SUFFIX)
+BUILD_TAG := $(BUILD_TYPE)$(NATIVE_SUFFIX)$(SAN_SUFFIX)$(CLOCK_SUFFIX)
 
 OUT_DIR  := $(BUILD)/$(BUILD_TAG)
 OBJ_DIR  := $(OUT_DIR)/obj
@@ -290,6 +295,7 @@ help:
 	@echo "make BUILD_TYPE=release    - dasselbe, ausgeschrieben"
 	@echo "make release NATIVE=1      - Release fuer genau diese CPU"
 	@echo "make SANITIZE=1            - ASan/UBSan aktivieren"
+	@echo "make CLOCK_STATS=1         - Gast-Takt (Durchschnitt) bei Ctrl+C/Abbruch ausgeben"
 	@echo "make run ARGS=rom.iso      - Emulator starten (Debug-Binary)"
 	@echo "make run BUILD_TYPE=release - Release-Binary starten"
 	@echo "make debug ARGS=rom.iso    - Debug-Build unter gdb starten"

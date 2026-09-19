@@ -62,6 +62,9 @@ void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
 
         return;
     }
+    if (adr == 0xCC006400 + 0x40) {
+        return;
+    }
     if (adr == 0xCC006400 + 0x80) {
         SI_BUF_CMD = val;
 

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #define CPU_CLOCK_SPEED 485000000u
 
+extern u64 global_cycle_counter;
+
 enum SchedulerEventTypes {
     SCHEDULER_EVENT_VI,
     SCHEDULER_EVENT_AI,
