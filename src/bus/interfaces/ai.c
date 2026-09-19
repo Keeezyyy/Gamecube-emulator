@@ -6,150 +6,160 @@
 #include "scheduler/scheduler.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
-static u32 dsp_aram = 0;
-static u64 DSP_CTRL = 0;
-
-static u16 mailbox_to_dsp_hi;
-static u16 mailbox_to_dsp_lo;
-
-static u16 mailbox_from_dsp_hi;
-static u16 mailbox_from_dsp_lo;
-
-static u64 audio_interface_control_register = 0;
-static u64 audio_interface_sample_counter = 0;
-
-static u32 mmaddr;
-static u32 araddr;
-static u32 dma_cnt;
-
-static u32 ar_refresh;
+static DSPRegisters dsp = {.CSR = 0x0004, .AR_MODE = 1, .AR_REFRESH = 156};
 
 static u8 ARAM[MB(ARAM_CAPACITY_IN_MB)];
 
-void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size)
+static volatile u16 *dsp_reg(u32 adr)
 {
-    if (adr == DSP_MAIL_TO_DSP_HI) {
-        mailbox_to_dsp_hi = val & ~(1 << 15);
+    u32 off = adr - DSP_BASE;
+    assert(off + 2 <= sizeof(dsp));
+    return (volatile u16 *)((volatile u8 *)&dsp + off);
+}
+
+static void dsp_update_interrupt(CPU *cpu)
+{
+    if ((dsp.CSR >> 1) & dsp.CSR & 0x00A8) {
+        pi_activate_external_interrupt(cpu, INTERRUPT_SOURCE_DSP);
+    } else {
+        pi_deactivate_external_interrupt(cpu, INTERRUPT_SOURCE_DSP);
+    }
+}
+
+static void dsp_write_csr(CPU *cpu, u16 val)
+{
+    if ((dsp.CSR & 0x0004) && !(val & 0x0004)) {
+        dsp.MAIL_FROM_DSP_HI = 0xABCD;
+    }
+
+    if (val & 0x0001) {
+        dsp.AUDIO_DMA_CONTROL_LEN = 0;
+    }
+
+    dsp.CSR = (u16)((dsp.CSR & ~0x0956u & ~(val & 0x00A8u)) | (val & 0x0956u));
+    dsp_update_interrupt(cpu);
+}
+
+static void dsp_aram_dma(CPU *cpu)
+{
+    u32 mm = (u32)dsp.AR_DMA_MMADDR_H << 16 | dsp.AR_DMA_MMADDR_L;
+    u32 ar = (u32)dsp.AR_DMA_ARADDR_H << 16 | dsp.AR_DMA_ARADDR_L;
+    u32 len = (u32)(dsp.AR_DMA_CNT_H & 0x03FF) << 16 | dsp.AR_DMA_CNT_L;
+
+    assert(mm + len <= RAM_SIZE);
+    assert(ar + len <= sizeof(ARAM));
+
+    if (dsp.AR_DMA_CNT_H & 0x8000) {
+        memcpy((u8 *)cpu->bus->ram + mm, ARAM + ar, len);
+    } else {
+        memcpy(ARAM + ar, (u8 *)cpu->bus->ram + mm, len);
+    }
+
+    mm += len;
+    ar += len;
+    dsp.AR_DMA_MMADDR_H = (u16)(mm >> 16);
+    dsp.AR_DMA_MMADDR_L = (u16)mm;
+    dsp.AR_DMA_ARADDR_H = (u16)(ar >> 16);
+    dsp.AR_DMA_ARADDR_L = (u16)ar;
+    dsp.AR_DMA_CNT_H &= 0x8000;
+    dsp.AR_DMA_CNT_L = 0;
+
+    dsp.CSR |= 0x0020;
+    dsp_update_interrupt(cpu);
+}
+
+static void dsp_write16(CPU *cpu, u32 adr, u16 val)
+{
+    switch (adr) {
+    case DSP_MAIL_TO_DSP_HI:
+        dsp.MAIL_TO_DSP_HI = val;
         return;
-
-    } else if (adr == DSP_CONTROL) {
-        if (BIT_CHECK(DSP_CTRL, 2) != 0 && BIT_CHECK(val, 2) == 0) {
-            // dsp halt 1 -> 0
-            // expect to recieve data
-
-            // val doesnt matter in init stage
-            mailbox_from_dsp_hi = 0xABCD;
-        }
-
-        int w1cs[] = {3, 5, 7};
-        set_register(&DSP_CTRL, val & ~0x1u, w1cs, ARRAY_SIZE(w1cs));
+    case DSP_MAIL_TO_DSP_LO:
+        dsp.MAIL_TO_DSP_LO = val;
+        dsp.MAIL_TO_DSP_HI &= 0x7FFF;
         return;
-
-    } else if (adr == DSP_AR_INFO) {
-        dsp_aram = val & 0x007F;
-
+    case DSP_CONTROL:
+        dsp_write_csr(cpu, val);
         return;
-    } else if (adr >= 0xCC005020 && adr <= 0xCC005022) {
-
-        if (size == 4) {
-            mmaddr = val;
-        } else {
-            mmaddr &= 0xFFFF << adr == 0xCC005020 ? 2 : 0;
-            mmaddr |= val << adr == 0xCC005020 ? 2 : 0;
-        }
-
+    case DSP_INTERRUPT_CONTROL:
+        dsp.INTERRUPT_CONTROL = val;
         return;
-    } else if (adr >= 0xCC005024 && adr <= 0xCC005026) {
-
-        if (size == 4) {
-            araddr = val;
-        } else {
-            araddr &= 0xFFFFu << (adr == 0xCC005024 ? 2 : 0);
-            araddr |= val << (adr == 0xCC005024 ? 2 : 0);
-        }
-
+    case DSP_AR_INFO:
+        dsp.AR_INFO = val & 0x007F;
         return;
-    } else if (adr >= 0xCC005028 && adr <= 0xCC00502A) {
-        // dma start
-
-        if (size == 4) {
-            dma_cnt = val;
-        } else {
-            dma_cnt &= 0xFFFFu << (adr == 0xCC005028 ? 2 : 0);
-            dma_cnt |= val << (adr == 0xCC005028 ? 2 : 0);
-        }
-        if (size == 4 || adr == 0xCC00502A) {
-            // NOTE: dma starts
-
-            bool from_ram_to_aram = (dma_cnt >> 31) == 0 ? true : false;
-
-            assert((dma_cnt & 0x7FFFFFFF) <= MB(ARAM_CAPACITY_IN_MB));
-
-            if (from_ram_to_aram) {
-                memcpy(ARAM, cpu->bus->ram, dma_cnt & 0x7FFFFFFF);
-            } else {
-
-                memcpy(cpu->bus->ram, ARAM, dma_cnt & 0x7FFFFFFF);
-            }
-
-            DSP_CTRL |= (1 << 5);
-        }
-
+    case DSP_AR_REFRESH:
+        dsp.AR_REFRESH = val & 0x07FF;
         return;
-    } else if (adr == DSP_AR_REFRESH) {
-        ar_refresh = val & 0x07FF;
+    case DSP_AR_DMA_MMADDR_H:
+        dsp.AR_DMA_MMADDR_H = val & 0x03FF;
+        return;
+    case DSP_AR_DMA_MMADDR_L:
+        dsp.AR_DMA_MMADDR_L = val & 0xFFE0;
+        return;
+    case DSP_AR_DMA_ARADDR_H:
+        dsp.AR_DMA_ARADDR_H = val & 0x03FF;
+        return;
+    case DSP_AR_DMA_ARADDR_L:
+        dsp.AR_DMA_ARADDR_L = val & 0xFFE0;
+        return;
+    case DSP_AR_DMA_CNT_H:
+        dsp.AR_DMA_CNT_H = val & 0x83FF;
+        return;
+    case DSP_AR_DMA_CNT_L:
+        dsp.AR_DMA_CNT_L = val & 0xFFE0;
+        dsp_aram_dma(cpu);
+        return;
+    case DSP_AUDIO_DMA_START_H:
+        dsp.AUDIO_DMA_START_H = val & 0x03FF;
+        return;
+    case DSP_AUDIO_DMA_START_L:
+        dsp.AUDIO_DMA_START_L = val & 0xFFE0;
+        return;
+    case DSP_AUDIO_DMA_BLOCKS_LENGTH:
+        dsp.AUDIO_DMA_BLOCKS_LENGTH = val;
+        return;
+    case DSP_AUDIO_DMA_CONTROL_LEN:
+        dsp.AUDIO_DMA_CONTROL_LEN = val;
         return;
     }
 
-    assert(!"sound dsp write");
+    printf("[DSP_WRITE] : adr : 0x%08x, val : 0x%04x\n", adr, val);
+    assert(!"dsp write");
+}
+
+static u16 dsp_read16(u32 adr)
+{
+    u16 val = *dsp_reg(adr);
+    if (adr == DSP_MAIL_FROM_DSP_LO) {
+        dsp.MAIL_FROM_DSP_HI &= 0x7FFF;
+    }
+    return val;
+}
+
+void dsp_write(CPU *cpu, u32 adr, u32 val, u32 size)
+{
+    assert(size == 2 || size == 4);
+
+    if (size == 4) {
+        dsp_write16(cpu, adr, (u16)(val >> 16));
+        dsp_write16(cpu, adr + 2, (u16)val);
+        return;
+    }
+    dsp_write16(cpu, adr, (u16)val);
 }
 
 u64 dsp_read(CPU *cpu, u32 adr, u32 size)
 {
-    assert(size == 2);
-    if (adr == 0xCC00500A) {
-        return DSP_CTRL;
-    } else if (adr == DSP_MAIL_FROM_DSP_HI) {
-        return mailbox_from_dsp_hi;
-    } else if (adr == DSP_MAIL_FROM_DSP_LO) {
-        return mailbox_from_dsp_lo;
-    } else if (adr == DSP_AR_REFRESH) {
-        return ar_refresh;
-    } else if (adr == AR_MODE) {
-        return 1;
-    } else if (adr == DSP_AR_INFO) {
-        return dsp_aram;
-    } else if (adr >= 0xCC005020 && adr <= 0xCC005022) {
+    assert(size == 2 || size == 4);
 
-        if (size == 4) {
-            return mmaddr;
-
-        } else {
-            return mmaddr >> (adr == 0xCC005022 ? 16 : 0);
-        }
-    } else if (adr >= 0xCC005024 && adr <= 0xCC005026) {
-
-        if (size == 4) {
-            return araddr;
-
-        } else {
-            return araddr >> (adr == 0xCC005026 ? 16 : 0);
-        }
-    } else if (adr >= 0xCC005028 && adr <= 0xCC00502a) {
-
-        if (size == 4) {
-            return dma_cnt;
-
-        } else {
-            return dma_cnt >> (adr == 0xCC00502a ? 16 : 0);
-        }
+    if (size == 4) {
+        u32 hi = dsp_read16(adr);
+        return hi << 16 | dsp_read16(adr + 2);
     }
-
-    printf("[DSP_READ] :  adr : 0x%08x\n", adr);
-    assert(!"sound not implemented");
-    return 0;
+    return dsp_read16(adr);
 }
 
 static u32 ai_offset(u32 adr, u32 size)
