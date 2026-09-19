@@ -30,6 +30,32 @@ static CpuMode get_current_cpu_mode(CPU *self)
     m.val = self->state.msr;
     return m;
 }
+#define HLE_OSREPORT 0x8135d924u
+#define HLE_OSPANIC 0x8135d9a4u
+
+static void print_guest_string(CPU *self, u32 adr)
+{
+    for (u32 i = 0; i < 256; i++) {
+        char c = (char)self->bus->read(self->bus, adr + i, 1);
+        if (c == 0)
+            break;
+        putchar(c);
+    }
+}
+
+static void hle_check_panic(CPU *self)
+{
+    if (self->state.pc != HLE_OSPANIC)
+        return;
+
+    printf("[OSPanic] ");
+    print_guest_string(self, self->registers.gpio[3]);
+    printf(":%u: ", self->registers.gpio[4]);
+    print_guest_string(self, self->registers.gpio[5]);
+    printf("\n  (LR = 0x%08x)\n", self->special_purpose_registers.lr);
+    fflush(stdout);
+    assert(!"guest OSPanic");
+}
 
 static void handle_interrupt(CPU *self)
 {
@@ -88,6 +114,8 @@ static void main_loop(CPU *self)
         if (self->awaiting_interrupt(self)) {
             handle_interrupt(self);
         }
+
+        hle_check_panic(self);
 
         tb = tb_lookup(self, m);
         if (tb == NULL_PTR) {

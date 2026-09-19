@@ -22,6 +22,33 @@ static u8 ram_buffer[RAM_SIZE];
 
 static int dol_load_into_ram(Bus *self);
 
+static int _load_ipl_scrambled(Bus *self, char *ipl_location)
+{
+    FILE *f = fopen(ipl_location, "rb");
+    if (!f) {
+        perror(ipl_location);
+        return 1;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+
+    char *buffer = malloc((size_t)size);
+    if (!buffer) {
+        fclose(f);
+        return 1;
+    }
+
+    size_t bytes_read = fread(buffer, 1, (size_t)size, f);
+
+    self->ipl_rom = buffer;
+    self->ipl_rom_size = bytes_read;
+
+    fclose(f);
+
+    return 0;
+}
 static int _load_ipl(Bus *self, char *ipl_location)
 {
     FILE *f = fopen(ipl_location, "rb");
@@ -52,6 +79,7 @@ static int _load_ipl(Bus *self, char *ipl_location)
 static void _free(ARG)
 {
     free(self->ipl);
+    free(self->ipl_rom);
 }
 
 static inline void be_store(u8 *p, u64 v, u32 size)
@@ -275,6 +303,7 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
 
 static const Bus BUS_TEMPLATE = {
     .load_ipl = _load_ipl,
+    .load_ipl_scrambled = _load_ipl_scrambled,
     .free = &_free,
     .read = &_read,
     .write = &_write,

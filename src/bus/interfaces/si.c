@@ -4,6 +4,7 @@
 #include "core/config/config.h"
 #include <_abort.h>
 #include <assert.h>
+#include <stdio.h>
 
 static u32 SIPOLL;
 static u32 SICOMCSR;
@@ -76,5 +77,8 @@ u64 si_read(CPU *cpu, u32 adr, u64 val)
     } else if (adr == 0xCC006400 + 0x38) {
         return SISR;
     }
-    assert(!"si_read: unhandled SI register address");
+
+    // TODO:
+    printf("adr : 0x%08x\n", adr);
+    // assert(!"si_read: unhandled SI register address");
 }

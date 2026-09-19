@@ -16,12 +16,17 @@ struct Bus {
     void *ipl;
     size_t ipl_size;
 
+    // echtes Bootrom (ipl.bin), Quelle fuer EXI-ROM-Reads (z.B. Fonts)
+    void *ipl_rom;
+    size_t ipl_rom_size;
+
     // Einsprungpunkt des geladenen Images (aus dem DOL-Header)
     u32 entry_point;
 
     CPU *cpu;
 
     int (*load_ipl)(Bus *self, char *ipl_location);
+    int (*load_ipl_scrambled)(Bus *self, char *ipl_location);
     void (*free)(Bus *self);
     void (*set_cpu_ptr)(Bus *self, CPU *cpu);
     u64 (*read)(Bus *self, u32 adr, u32 size);
