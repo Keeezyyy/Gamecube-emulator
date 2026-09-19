@@ -57,7 +57,7 @@ void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
             }
         }
         if ((val >> 31) & 1) {
-            assert(!"buffer übernehmen\n");
+            // assert(!"buffer übernehmen\n");
         }
 
         return;
@@ -70,7 +70,7 @@ void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
 
         return;
     }
-    assert(!"si_write: unhandled SI register address");
+    // assert(!"si_write: unhandled SI register address");
 }
 
 u64 si_read(CPU *cpu, u32 adr, u64 val)

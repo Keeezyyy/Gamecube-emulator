@@ -46,6 +46,7 @@ typedef struct {
 #define TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS 1
 #define TRANSLATION_BLOCK_TYPE_RETURN_FROM_INTERRUPT 2
 
+#define HASH_BUFFER_SIZE 128
 typedef struct {
 
     TranslationBlockCore core;
@@ -57,6 +58,7 @@ typedef struct {
     u32 hid2_at_start;
 
     u32 guest_instructions_count;
+    char hash[HASH_BUFFER_SIZE];
 
     // for linking tb´s together
     /*

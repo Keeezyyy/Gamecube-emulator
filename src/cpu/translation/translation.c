@@ -7,10 +7,16 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <zhash/zhash.h>
 
 static struct ZHashTable *t;
+
+#define TB_CACHE_ENTRIES 512
+
+static TranslationBlock *translation_block_cache[TB_CACHE_ENTRIES];
+static TranslationBlock *translation_block_cache_scratch[TB_CACHE_ENTRIES];
 
 /*
 // create hash table
@@ -42,8 +48,6 @@ void deconstruct_translation(void)
     zfree_hash_table(t);
 }
 
-#define HASH_BUFFER_SIZE 128
-
 static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hid2, char *buffer)
 {
     const int written = snprintf(buffer, HASH_BUFFER_SIZE, "%08x-%08x-%08x", pc, msr, hid2);
@@ -59,12 +63,19 @@ void _empty(u64 pc)
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
-    // TODO:
-    // implement fast tb cache
 
     char buffer[HASH_BUFFER_SIZE] = {0};
 
     get_hash_from_state(cpu->state.pc, cpu->state.msr, cpu->special_purpose_registers.hid2, buffer);
+    for (int i = 0; i < TB_CACHE_ENTRIES; i++) {
+        if (translation_block_cache[i] == NULL_PTR)
+            continue;
+        if (translation_block_cache[i]->pc_at_start == cpu->state.pc &&
+            translation_block_cache[i]->msr_at_start == cpu->state.msr &&
+            translation_block_cache[i]->hid2_at_start == cpu->special_purpose_registers.hid2) {
+            return translation_block_cache[i];
+        }
+    }
 
     return zhash_get(t, buffer);
 }
@@ -82,12 +93,10 @@ int tb_finilize(TranslationBlock *tb)
     }
     __builtin___clear_cache((char *)tb->core.code, (char *)tb->core.code + tb->core.size);
 
-    char buffer[HASH_BUFFER_SIZE] = {0};
-
-    get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, buffer);
+    get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, tb->hash);
 
     DEBUG_PRINT("added tb [0x%08x], with code adr : %p\n", tb->pc_at_start, tb->core.code);
-    zhash_set(t, buffer, tb);
+    zhash_set(t, tb->hash, tb);
     return 0;
 }
 
@@ -109,4 +118,11 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     void (*code)(void);
     *(uintptr_t *)&code = (uintptr_t)block->core.code;
     code();
+
+    // shift out the least used one in the cache
+    memcpy(&translation_block_cache_scratch[1], &translation_block_cache[0], 511 * sizeof(void *));
+
+    translation_block_cache[0] = block;
+
+    memcpy(&translation_block_cache[1], &translation_block_cache_scratch[1], 511 * sizeof(void *));
 }
