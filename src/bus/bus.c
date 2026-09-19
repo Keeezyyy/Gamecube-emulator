@@ -176,7 +176,7 @@ static u64 _read(Bus *self, u32 adr, u32 size)
         return be_load((u8 *)self->ipl + (adr - IPL_BASE), size);
     }
 
-    printf("[read2] :  adr : 0x%08x, size : 0x%08x\n", adr, size);
+    // printf("[read2] :  adr : 0x%08x, size : 0x%08x\n", adr, size);
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
 
@@ -296,4 +296,5 @@ void init_bus(Bus *self)
     self->ram = ram_buffer;
 
     init_exi();
+    vi_init();
 }

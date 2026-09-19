@@ -44,13 +44,6 @@ static void _free(void)
     cpu.free(&cpu);
 }
 
-static void _threads(void)
-{
-    pthread_t vi_thread;
-    pthread_create(&vi_thread, NULL, (void *)vi_main_loop, &cpu);
-    pthread_join(vi_thread, NULL);
-}
-
 int main(int argc, char **argv)
 {
 
@@ -61,9 +54,7 @@ int main(int argc, char **argv)
 
     cpu.boot(&cpu);
 
-    cpu.start(&cpu);
-
-    _threads();
+    cpu.main(&cpu);
 
     while (true) {
     }

@@ -51,5 +51,4 @@ typedef struct {
 
 void vi_write(CPU *cpu, u32 adr, u32 val, u32 size);
 u32 vi_read(CPU *cpu, u32 adr, u32 size);
-
-void vi_main_loop(CPU *cpu);
+void vi_init(void);

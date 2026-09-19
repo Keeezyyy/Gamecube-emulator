@@ -56,6 +56,8 @@ typedef struct {
     u32 msr_at_start;
     u32 hid2_at_start;
 
+    u32 guest_instructions_count;
+
     // for linking tb´s together
     /*
       uint16_t jmp_offset[2];

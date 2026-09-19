@@ -5,6 +5,7 @@
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation.h"
 #include "disc/disc.h"
+#include "scheduler/scheduler.h"
 #include <_abort.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -83,7 +84,6 @@ static void main_loop(CPU *self)
     // while (!waiting_interrupt(self)) {
 
     while (true) {
-        // DEBUG_PRINT("cycle \n");
 
         if (self->awaiting_interrupt(self)) {
             handle_interrupt(self);
@@ -91,11 +91,6 @@ static void main_loop(CPU *self)
 
         tb = tb_lookup(self, m);
         if (tb == NULL_PTR) {
-            // TODO:
-            // code block is not present in hash table and has to be translated
-
-            // NOTE: if I add thread make sure to use locks here
-
             TranslationBlock *new_tb = calloc(1, sizeof(TranslationBlock));
 
             assert(new_tb != NULL_PTR);
@@ -115,9 +110,9 @@ static void main_loop(CPU *self)
             tb = new_tb;
         }
 
-        self->print_state(self);
+        report_cycle_count(self, tb->guest_instructions_count);
+
         run_tb(tb, self);
-        self->print_state(self);
     }
 }
 
@@ -166,24 +161,6 @@ static const FPU FPU_TEMPLATE = {
     .get_pse_bit = _fpu_get_sep_bit,
 };
 
-static void start(CPU *self)
-{
-    pthread_t main_thread;
-    pthread_t background_thread;
-
-    // NOTE: pthread_create writes the new handle through the first argument, so it must be the
-    // address of the pthread_t, not its (uninitialized) value
-    if (pthread_create(&main_thread, NULL, (void *)self->main, self) != 0) {
-        assert(!"pthread_create failed for main_thread");
-    }
-    if (pthread_create(&background_thread, NULL, (void *)self->background, self) != 0) {
-        assert(!"pthread_create failed for background_thread");
-    }
-
-    pthread_detach(main_thread);
-    pthread_detach(background_thread);
-}
-
 static bool _is_interrupt_awaiting(CPU *self)
 {
     if ((self->state.msr & 0x8000) == 0) // interrupt enable
@@ -197,8 +174,6 @@ static const CPU CPU_TEMPLATE = {
     .state = {0},
     .free = &deconstruct_cpu,
     .main = &main_loop,
-    .start = &start,
-    .background = &run_background,
     .get_current_cpu_mode = &get_current_cpu_mode,
     .boot = &_boot,
     .print_state = &print_cpu_state,

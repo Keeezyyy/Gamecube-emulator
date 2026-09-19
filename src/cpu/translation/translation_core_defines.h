@@ -41,6 +41,8 @@
 #define OPC_MFTB_EXT 371
 #define OPC_MTSPR_EXT 467
 #define OPC_SYNC_EXT 598
+#define OPC_DCBZ_EXT 1014
+#define OPC_DCBST_EXT 54
 #define OPC_ORX_EXT 444
 #define OPC_NORX_EXT 124
 #define OPC_CMP_EXT 0

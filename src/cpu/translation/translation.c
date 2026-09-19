@@ -46,8 +46,6 @@ void deconstruct_translation(void)
 
 static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hid2, char *buffer)
 {
-    /* Nicht in ein assert() packen: im Release-Build (NDEBUG) faellt der
-     * Rumpf sonst weg und jeder Zustand bekaeme denselben leeren Schluessel. */
     const int written = snprintf(buffer, HASH_BUFFER_SIZE, "%08x-%08x-%08x", pc, msr, hid2);
     assert(written > 0 && written < HASH_BUFFER_SIZE);
     (void)written;

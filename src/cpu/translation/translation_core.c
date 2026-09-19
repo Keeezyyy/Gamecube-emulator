@@ -1134,6 +1134,22 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+        if (_get_field(insn, 21, 30) == OPC_DCBZ_EXT) {
+            if (g_print_debug)
+                printf("[0x%08x] : dcbz \n", pc_buffer[pc_buffer_counter]);
+            u32 *curr_instruction = code_buffer;
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+        if (_get_field(insn, 21, 30) == OPC_DCBST_EXT) {
+            if (g_print_debug)
+                printf("[0x%08x] : dcbst \n", pc_buffer[pc_buffer_counter]);
+            u32 *curr_instruction = code_buffer;
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
         if (_get_field(insn, 21, 30) == OPC_ORX_EXT) {
             const u32 s = _get_field(insn, 6, 10);
             const u32 a = _get_field(insn, 11, 15);
@@ -4247,7 +4263,9 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
 
     FPRUsageBitmap fpr_bitmap = 0;
 
+    out_tb->guest_instructions_count = 0;
     while (termination_type == 0 && pc_count < MAX_GUEST_INSTRUCTIONS_PER_TRANSLATION_BLOCK) {
+        out_tb->guest_instructions_count++;
 
         if (!code_buffer_reserve(&cb, TB_MAX_BYTES_PER_GUEST_INSTRUCTION + TB_EPILOGUE_MAX_BYTES)) {
             if (g_print_debug)
