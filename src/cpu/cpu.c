@@ -36,7 +36,9 @@ static void handle_interrupt(CPU *self)
     CpuMode m = self->get_current_cpu_mode(self);
 
     _helper_write_switch_to_exception(self->state.pc - 4);
+    printf("[INTERRUPT]\n");
 
+    // NOTE:FOR NOW
     self->state.pc = 0x00000500;
     do {
 
@@ -184,6 +186,8 @@ static void start(CPU *self)
 
 static bool _is_interrupt_awaiting(CPU *self)
 {
+    if ((self->state.msr & 0x8000) == 0) // interrupt enable
+        return false;
     return (self->exception.interrupt_source_register & self->exception.interrupt_mask_register) !=
            0;
 }

@@ -8,6 +8,12 @@
 static PIRegs pi_regs;
 u64 pi_read(CPU *cpu, u32 adr, u32 size)
 {
+    if (adr == 0xcc003000) {
+        return cpu->exception.interrupt_source_register;
+    }
+    if (adr == 0xcc003004) {
+        return cpu->exception.interrupt_mask_register;
+    }
     if (adr == 0xcc00302c) {
         return 0x20000000;
     }

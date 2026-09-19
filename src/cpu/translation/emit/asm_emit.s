@@ -2735,3 +2735,19 @@ _emit_mfcr:
         ldr w2, [x1]
         STORE_REGISTER w0, w2
         _emit_mfcr_after:
+
+.globl _emit_mtcrf
+_emit_mtcrf:
+          adr x22, _emit_mtcrf_start
+          adr x23, _emit_mtcrf_after
+          str x22, [x0]
+          str x23, [x1]
+          ret
+        _emit_mtcrf_start:
+        LOAD_REGISTER w0, w3
+        ldr w4, [x1]
+        bic w4, w4, w2
+        and w3, w3, w2
+        orr w4, w4, w3
+        str w4, [x1]
+        _emit_mtcrf_after:

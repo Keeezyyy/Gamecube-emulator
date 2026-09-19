@@ -123,6 +123,7 @@
 #define OPC_MFSRIN_EXT 659
 #define OPC_MTSRIN_EXT 242
 #define OPC_MFCR_EXT 19
+#define OPC_MTCRF_EXT 144
 #define OPC_FNEG_EXT 40
 #define OPC_FABS_EXT 264
 #define OPC_FNABS_EXT 136

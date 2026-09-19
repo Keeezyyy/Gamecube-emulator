@@ -12,6 +12,7 @@ extern void emit_lhz(u32 **start, u32 **end);
 extern void emit_sc(u32 **start, u32 **end);
 extern void emit_rfi(u32 **start, u32 **end);
 extern void emit_mfcr(u32 **start, u32 **end);
+extern void emit_mtcrf(u32 **start, u32 **end);
 extern void emit_mtmsr(u32 **start, u32 **end);
 extern void emit_mfspr(u32 **start, u32 **end);
 extern void emit_stw(u32 **start, u32 **end);
