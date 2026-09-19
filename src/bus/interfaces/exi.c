@@ -111,12 +111,12 @@ void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
             exi_registers.channels[0].EXInCR = val & 0x3E;
 
             if (((val >> 1) & 1) == 1) {
-                printf("[EXI] start IPL dma\n");
+                DEBUG_PRINT("[EXI] start IPL dma\n");
                 ipl_start_dma_transfer(cpu->bus);
                 exi_registers.channels[0].EXInCSR |= TCINT;
                 pi_update_interrupts(cpu);
             } else {
-                printf("[EXI] start IPL imma\n");
+                DEBUG_PRINT("[EXI] start IPL imma\n");
                 ipl_start_imm_data(cpu->bus);
             }
 

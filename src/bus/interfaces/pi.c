@@ -58,7 +58,12 @@ void pi_write(CPU *cpu, u32 adr, u64 val, u32 size)
         pi_regs.PI_FIFO_WPTR = val;
         break;
     }
+    case 0xCC003024: {
+        pi_regs.PI_RESET_CODE = val;
+        break;
+    }
     default:
+        printf("adr : 0x%08x, val : 0x%08x\n", adr, val);
         assert(!"write pi not implemented\n");
     }
 }

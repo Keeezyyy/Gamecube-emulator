@@ -63,7 +63,7 @@ static void handle_interrupt(CPU *self)
     CpuMode m = self->get_current_cpu_mode(self);
 
     _helper_write_switch_to_exception(self->state.pc - 4);
-    printf("[INTERRUPT]\n");
+    DEBUG_PRINT("[INTERRUPT]\n");
 
     // NOTE:FOR NOW
     self->state.pc = 0x00000500;

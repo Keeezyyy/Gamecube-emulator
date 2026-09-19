@@ -165,16 +165,21 @@ static void _helper_write_double_word_to_bus(u32 adr, u64 val)
 static u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = (u32)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 4);
-    if (adr > 0x817fffff + 1)
-        printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
+    /*
+      if (adr > 0x817fffff + 1)
+          printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
+    */
 
     return val;
 }
 static u32 _helper_read_half_word_from_bus(u32 adr)
 {
     u32 val = (u16)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 2);
-    if (adr > 0x817fffff + 1)
-        printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
+    /*
+      if (adr > 0x817fffff + 1)
+          printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
+    */
+
     return val;
 }
 static u64 _helper_read_double_word_from_bus(u32 adr)

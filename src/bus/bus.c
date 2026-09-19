@@ -251,7 +251,7 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         return;
     }
 
-    printf("[write] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
+    // printf("[write] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
     if (adr >= 0xCC000000 && adr <= 0xCC001000) {
         cp_write(self->cpu, adr, val, size);
         return;
