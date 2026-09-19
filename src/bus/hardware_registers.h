@@ -112,5 +112,6 @@ typedef struct GXFifoRegs {
 
     /* +0x64 */
 } PACKED GXFifoRegs;
+
 void cp_write(CPU *cpu, u32 adr, u32 val, u32 size);
 u64 cp_read(CPU *cpu, u32 adr, u32 size);

@@ -270,7 +270,7 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
     } else if (adr >= 0xCC008000 && adr < 0xe0000000) {
         // GX FIFO BUFFER
 
-        gx_write_to_fifo(val, size);
+        gx_write_to_fifo(self->cpu, val, size);
         return;
     }
 

@@ -797,6 +797,8 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             *termination_type = TERMINATING_TYPE_RET;
 
+            *tb_type = TRANSLATION_BLOCK_TYPE_RETURN_FROM_INTERRUPT;
+
             return curr_instruction;
 
         } else if (_get_field(insn, 21, 30) == OPC_CRAND_EXT) {

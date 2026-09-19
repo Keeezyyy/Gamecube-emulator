@@ -232,7 +232,7 @@ static void _helper_quantized_store(u32 adr, u32 gqr, u32 w, u64 ps0, u64 ps1)
                                    size);
 }
 
-static void _helper_write_switch_to_exception(u32 cia)
+void _helper_write_switch_to_exception(u32 cia)
 {
     static_cpu_ptr->special_purpose_registers.buf[26] = cia + 4;
     static_cpu_ptr->special_purpose_registers.buf[27] = static_cpu_ptr->state.msr & 0x87C0FFFF;
@@ -250,7 +250,7 @@ static void _helper_write_switch_to_exception(u32 cia)
     return;
 }
 
-static void _helper_write_switch_from_exception(void)
+void _helper_write_switch_from_exception(void)
 {
     static_cpu_ptr->state.pc = static_cpu_ptr->special_purpose_registers.buf[26] & ~3u;
     static_cpu_ptr->state.msr =

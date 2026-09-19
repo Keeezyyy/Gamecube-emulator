@@ -87,5 +87,6 @@ struct CPU {
     void (*boot)(CPU *self);
     void (*free)(CPU *self);
     void (*print_state)(CPU *self);
+    bool (*awaiting_interrupt)(CPU *self);
     CpuMode (*get_current_cpu_mode)(CPU *self);
 };

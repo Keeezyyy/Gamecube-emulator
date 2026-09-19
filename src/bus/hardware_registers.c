@@ -1,5 +1,6 @@
 #include "hardware_registers.h"
 #include <assert.h>
+#include <string.h>
 
 static GXFifoRegs cp_regs;
 void cp_write(CPU *cpu, u32 adr, u32 val, u32 size)

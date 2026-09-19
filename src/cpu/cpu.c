@@ -30,6 +30,48 @@ static CpuMode get_current_cpu_mode(CPU *self)
     return m;
 }
 
+static void handle_interrupt(CPU *self)
+{
+    TranslationBlock *tb;
+    CpuMode m = self->get_current_cpu_mode(self);
+
+    _helper_write_switch_to_exception(self->state.pc - 4);
+
+    self->state.pc = 0x00000500;
+    do {
+
+        tb = tb_lookup(self, m);
+        if (tb == NULL_PTR) {
+            // TODO:
+            // code block is not present in hash table and has to be translated
+
+            // NOTE: if I add thread make sure to use locks here
+
+            TranslationBlock *new_tb = calloc(1, sizeof(TranslationBlock));
+
+            assert(new_tb != NULL_PTR);
+
+            if (!tb_translate(self, m, new_tb, false)) {
+                fprintf(stderr, "translation failed at pc 0x%08x\n", self->state.pc);
+                free(new_tb);
+                assert(!"tb_translate failed: guest code block could not be translated");
+            }
+
+            if (tb_finilize(new_tb) != 0) {
+                fprintf(stderr, "tb_finilize failed at pc 0x%08x\n", self->state.pc);
+                free(new_tb);
+                assert(!"tb_finilize failed: translated block could not be finalized");
+            }
+
+            tb = new_tb;
+        }
+
+        self->print_state(self);
+        run_tb(tb, self);
+        self->print_state(self);
+    } while ((tb->type & TRANSLATION_BLOCK_TYPE_RETURN_FROM_INTERRUPT) != 0);
+}
+
 static void main_loop(CPU *self)
 {
     TranslationBlock *tb;
@@ -37,8 +79,13 @@ static void main_loop(CPU *self)
 
     // TODO: implement interrupt check and isr
     // while (!waiting_interrupt(self)) {
+
     while (true) {
         // DEBUG_PRINT("cycle \n");
+
+        if (self->awaiting_interrupt(self)) {
+            handle_interrupt(self);
+        }
 
         tb = tb_lookup(self, m);
         if (tb == NULL_PTR) {
@@ -131,8 +178,14 @@ static void start(CPU *self)
         assert(!"pthread_create failed for background_thread");
     }
 
-    pthread_join(main_thread, NULL);
-    pthread_join(background_thread, NULL);
+    pthread_detach(main_thread);
+    pthread_detach(background_thread);
+}
+
+static bool _is_interrupt_awaiting(CPU *self)
+{
+    return (self->exception.interrupt_source_register & self->exception.interrupt_mask_register) !=
+           0;
 }
 
 static const CPU CPU_TEMPLATE = {
@@ -146,7 +199,7 @@ static const CPU CPU_TEMPLATE = {
     .boot = &_boot,
     .print_state = &print_cpu_state,
     .fpu = FPU_TEMPLATE,
-
+    .awaiting_interrupt = &_is_interrupt_awaiting,
     // NOTE: no libc functions !!!
     // NOTE if usage of lib functions in debug push and pop float regs
     //------------------------------------------------------------------------------------------

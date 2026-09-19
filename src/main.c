@@ -1,11 +1,14 @@
 
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/_pthread/_pthread_t.h>
 
 #include "./disc/disc.h"
 #include "bus/bus.h"
 #include "cpu/cpu.h"
 #include "cpu/cpu_types.h"
+#include "graphics/vi.h"
 
 static Bus b;
 static Disc disc;
@@ -41,6 +44,13 @@ static void _free(void)
     cpu.free(&cpu);
 }
 
+static void _threads(void)
+{
+    pthread_t vi_thread;
+    pthread_create(&vi_thread, NULL, (void *)vi_main_loop, &cpu);
+    pthread_join(vi_thread, NULL);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -53,5 +63,8 @@ int main(int argc, char **argv)
 
     cpu.start(&cpu);
 
-    return 0;
+    _threads();
+
+    while (true) {
+    }
 }

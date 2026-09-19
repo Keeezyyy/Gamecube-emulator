@@ -1,4 +1,7 @@
 #include "gx_fifo.h"
+#include "bus/hardware_registers.h"
+#include "bus/interfaces/pi.h"
+#include "cpu/cpu_types.h"
 #include <stdio.h>
 
 union FifoBuffer {
@@ -10,7 +13,9 @@ static union FifoBuffer fifo_buffer;
 
 u32 buffer_ptr;
 
-void gx_write_to_fifo(u32 val, u32 size)
+static void copy_fifo_buffer_to_ram(CPU *cpu) {};
+
+void gx_write_to_fifo(CPU *cpu, u32 val, u32 size)
 {
     switch (size) {
     case 1:
@@ -30,6 +35,9 @@ void gx_write_to_fifo(u32 val, u32 size)
         // FIFO BUFFER IS FULL
 
         // send_to_gpu()
+
+        // send to cp
+        pi_recieve_gx_gather_piper(cpu, &fifo_buffer);
 
         buffer_ptr = 0;
         printf("[GX] FIFO BUFFER FULL\n");

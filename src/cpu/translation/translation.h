@@ -44,6 +44,7 @@ typedef struct {
 } TranslationBlockCore;
 
 #define TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS 1
+#define TRANSLATION_BLOCK_TYPE_RETURN_FROM_INTERRUPT 2
 
 typedef struct {
 
