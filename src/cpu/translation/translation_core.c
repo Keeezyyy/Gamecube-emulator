@@ -3102,6 +3102,24 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+        if (_get_field(insn, 21, 30) == OPC_MFCR_EXT) {
+            const u32 regD = _get_field(insn, 6, 10);
+            if (g_print_debug)
+                printf("[0x%08x] : mfcr r%d, \n", pc_buffer[pc_buffer_counter], regD);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
+            curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.cr);
+
+            const u32 *main_block, *main_block_end;
+            emit_mfcr(&main_block, &main_block_end);
+            curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
         printf("not implemented : %d\n", _get_field(insn, 21, 30));
         assert(!"not implemented guest instruction");
     }

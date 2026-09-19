@@ -2723,3 +2723,15 @@ _emit_ecowx:
         mov x7, 0
         CALL_HELPER_FUNCTION w7
         _emit_ecowx_after:
+
+.globl _emit_mfcr
+_emit_mfcr:
+          adr x22, _emit_mfcr_start
+          adr x23, _emit_mfcr_after
+          str x22, [x0]
+          str x23, [x1]
+          ret
+        _emit_mfcr_start:
+        ldr w2, [x1]
+        STORE_REGISTER w0, w2
+        _emit_mfcr_after:
