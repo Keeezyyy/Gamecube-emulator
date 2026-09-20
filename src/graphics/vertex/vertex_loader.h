@@ -2,6 +2,7 @@
 
 #include "bus/bus.h"
 #include "core/config/config.h"
+#include <assert.h>
 #include <stdbool.h>
 
 typedef struct {
@@ -20,30 +21,53 @@ typedef enum {
 } PositionFormatElements;
 
 typedef enum {
-    POS_DATA_TYPE_U8 = 0,
-    POS_DATA_TYPE_S8 = 1,
-    POS_DATA_TYPE_U16 = 2,
-    POS_DATA_TYPE_S16 = 3,
-    POS_DATA_TYPE_F32 = 4,
-} PositionFormatDataType;
+    DATA_TYPE_U8 = 0,
+    DATA_TYPE_S8 = 1,
+    DATA_TYPE_U16 = 2,
+    DATA_TYPE_S16 = 3,
+    DATA_TYPE_F32 = 4,
+} FormatDataType;
 
 typedef u32 X32; // can hold types of PositionFormatDataType
 
 typedef struct {
-    bool has_position;
-    PositionFormatElements position_elements;
-    PositionFormatDataType position_data_type;
-    u8 frac; // Festkomma-Shift: Wert / 2^frac (nicht für f32
-
     X32 X;
     X32 Y;
     X32 Z;
+} PACKED Vec3;
+
+static_assert(sizeof(Vec3) == 3 * sizeof(u32));
+
+typedef struct {
+    bool has_position;
+    PositionFormatElements position_elements;
+    FormatDataType position_data_type;
+
+    u8 frac; // Festkomma-Shift: Wert / 2^frac (nicht für f32
+
+    Vec3 vec;
 } PACKED VertexPosition;
+
+typedef enum {
+    NORMAL_ELEMENTS_N = 0,
+    NORMAL_ELEMENTS_NBT = 1,
+} NormalFormatElements;
+
+typedef struct {
+    bool has_normal;
+    FormatDataType normal_data_type;
+    NormalFormatElements normal_elements;
+
+    Vec3 N;
+    Vec3 B;
+    Vec3 T;
+} PACKED VertexNormal;
 
 typedef struct {
     PosMat pm;
     TexMat tm[8];
     VertexPosition pos;
+    VertexNormal norm;
 
 } PACKED Vertex;
 
