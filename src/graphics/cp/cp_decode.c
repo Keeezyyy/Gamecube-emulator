@@ -94,6 +94,44 @@ u64 read_stream(u32 **stream, u8 size)
     }
 }
 
+static u32 _comp_size(u32 fmt)
+{
+    return fmt == DATA_TYPE_F32 ? 4 : fmt > DATA_TYPE_S8 ? 2 : 1;
+}
+
+static u32 _attr_size(u32 type, u32 direct)
+{
+    return type == 0 ? 0 : type == 1 ? direct : type - 1;
+}
+
+u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C)
+{
+    static const u8 elem_bit[8] = {21, 32, 41, 50, 59, 69, 78, 87};
+    static const u32 clr_size[8] = {2, 3, 4, 2, 3, 4, 0, 0};
+
+    const u32 VAT[3] = {VAT_A, VAT_B, VAT_C};
+    const u32 nrm_type = (VCD_LO >> 11) & 3;
+    const u32 nrm_elements = (VAT_A >> 9) & 1;
+
+    u32 size = (u32)__builtin_popcount(VCD_LO & 0x1FF);
+
+    size += _attr_size((VCD_LO >> 9) & 3, (2 + (VAT_A & 1)) * _comp_size((VAT_A >> 1) & 7));
+
+    size += _attr_size(nrm_type, (nrm_elements ? 9 : 3) * _comp_size((VAT_A >> 10) & 7));
+    if (nrm_type > 1 && nrm_elements && (VAT_A >> 31))
+        size += 2 * (nrm_type - 1);
+
+    size += _attr_size((VCD_LO >> 13) & 3, clr_size[(VAT_A >> 14) & 7]);
+    size += _attr_size((VCD_LO >> 15) & 3, clr_size[(VAT_A >> 18) & 7]);
+
+    for (u8 i = 0; i < 8; i++) {
+        const u32 w = VAT[elem_bit[i] >> 5] >> (elem_bit[i] & 31);
+        size += _attr_size((VCD_HI >> (i * 2)) & 3, (1 + (w & 1)) * _comp_size((w >> 1) & 7));
+    }
+
+    return size;
+}
+
 // returns 0 if data length is too short for data requiered
 static u16 load_primitive(CPU *cpu, u8 primitive_info_byte, const u16 vertex_count,
                           u32 *stream) // returns total length of command
@@ -109,8 +147,19 @@ static u16 load_primitive(CPU *cpu, u8 primitive_info_byte, const u16 vertex_cou
     u32 VAT_A = cp_regs[0x70 + vat_index];
     u32 VAT_B = cp_regs[0x80 + vat_index];
     u32 VAT_C = cp_regs[0x90 + vat_index];
+
+    const u32 *stream_at_start = stream;
     Vertex v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], VAT_A, VAT_B, VAT_C,
                                         cp_regs, &stream);
+
+    const u64 size_of_vertex = (u64)stream - (u64)stream_at_start;
+
+    for (int i = 0; i < vertex_count - 1; i++) {
+        Vertex v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], VAT_A, VAT_B, VAT_C,
+                                            cp_regs, &stream);
+    }
+
+    return size_of_vertex * vertex_count + 3;
 }
 
 static u32 xf_regs[0x1057];
@@ -199,16 +248,25 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
                           __builtin_bswap32(*(u32 *)(stream + 1)) & 0x03FFFFE0,
                           __builtin_bswap32(*(u32 *)(stream + 5)) & 0x03FFFFE0);
 
-        assert(!"3245");
-
         add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_CALL_DL_LENGTH);
 
         break;
     }
     default: {
         if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
-            u32 len = load_primitive(cpu, op, __builtin_bswap16(*(u16 *)(stream + 1)),
-                                     (u32 *)(stream + 3));
+
+            u16 vertex_count = __builtin_bswap16(*(u16 *)(stream + 1));
+
+            const u8 vat_index = op & 0x7;
+            const u32 vertex_size =
+                get_size_of_vertex(cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
+                                   cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index]);
+
+            if (command_processor_registers->RW_DISTANCE < (vertex_size * vertex_count) + 3)
+                return;
+
+            u32 len = load_primitive(cpu, op, vertex_count, (u32 *)(stream + 3));
+
             if (len == 0) {
                 return;
             }

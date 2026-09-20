@@ -189,7 +189,9 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
                     u16 idx = 0;
                     idx = (u16)read_stream(stream, norm_type - 1);
 
-                    u32 *ram_stream = (u32 *)&cpu->bus->ram[CP_REGS[0xA1] + idx * CP_REGS[0xB1]];
+                    u32 *ram_stream =
+                        (u32 *)&cpu->bus
+                            ->ram[(CP_REGS[0xA1] & 0x03FFFFFF) + idx * (CP_REGS[0xB1] & 0xFF)];
 
                     vec[j].X = read_stream(&ram_stream, size);
                     vec[j].Y = read_stream(&ram_stream, size);
@@ -203,7 +205,7 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
 
                 u32 *ram_stream =
                     (u32 *)&cpu->bus
-                        ->ram[(CP_REGS[0xA1] & 0x03FFFFFF) + idx * CP_REGS[0xB1] & 0xFF];
+                        ->ram[(CP_REGS[0xA1] & 0x03FFFFFF) + idx * (CP_REGS[0xB1] & 0xFF)];
                 _parse_norm(VAT_A, &ram_stream, &out_v.norm, false);
                 break;
             }
@@ -229,7 +231,7 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
 
             u32 *ram_stream =
                 (u32 *)&cpu->bus
-                    ->ram[(CP_REGS[0xA2 + i] & 0x03FFFFFF) + idx * CP_REGS[0xB2 + i] & 0xFF];
+                    ->ram[(CP_REGS[0xA2 + i] & 0x03FFFFFF) + idx * (CP_REGS[0xB2 + i] & 0xFF)];
 
             _parse_color(VAT_A, &ram_stream, &out_v.color[i], i);
             break;

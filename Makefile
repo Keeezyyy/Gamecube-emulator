@@ -146,7 +146,7 @@ VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Regeln =================================================================
-.PHONY: all asm run debug release lsp clean distclean format compdb help test test-build
+.PHONY: all asm run debug release lsp clean distclean format compdb help test test-build test-vertex
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -286,6 +286,9 @@ test:
 test-build:
 	$(MAKE) -C test
 
+test-vertex:
+	$(MAKE) -C test run-vertex
+
 # ==== Hilfe ==================================================================
 
 help:
@@ -308,6 +311,7 @@ help:
 	@echo "make compdb                - compile_commands.json erzeugen"
 	@echo "make test                  - Gast-Unit-Tests bauen und ausfuehren"
 	@echo "make test ARGS=stw         - nur passende Testfaelle ausfuehren"
+	@echo "make test-vertex           - Vertex-Loader-Tests (ohne Gast-Toolchain)"
 
 # ==== Dependency Files =======================================================
 

@@ -125,3 +125,4 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
                      u8 **stream_ptr);
 
 u64 read_stream(u32 **stream, u8 size);
+u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C);
