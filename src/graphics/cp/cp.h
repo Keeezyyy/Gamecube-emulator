@@ -121,3 +121,7 @@ u32 cp_get_cr_reg(void);
 u32 cp_get_sr_reg(void);
 
 void decode_data_stream(CPU *cpu, GXFifoRegs *cp_regs);
+void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
+                     u8 **stream_ptr);
+
+u64 read_stream(u32 **stream, u8 size);

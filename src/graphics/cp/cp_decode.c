@@ -1,4 +1,5 @@
 #include "cp.h"
+#include "graphics/vertex/vertex_loader.h"
 #include <_abort.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -65,16 +66,52 @@ static void load_cp_reg(u8 reg_num, u32 val)
     printf("CP LOAD [0x%02x] = 0x%06x\n", reg_num, val);
 }
 
+u64 read_stream(u32 **stream, u8 size)
+{
+    switch (size) {
+    case 1: {
+        u8 val = ((u8 *)*stream)[0];
+        *stream = (u32 *)(&((u8 *)*stream)[1]);
+
+        return (val);
+    }
+    case 2: {
+
+        u16 val = ((u16 *)*stream)[0];
+        *stream = (u32 *)(&((u16 *)*stream)[1]);
+
+        return __builtin_bswap16(val);
+    }
+    case 4: {
+
+        u32 val = ((u32 *)*stream)[0];
+        *stream = (u32 *)(&((u32 *)*stream)[1]);
+
+        return __builtin_bswap32(val);
+    }
+    default:
+        assert(!"u64 reads from steram\n");
+    }
+}
+
 // returns 0 if data length is too short for data requiered
 static u16 load_primitive(u8 primitive_info_byte, const u16 vertex_count,
-                          const u32 *stream) // returns total length of command
+                          u32 *stream) // returns total length of command
 {
     const u8 vat_index = primitive_info_byte & 0x7;
-    const u8 primitive_type = (primitive_info_byte >> 3) & 0x7;
+    const u8 primitive_type = primitive_info_byte & ~0x7;
 
     printf("PRIMITIVE: type :  0x%02x, index :  0x%02x , length  0x%04x\n", primitive_type,
            vat_index, vertex_count);
-    abort();
+
+    // pos data
+
+    u32 VCD = (cp_regs[0x60] << 16) | (cp_regs[0x60] & 0xFFFF);
+
+    u32 VAT_A = cp_regs[0x70 + vat_index];
+    u32 VAT_B = cp_regs[0x80 + vat_index];
+    u32 VAT_C = cp_regs[0x90 + vat_index];
+    Vertex v = parse_vertex_from_stream(VCD, VAT_A, VAT_B, VAT_C, &stream);
 }
 
 static u32 xf_regs[0x1057];
@@ -99,13 +136,23 @@ static void add_len_to_regs(GXFifoRegs *command_processor_registers, u8 **stream
     command_processor_registers->RW_DISTANCE -= len;
 }
 
-static void call_display_list(const u32 adr, const u32 size, u8 *stream)
+static void call_display_list(CPU *cpu, GXFifoRegs *command_processor_registers, const u32 adr,
+                              const u32 size)
 {
-    assert(!"call dl\n");
+
+    u8 *stream = (u8 *)&cpu->bus->ram[adr];
+    while (stream < (u8 *)&cpu->bus->ram[adr + size]) {
+        const u8 op = stream[0];
+        u8 *before = stream;
+        execute_command(cpu, command_processor_registers, op, &stream);
+
+        if (stream == before)
+            return;
+    }
 }
 
-static void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
-                            u8 **stream_ptr)
+void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
+                     u8 **stream_ptr)
 {
     u8 *stream = *stream_ptr;
 
@@ -149,8 +196,9 @@ static void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, c
     case OPCODE_CALL_DL: {
         if (command_processor_registers->RW_DISTANCE < OPCODE_CALL_DL_LENGTH)
             return;
-        call_display_list(__builtin_bswap32(*(u32 *)(stream + 1)) & 0x03FFFFE0,
-                          __builtin_bswap32(*(u32 *)(stream + 5)) & 0x03FFFFE0, (stream + 9));
+        call_display_list(cpu, command_processor_registers,
+                          __builtin_bswap32(*(u32 *)(stream + 1)) & 0x03FFFFE0,
+                          __builtin_bswap32(*(u32 *)(stream + 5)) & 0x03FFFFE0);
 
         assert(!"3245");
 
@@ -160,7 +208,8 @@ static void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, c
     }
     default: {
         if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
-            u32 len = load_primitive(op, *(u16 *)(stream + 1), (u32 *)(stream + 3));
+            u32 len =
+                load_primitive(op, __builtin_bswap16(*(u16 *)(stream + 1)), (u32 *)(stream + 3));
             if (len == 0) {
                 return;
             }
