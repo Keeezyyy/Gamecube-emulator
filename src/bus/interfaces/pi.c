@@ -5,6 +5,7 @@
 #include "bus/interfaces/exi.h"
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
+#include "graphics/cp.h"
 #include "graphics/pe.h"
 #include "graphics/vi.h"
 #include <_abort.h>
@@ -70,11 +71,24 @@ void pi_write(CPU *cpu, u32 adr, u64 val, u32 size)
 
 void pi_recieve_gx_gather_piper(CPU *cpu, u32 *buffer)
 {
-    printf("gather pipe wptr : 0x%08x\n", pi_regs.PI_FIFO_WPTR);
-    memcpy(&((u8 *)cpu->bus->ram)[pi_regs.PI_FIFO_WPTR], buffer, 32);
+    u32 wptr = pi_regs.PI_FIFO_WPTR & 0x03FFFFE0;
+    memcpy(&((u8 *)cpu->bus->ram)[wptr], buffer, 32);
 
-    if (pi_regs.PI_FIFO_WPTR == pi_regs.PI_FIFO_END) {
-        pi_regs.PI_FIFO_WPTR = pi_regs.PI_FIFO_BASE;
+    wptr += 32;
+    pi_regs.PI_FIFO_WPTR = wptr > pi_regs.PI_FIFO_END ? pi_regs.PI_FIFO_BASE : wptr;
+
+    GXFifoRegs *cp = get_cp_regs();
+
+    u32 cp_fifo_base = (cp->FIFO_BASE & 0x03FFFFE0);
+    u32 cp_fifo_end = (cp->FIFO_END & 0x03FFFFE0);
+
+    u32 pi_fifo_base = (pi_regs.PI_FIFO_BASE & 0x03FFFFE0);
+    u32 pi_fifo_end = (pi_regs.PI_FIFO_END & 0x03FFFFE0);
+
+    if (cp_fifo_base == pi_fifo_base && cp_fifo_end == pi_fifo_end && BIT_CHECK(cp->CR, 4)) {
+        // cp and pi fifo buffers are linked
+
+        cp_recieve_gather_pipe(cpu);
     }
 }
 
@@ -99,6 +113,8 @@ void pi_deactivate_external_interrupt(CPU *cpu, u8 interrupt_source)
 #define PE_CTRL_TOKEN_INTERRUPT_MASK 0x00000001
 #define PE_CTRL_FINISH_INTERRUPT_MASK 0x00000002
 
+#define CP_BP_MASK 0x00000010
+
 static bool pi_masked(u32 reg, u32 shift, u32 mask)
 {
     return ((reg >> shift) & reg & mask) != 0;
@@ -116,6 +132,8 @@ void pi_update_interrupts(CPU *cpu)
 {
     bool di = pi_masked(di_get_disr(), 1, DI_DISR_INTERRUPT_MASK) ||
               pi_masked(di_get_dicvr(), 1, DI_DICVR_INTERRUPT_MASK);
+
+    bool cp = pi_masked(cp_get_cr_reg(), 1, CP_BP_MASK);
 
     bool exi = false;
     for (u8 ch = 0; ch < 3; ch++)
@@ -138,4 +156,8 @@ void pi_update_interrupts(CPU *cpu)
                               pi_masked(pe_get_ctrl(), 2, PE_CTRL_TOKEN_INTERRUPT_MASK));
     pi_set_external_interrupt(cpu, INTERRUPT_SOURCE_PE_FINISH,
                               pi_masked(pe_get_ctrl(), 2, PE_CTRL_FINISH_INTERRUPT_MASK));
+
+    pi_set_external_interrupt(cpu, INTERRUPT_SOURCE_CP,
+                              cp || ((cp_get_sr_reg() & 1) && (cp_get_cr_reg() >> 2) & 1) ||
+                                  (((cp_get_sr_reg() >> 1) & 1) && (cp_get_cr_reg() >> 3) & 1));
 }

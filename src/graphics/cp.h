@@ -36,48 +36,28 @@ typedef struct GXFifoRegs {
 
     /* +0x18 .. +0x1E */
     uint16_t _pad18[4];
-
-    /* +0x20 */
-    volatile uint16_t FIFO_BASE_lo;
-    /* +0x22 */
-    volatile uint16_t FIFO_BASE_hi;
+    volatile uint32_t FIFO_BASE;
 
     /* +0x24 */
-    volatile uint16_t FIFO_END_lo;
-    /* +0x26 */
-    volatile uint16_t FIFO_END_hi;
+    volatile uint32_t FIFO_END;
 
     /* +0x28 */
-    volatile uint16_t HI_WATERMARK_lo;
-    /* +0x2A */
-    volatile uint16_t HI_WATERMARK_hi;
+    volatile uint32_t HI_WATERMARK;
 
     /* +0x2C */
-    volatile uint16_t LO_WATERMARK_lo;
-    /* +0x2E */
-    volatile uint16_t LO_WATERMARK_hi;
+    volatile uint32_t LO_WATERMARK;
 
     /* +0x30 */
-    volatile uint16_t RW_DISTANCE_lo;
-    /* +0x32 */
-    volatile uint16_t RW_DISTANCE_hi;
+    volatile uint32_t RW_DISTANCE;
 
     /* +0x34 */
-    volatile uint16_t WRITE_POINTER_lo;
-    /* +0x36 */
-    volatile uint16_t WRITE_POINTER_hi;
+    volatile uint32_t WRITE_POINTER;
 
     /* +0x38 */
-    volatile uint16_t READ_POINTER_lo;
-    /* +0x3A */
-    volatile uint16_t READ_POINTER_hi;
+    volatile uint32_t READ_POINTER;
 
     /* +0x3C */
-    volatile uint16_t BP_lo;
-    /* +0x3E */
-    volatile uint16_t BP_hi;
-
-    /* +0x40 */
+    volatile uint32_t BP; /* +0x40 */
     volatile uint16_t XF_RASBUSY;
 
     /* +0x42 */
@@ -115,3 +95,9 @@ typedef struct GXFifoRegs {
 
 void cp_write(CPU *cpu, u32 adr, u32 val, u32 size);
 u64 cp_read(CPU *cpu, u32 adr, u32 size);
+GXFifoRegs *get_cp_regs(void);
+void cp_recieve_gather_pipe(CPU *cpu);
+void cp_check_state(CPU *cpu);
+
+u32 cp_get_cr_reg(void);
+u32 cp_get_sr_reg(void);

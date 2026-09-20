@@ -13,7 +13,7 @@
 
 static struct ZHashTable *t;
 
-#define TB_CACHE_ENTRIES 512
+#define TB_CACHE_ENTRIES 32
 
 static TranslationBlock *translation_block_cache[TB_CACHE_ENTRIES];
 static TranslationBlock *translation_block_cache_scratch[TB_CACHE_ENTRIES];
@@ -66,7 +66,6 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 
     char buffer[HASH_BUFFER_SIZE] = {0};
 
-    get_hash_from_state(cpu->state.pc, cpu->state.msr, cpu->special_purpose_registers.hid2, buffer);
     for (int i = 0; i < TB_CACHE_ENTRIES; i++) {
         if (translation_block_cache[i] == NULL_PTR)
             continue;
@@ -76,6 +75,7 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
             return translation_block_cache[i];
         }
     }
+    get_hash_from_state(cpu->state.pc, cpu->state.msr, cpu->special_purpose_registers.hid2, buffer);
 
     return zhash_get(t, buffer);
 }
@@ -120,9 +120,11 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     code();
 
     // shift out the least used one in the cache
-    memcpy(&translation_block_cache_scratch[1], &translation_block_cache[0], 511 * sizeof(void *));
+    memcpy(&translation_block_cache_scratch[1], &translation_block_cache[0],
+           (TB_CACHE_ENTRIES - 1) * sizeof(void *));
 
     translation_block_cache[0] = block;
 
-    memcpy(&translation_block_cache[1], &translation_block_cache_scratch[1], 511 * sizeof(void *));
+    memcpy(&translation_block_cache[1], &translation_block_cache_scratch[1],
+           (TB_CACHE_ENTRIES - 1) * sizeof(void *));
 }

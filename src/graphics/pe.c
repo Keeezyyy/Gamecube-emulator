@@ -27,11 +27,11 @@ void pe_write(CPU *cpu, u32 adr, u32 val, u32 size)
 
     printf("adr : 0x%08x\n", adr - 0xCC001000);
 
-    ((u16 *)&pe_regs)[adr - 0xCC001000] = (u16)val;
+    ((u16 *)&pe_regs)[(adr - 0xCC001000) >> 1] = (u16)val;
 }
 u64 pe_read(CPU *cpu, u32 adr, u32 size)
 {
     assert(size == 2);
 
-    return ((u16 *)&pe_regs)[adr - 0xCC001000];
+    return ((u16 *)&pe_regs)[(adr - 0xCC001000) >> 1];
 }
