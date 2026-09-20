@@ -63,13 +63,30 @@ typedef struct {
     Vec3 T;
 } PACKED VertexNormal;
 
+typedef enum {
+    RGB565 = 0,
+    RGB888 = 1,
+    RGB888x = 2,
+    RGBA4444 = 3,
+    RGBA6666 = 4,
+    RGBA8888 = 5
+} VertexColorComp;
+
+typedef struct {
+    bool has_color;
+    VertexColorComp color_comp;
+    u8 color_buffer[4];
+
+} PACKED VertexColor;
+
 typedef struct {
     PosMat pm;
     TexMat tm[8];
     VertexPosition pos;
     VertexNormal norm;
+    VertexColor color[2];
 
 } PACKED Vertex;
 
-Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD, u32 VAT_A, u32 VAT_B, u32 VAT_C,
+Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C,
                                 u32 CP_REGS[256], u32 **stream);

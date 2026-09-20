@@ -106,12 +106,11 @@ static u16 load_primitive(CPU *cpu, u8 primitive_info_byte, const u16 vertex_cou
 
     // pos data
 
-    u32 VCD = (cp_regs[0x60] << 16) | (cp_regs[0x60] & 0xFFFF);
-
     u32 VAT_A = cp_regs[0x70 + vat_index];
     u32 VAT_B = cp_regs[0x80 + vat_index];
     u32 VAT_C = cp_regs[0x90 + vat_index];
-    Vertex v = parse_vertex_from_stream(cpu, VCD, VAT_A, VAT_B, VAT_C, cp_regs, &stream);
+    Vertex v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], VAT_A, VAT_B, VAT_C,
+                                        cp_regs, &stream);
 }
 
 static u32 xf_regs[0x1057];
