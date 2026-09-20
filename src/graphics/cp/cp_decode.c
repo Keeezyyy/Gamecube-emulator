@@ -38,6 +38,7 @@ static void load_cp_reg(u8 reg_num, u32 val)
     printf("CP LOAD [0x%02x] = 0x%06x\n", reg_num, val);
 }
 
+// returns 0 if data length is too short for data requiered
 static u16 load_primitive(u8 primitive_info_byte, const u16 vertex_count,
                           const u32 *stream) // returns total length of command
 {
@@ -46,6 +47,13 @@ static u16 load_primitive(u8 primitive_info_byte, const u16 vertex_count,
 
     printf("PRIMITIVE: type :  0x%02x, index :  0x%02x , length  0x%04x\n", primitive_type,
            vat_index, vertex_count);
+    abort();
+}
+
+static void load_xf_reg(u16 adr, u16 n, u32 *stream)
+{
+
+    printf("XF: adr:  0x%04x n: 0x%04x\n", adr, n);
     abort();
 }
 
@@ -66,25 +74,46 @@ void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
         const u8 op = stream[0];
         switch (op) {
         case OPCODE_NOP: {
+
             add_len_to_regs(command_processor_registers, &stream, OPCODE_NOP_LENGTH);
 
             break;
         }
         case OPCODE_LOAD_BP_REG: {
+            if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_BP_REG)
+                return;
+
             load_bp_reg(__builtin_bswap32(*(u32 *)(stream + 1)));
             add_len_to_regs(command_processor_registers, &stream, OPCODE_LOAD_BP_REG_LENGTH);
 
             break;
         }
         case OPCODE_LOAD_CP_REG: {
+            if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_CP_REG)
+                return;
             load_cp_reg(*(stream + 1), __builtin_bswap32(*(u32 *)(stream + 2)));
             add_len_to_regs(command_processor_registers, &stream, OPCODE_LOAD_CP_REG_LENGTH);
+
+            break;
+        }
+        case OPCODE_LOAD_XF_REG: {
+            u16 n = ((__builtin_bswap32(*(u32 *)(stream + 1)) >> 16) & 0xF) - 1;
+
+            if (command_processor_registers->RW_DISTANCE < (5 + (n * 4)))
+                return;
+
+            load_xf_reg(__builtin_bswap32(*(u32 *)(stream + 1)) & 0xFFFF, n, (u32 *)(stream + 5));
+
+            add_len_to_regs(command_processor_registers, &stream, 5 + (n * 4));
 
             break;
         }
         default: {
             if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
                 u32 len = load_primitive(op, *(u16 *)(stream + 1), (u32 *)(stream + 3));
+                if (len == 0) {
+                    return;
+                }
                 add_len_to_regs(command_processor_registers, &stream, len);
 
             } else {
