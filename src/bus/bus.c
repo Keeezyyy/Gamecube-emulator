@@ -8,7 +8,7 @@
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "graphics/gx_fifo.h"
-#include "graphics/cp.h"
+#include "graphics/cp/cp.h"
 #include "graphics/pe.h"
 #include "graphics/vi.h"
 #include <assert.h>

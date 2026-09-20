@@ -5,6 +5,12 @@
 
 #define CP_CONTROL_REGISTER 0xCC000002
 
+#define OPCODE_NOP 0x00
+#define OPCODE_NOP_LENGTH 0x01
+
+#define OPCODE_LOAD_BP_REG 0x61
+#define OPCODE_LOAD_BP_REG_LENGTH 5
+
 typedef struct GXFifoRegs {
     /* +0x00 */
     volatile uint16_t SR; // r    FIFO-Status
@@ -101,3 +107,5 @@ void cp_check_state(CPU *cpu);
 
 u32 cp_get_cr_reg(void);
 u32 cp_get_sr_reg(void);
+
+void decode_data_stream(CPU *cpu, GXFifoRegs *cp_regs);

@@ -11,7 +11,7 @@ typedef struct CPU CPU;
 
 struct Bus {
     // RAM 0x80000000 | 0xC0000000 ram is mirrored to these locations
-    void *ram;
+    u8 *ram;
 
     void *ipl;
     size_t ipl_size;

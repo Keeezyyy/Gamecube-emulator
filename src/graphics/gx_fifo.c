@@ -1,5 +1,5 @@
 #include "gx_fifo.h"
-#include "cp.h"
+#include "cp/cp.h"
 #include "bus/interfaces/pi.h"
 #include "cpu/cpu_types.h"
 #include <stdio.h>
@@ -31,6 +31,6 @@ void gx_write_to_fifo(CPU *cpu, u64 val, u32 size)
 
         buffer_ptr -= 32;
         memcpy(fifo_buffer.buffer_8, fifo_buffer.buffer_8 + 32, buffer_ptr);
-        // printf("[GX] FIFO BUFFER FULL\n");
+        printf("[GX] FIFO BUFFER FULL\n");
     }
 }

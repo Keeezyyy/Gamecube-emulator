@@ -5,7 +5,7 @@
 #include "bus/interfaces/exi.h"
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
-#include "graphics/cp.h"
+#include "graphics/cp/cp.h"
 #include "graphics/pe.h"
 #include "graphics/vi.h"
 #include <_abort.h>

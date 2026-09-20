@@ -70,6 +70,8 @@ void cp_recieve_gather_pipe(CPU *cpu)
 {
     // read the data stream ...
 
+    decode_data_stream(cpu, &cp_regs);
+
     cp_regs.WRITE_POINTER += 32;
     if (cp_regs.WRITE_POINTER > cp_regs.FIFO_END)
         cp_regs.WRITE_POINTER = cp_regs.FIFO_BASE;
