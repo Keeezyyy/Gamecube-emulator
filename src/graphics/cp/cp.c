@@ -70,14 +70,12 @@ void cp_recieve_gather_pipe(CPU *cpu)
 {
     // read the data stream ...
 
+    cp_regs.WRITE_POINTER += 32;
+    cp_regs.RW_DISTANCE += 32;
     decode_data_stream(cpu, &cp_regs);
 
-    cp_regs.WRITE_POINTER += 32;
     if (cp_regs.WRITE_POINTER > cp_regs.FIFO_END)
         cp_regs.WRITE_POINTER = cp_regs.FIFO_BASE;
-
-    cp_regs.READ_POINTER = cp_regs.WRITE_POINTER;
-    cp_regs.RW_DISTANCE = 0;
 
     cp_check_state(cpu);
 }

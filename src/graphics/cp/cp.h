@@ -11,6 +11,12 @@
 #define OPCODE_LOAD_BP_REG 0x61
 #define OPCODE_LOAD_BP_REG_LENGTH 5
 
+#define OPCODE_LOAD_CP_REG 0x08
+#define OPCODE_LOAD_CP_REG_LENGTH 6
+
+#define OPCODE_PRIMITIVE_START 0x80
+#define OPCODE_PRIMITIVE_END 0xBF
+
 typedef struct GXFifoRegs {
     /* +0x00 */
     volatile uint16_t SR; // r    FIFO-Status
