@@ -26,7 +26,34 @@ static void load_bp_reg(u32 cmd)
 
     printf("BP LOAD [0x%02x] = 0x%06x\n", reg, new_val);
 
-    // trigger
+    if (reg == 0x45 || reg == 0x47 || reg == 0x48 || reg == 0x52 || reg == 0x55 || reg == 0x56 ||
+        reg == 0x57 || reg == 0x63 || reg == 0x64 || reg == 0x65 || reg == 0x66) {
+        switch (reg) {
+        case 0x52: {
+            // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
+            break;
+        }
+        case 0x55:
+        case 0x56: {
+            // activate bbox
+            // TODO: if acutally rendering use these bbox values
+            /*
+                int off = (reg == 0x55) ? 0 : 2;
+                bbox[off + 0] = value & 0x3FF;
+                bbox[off + 1] = (value >> 10) & 0x3FF;
+                bbox_active = true;
+
+            */
+            break;
+        }
+        case 0x66: {
+            // cache invalidieren (ignore)
+            break;
+        }
+        default:
+            assert(!"bp reg trigger\n");
+        }
+    } // trigger
 }
 
 static u32 cp_regs[256]; // ends with 0xBF
@@ -50,11 +77,19 @@ static u16 load_primitive(u8 primitive_info_byte, const u16 vertex_count,
     abort();
 }
 
+static u32 xf_regs[0x1057];
+
 static void load_xf_reg(u16 adr, u16 n, u32 *stream)
 {
 
     printf("XF: adr:  0x%04x n: 0x%04x\n", adr, n);
-    abort();
+
+    assert(adr <= 0x1057);
+    assert(n <= 16);
+
+    for (int i = 0; i < n; i++) {
+        xf_regs[adr + i] = stream[i];
+    }
 }
 
 static void add_len_to_regs(GXFifoRegs *command_processor_registers, u8 **stream, u32 len)
@@ -64,63 +99,93 @@ static void add_len_to_regs(GXFifoRegs *command_processor_registers, u8 **stream
     command_processor_registers->RW_DISTANCE -= len;
 }
 
+static void call_display_list(const u32 adr, const u32 size, u8 *stream)
+{
+    assert(!"call dl\n");
+}
+
+static void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
+                            u8 **stream_ptr)
+{
+    u8 *stream = *stream_ptr;
+
+    switch (op) {
+    case OPCODE_NOP:
+    case OPCODE_INVL_VC: {
+
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_NOP_LENGTH);
+
+        break;
+    }
+    case OPCODE_LOAD_BP_REG: {
+        if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_BP_REG_LENGTH)
+            return;
+
+        load_bp_reg(__builtin_bswap32(*(u32 *)(stream + 1)));
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_BP_REG_LENGTH);
+
+        break;
+    }
+    case OPCODE_LOAD_CP_REG: {
+        if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_CP_REG_LENGTH)
+            return;
+        load_cp_reg(*(stream + 1), __builtin_bswap32(*(u32 *)(stream + 2)));
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_CP_REG_LENGTH);
+
+        break;
+    }
+    case OPCODE_LOAD_XF_REG: {
+        const u16 n = ((__builtin_bswap32(*(u32 *)(stream + 1)) >> 16) & 0xF) + 1;
+
+        if (command_processor_registers->RW_DISTANCE < (5 + (n * 4)))
+            return;
+
+        load_xf_reg(__builtin_bswap32(*(u32 *)(stream + 1)) & 0xFFFF, n, (u32 *)(stream + 5));
+
+        add_len_to_regs(command_processor_registers, stream_ptr, 5 + (n * 4));
+
+        break;
+    }
+    case OPCODE_CALL_DL: {
+        if (command_processor_registers->RW_DISTANCE < OPCODE_CALL_DL_LENGTH)
+            return;
+        call_display_list(__builtin_bswap32(*(u32 *)(stream + 1)) & 0x03FFFFE0,
+                          __builtin_bswap32(*(u32 *)(stream + 5)) & 0x03FFFFE0, (stream + 9));
+
+        assert(!"3245");
+
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_CALL_DL_LENGTH);
+
+        break;
+    }
+    default: {
+        if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
+            u32 len = load_primitive(op, *(u16 *)(stream + 1), (u32 *)(stream + 3));
+            if (len == 0) {
+                return;
+            }
+            add_len_to_regs(command_processor_registers, stream_ptr, len);
+
+        } else {
+            printf("opcode : 0x%02x\n", op);
+            assert(!"gpu opcode not implemented\n");
+        }
+    }
+    }
+}
+
 void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
 {
     u8 *stream = (u8 *)&cpu->bus->ram[command_processor_registers->READ_POINTER];
     printf("@%08x: %02x %02x %02x %02x %02x %02x\n", (u32)(stream - (u8 *)cpu->bus->ram), stream[0],
            stream[1], stream[2], stream[3], stream[4], stream[5]);
 
-    while (stream <= (u8 *)&cpu->bus->ram[command_processor_registers->WRITE_POINTER]) {
+    while (stream < (u8 *)&cpu->bus->ram[command_processor_registers->WRITE_POINTER]) {
         const u8 op = stream[0];
-        switch (op) {
-        case OPCODE_NOP: {
+        u8 *before = stream;
+        execute_command(cpu, command_processor_registers, op, &stream);
 
-            add_len_to_regs(command_processor_registers, &stream, OPCODE_NOP_LENGTH);
-
-            break;
-        }
-        case OPCODE_LOAD_BP_REG: {
-            if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_BP_REG)
-                return;
-
-            load_bp_reg(__builtin_bswap32(*(u32 *)(stream + 1)));
-            add_len_to_regs(command_processor_registers, &stream, OPCODE_LOAD_BP_REG_LENGTH);
-
-            break;
-        }
-        case OPCODE_LOAD_CP_REG: {
-            if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_CP_REG)
-                return;
-            load_cp_reg(*(stream + 1), __builtin_bswap32(*(u32 *)(stream + 2)));
-            add_len_to_regs(command_processor_registers, &stream, OPCODE_LOAD_CP_REG_LENGTH);
-
-            break;
-        }
-        case OPCODE_LOAD_XF_REG: {
-            u16 n = ((__builtin_bswap32(*(u32 *)(stream + 1)) >> 16) & 0xF) - 1;
-
-            if (command_processor_registers->RW_DISTANCE < (5 + (n * 4)))
-                return;
-
-            load_xf_reg(__builtin_bswap32(*(u32 *)(stream + 1)) & 0xFFFF, n, (u32 *)(stream + 5));
-
-            add_len_to_regs(command_processor_registers, &stream, 5 + (n * 4));
-
-            break;
-        }
-        default: {
-            if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
-                u32 len = load_primitive(op, *(u16 *)(stream + 1), (u32 *)(stream + 3));
-                if (len == 0) {
-                    return;
-                }
-                add_len_to_regs(command_processor_registers, &stream, len);
-
-            } else {
-                printf("opcode : 0x%02x\n", op);
-                assert(!"gpu opcode not implemented\n");
-            }
-        }
-        }
+        if (stream == before)
+            return;
     }
 }
