@@ -50,32 +50,83 @@ static void _parse_color(u32 VAT_A, u32 **stream, VertexColor *c, u8 color_idx)
     c->has_color = true;
     c->color_comp = (VAT_A >> (14 + color_idx * 4)) & 0x7;
 
-    switch (c->color_comp) {
-    case 0:
-    case 3:
-        // len = 2
+    u8 *p = c->rgba;
 
-        *((u16 *)c->color_buffer) = (u16)read_stream(stream, 2);
-        break;
-    case 1:
-    case 4:
-        // len = 3;
-        ((u8 *)c->color_buffer)[2] = (u8)read_stream(stream, 1);
-        ((u8 *)c->color_buffer)[1] = (u8)read_stream(stream, 1);
-        ((u8 *)c->color_buffer)[0] = (u8)read_stream(stream, 1);
-        break;
-    case 2:
-    case 5:
-        // len = 4;
-        *((u32 *)c->color_buffer) = (u32)read_stream(stream, 4);
+    switch (c->color_comp) {
+    case RGB565: {
+        u16 v = (u16)read_stream(stream, 2);
+        u8 r = (u8)((v >> 11) & 0x1F), g = (u8)((v >> 5) & 0x3F), b = (u8)(v & 0x1F);
+        p[0] = (u8)(r << 3 | r >> 2);
+        p[1] = (u8)(g << 2 | g >> 4);
+        p[2] = (u8)(b << 3 | b >> 2);
+        p[3] = 0xFF;
         break;
     }
+    case RGB888x:
+    case RGB888:
+        p[0] = (u8)read_stream(stream, 1);
+        p[1] = (u8)read_stream(stream, 1);
+        p[2] = (u8)read_stream(stream, 1);
+        p[3] = 0xFF;
+        if (c->color_comp == RGB888x)
+            read_stream(stream, 1);
+        break;
+    case RGBA4444: {
+        u16 v = (u16)read_stream(stream, 2);
+        for (u8 i = 0; i < 4; i++)
+            p[i] = (u8)(((v >> (12 - i * 4)) & 0xF) * 0x11);
+        break;
+    }
+    case RGBA6666: {
+        u32 v = (u32)read_stream(stream, 1) << 16;
+        v |= (u32)read_stream(stream, 1) << 8;
+        v |= (u32)read_stream(stream, 1);
+        for (u8 i = 0; i < 4; i++) {
+            u8 x = (u8)((v >> (18 - i * 6)) & 0x3F);
+            p[i] = (u8)(x << 2 | x >> 4);
+        }
+        break;
+    }
+    case RGBA8888:
+        for (u8 i = 0; i < 4; i++)
+            p[i] = (u8)read_stream(stream, 1);
+        break;
+    default:
+        assert(!"wrong color comp\n");
+    }
+}
+
+static u32 _vat_bits(const u32 *VAT, u8 bit, u8 n)
+{
+    return (VAT[bit >> 5] >> (bit & 31)) & ((1u << n) - 1);
+}
+
+static void _parse_tex(const u32 *VAT, u32 **stream, VertexTexture *t, u8 t_idx)
+{
+    static const u8 elem_bit[8] = {21, 32, 41, 50, 59, 69, 78, 87};
+    static const u8 frac_bit[8] = {25, 36, 45, 54, 64, 73, 82, 91};
+
+    t->has_texture = true;
+    t->texture_elements = _vat_bits(VAT, elem_bit[t_idx], 1);
+    t->texture_data_type = _vat_bits(VAT, (u8)(elem_bit[t_idx] + 1), 3);
+    t->frac = (u8)_vat_bits(VAT, frac_bit[t_idx], 5);
+
+    assert(t->texture_data_type < 5);
+
+    u8 size = t->texture_data_type == DATA_TYPE_F32 ? 4
+              : t->texture_data_type > DATA_TYPE_S8 ? 2
+                                                    : 1;
+
+    t->elemets.S = (X32)read_stream(stream, size);
+    if (t->texture_elements == TEX_ELEMNTS_ST)
+        t->elemets.T = (X32)read_stream(stream, size);
 }
 
 Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C,
                                 u32 CP_REGS[256], u32 **stream)
 {
     Vertex out_v = {0};
+    const u32 VAT[3] = {VAT_A, VAT_B, VAT_C};
     // Parse PosMat
     if (VCD_LO & 1) {
         out_v.pm.has_pos_mat_idx = true;
@@ -184,4 +235,28 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
             break;
         }
     }
+    // texture
+
+    for (u8 i = 0; i < 8; i++) {
+        const u8 texture_type = (VCD_HI >> (i * 2)) & 0x3;
+        switch (texture_type) {
+        case 0:
+            out_v.texture[i].has_texture = false;
+            break;
+        case 1:
+            _parse_tex(VAT, stream, &out_v.texture[i], i);
+            break;
+        case 2:
+        case 3:
+            u16 idx = (u16)read_stream(stream, texture_type - 1);
+
+            u32 *ram_stream =
+                (u32 *)&cpu->bus
+                    ->ram[(CP_REGS[0xA4 + i] & 0x03FFFFFF) + idx * (CP_REGS[0xB4 + i] & 0xFF)];
+
+            _parse_tex(VAT, &ram_stream, &out_v.texture[i], i);
+            break;
+        }
+    }
+    return out_v;
 }

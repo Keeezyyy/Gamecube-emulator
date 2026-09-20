@@ -36,6 +36,11 @@ typedef struct {
     X32 Z;
 } PACKED Vec3;
 
+typedef struct {
+    X32 S;
+    X32 T;
+} PACKED TexVec2;
+
 static_assert(sizeof(Vec3) == 3 * sizeof(u32));
 
 typedef struct {
@@ -75,9 +80,24 @@ typedef enum {
 typedef struct {
     bool has_color;
     VertexColorComp color_comp;
-    u8 color_buffer[4];
+    u8 rgba[4];
 
 } PACKED VertexColor;
+
+typedef enum {
+    TEX_ELEMNTS_S = 0,
+    TEX_ELEMNTS_ST = 1,
+} TextureFormatElements;
+
+typedef struct {
+    bool has_texture;
+    TextureFormatElements texture_elements;
+    FormatDataType texture_data_type;
+
+    u8 frac; // Festkomma-Shift: Wert / 2^frac (nicht für f32
+    TexVec2 elemets;
+
+} PACKED VertexTexture;
 
 typedef struct {
     PosMat pm;
@@ -85,6 +105,7 @@ typedef struct {
     VertexPosition pos;
     VertexNormal norm;
     VertexColor color[2];
+    VertexTexture texture[8];
 
 } PACKED Vertex;
 
