@@ -73,21 +73,21 @@ u64 read_stream(u32 **stream, u8 size)
         u8 val = ((u8 *)*stream)[0];
         *stream = (u32 *)(&((u8 *)*stream)[1]);
 
-        return (val);
+        return (u64)(val);
     }
     case 2: {
 
         u16 val = ((u16 *)*stream)[0];
         *stream = (u32 *)(&((u16 *)*stream)[1]);
 
-        return __builtin_bswap16(val);
+        return (u64)__builtin_bswap16(val);
     }
     case 4: {
 
         u32 val = ((u32 *)*stream)[0];
         *stream = (u32 *)(&((u32 *)*stream)[1]);
 
-        return __builtin_bswap32(val);
+        return (u64)__builtin_bswap32(val);
     }
     default:
         assert(!"u64 reads from steram\n");
@@ -95,7 +95,7 @@ u64 read_stream(u32 **stream, u8 size)
 }
 
 // returns 0 if data length is too short for data requiered
-static u16 load_primitive(u8 primitive_info_byte, const u16 vertex_count,
+static u16 load_primitive(CPU *cpu, u8 primitive_info_byte, const u16 vertex_count,
                           u32 *stream) // returns total length of command
 {
     const u8 vat_index = primitive_info_byte & 0x7;
@@ -111,7 +111,7 @@ static u16 load_primitive(u8 primitive_info_byte, const u16 vertex_count,
     u32 VAT_A = cp_regs[0x70 + vat_index];
     u32 VAT_B = cp_regs[0x80 + vat_index];
     u32 VAT_C = cp_regs[0x90 + vat_index];
-    Vertex v = parse_vertex_from_stream(VCD, VAT_A, VAT_B, VAT_C, &stream);
+    Vertex v = parse_vertex_from_stream(cpu, VCD, VAT_A, VAT_B, VAT_C, cp_regs, &stream);
 }
 
 static u32 xf_regs[0x1057];
@@ -208,8 +208,8 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
     }
     default: {
         if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
-            u32 len =
-                load_primitive(op, __builtin_bswap16(*(u16 *)(stream + 1)), (u32 *)(stream + 3));
+            u32 len = load_primitive(cpu, op, __builtin_bswap16(*(u16 *)(stream + 1)),
+                                     (u32 *)(stream + 3));
             if (len == 0) {
                 return;
             }

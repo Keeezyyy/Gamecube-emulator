@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bus/bus.h"
 #include "core/config/config.h"
 #include <stdbool.h>
 
@@ -46,4 +47,5 @@ typedef struct {
 
 } PACKED Vertex;
 
-Vertex parse_vertex_from_stream(u32 VCD, u32 VAT_A, u32 VAT_B, u32 VAT_C, u32 **stream);
+Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD, u32 VAT_A, u32 VAT_B, u32 VAT_C,
+                                u32 CP_REGS[256], u32 **stream);
