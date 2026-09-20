@@ -122,7 +122,7 @@ u32 cp_get_sr_reg(void);
 
 void decode_data_stream(CPU *cpu, GXFifoRegs *cp_regs);
 void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
-                     u8 **stream_ptr);
+                     u8 **stream_ptr, bool decrease_rw_distance);
 
 u64 read_stream(u32 **stream, u8 size);
 u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C);

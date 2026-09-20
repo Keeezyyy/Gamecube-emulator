@@ -177,11 +177,14 @@ static void load_xf_reg(u16 adr, u16 n, u32 *stream)
     }
 }
 
-static void add_len_to_regs(GXFifoRegs *command_processor_registers, u8 **stream, u32 len)
+static void add_len_to_regs(GXFifoRegs *command_processor_registers, u8 **stream, u32 len,
+                            bool use_cp_regs)
 {
     *stream += len;
-    command_processor_registers->READ_POINTER += len;
-    command_processor_registers->RW_DISTANCE -= len;
+    if (use_cp_regs) {
+        command_processor_registers->READ_POINTER += len;
+        command_processor_registers->RW_DISTANCE -= len;
+    }
 }
 
 static void call_display_list(CPU *cpu, GXFifoRegs *command_processor_registers, const u32 adr,
@@ -192,7 +195,7 @@ static void call_display_list(CPU *cpu, GXFifoRegs *command_processor_registers,
     while (stream < (u8 *)&cpu->bus->ram[adr + size]) {
         const u8 op = stream[0];
         u8 *before = stream;
-        execute_command(cpu, command_processor_registers, op, &stream);
+        execute_command(cpu, command_processor_registers, op, &stream, false);
 
         if (stream == before)
             return;
@@ -200,7 +203,7 @@ static void call_display_list(CPU *cpu, GXFifoRegs *command_processor_registers,
 }
 
 void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
-                     u8 **stream_ptr)
+                     u8 **stream_ptr, bool decrease_rw_distance)
 {
     u8 *stream = *stream_ptr;
 
@@ -208,7 +211,8 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
     case OPCODE_NOP:
     case OPCODE_INVL_VC: {
 
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_NOP_LENGTH);
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_NOP_LENGTH,
+                        decrease_rw_distance);
 
         break;
     }
@@ -217,7 +221,8 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
             return;
 
         load_bp_reg(__builtin_bswap32(*(u32 *)(stream + 1)));
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_BP_REG_LENGTH);
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_BP_REG_LENGTH,
+                        decrease_rw_distance);
 
         break;
     }
@@ -225,7 +230,8 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
         if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_CP_REG_LENGTH)
             return;
         load_cp_reg(*(stream + 1), __builtin_bswap32(*(u32 *)(stream + 2)));
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_CP_REG_LENGTH);
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_CP_REG_LENGTH,
+                        decrease_rw_distance);
 
         break;
     }
@@ -237,7 +243,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
 
         load_xf_reg(__builtin_bswap32(*(u32 *)(stream + 1)) & 0xFFFF, n, (u32 *)(stream + 5));
 
-        add_len_to_regs(command_processor_registers, stream_ptr, 5 + (n * 4));
+        add_len_to_regs(command_processor_registers, stream_ptr, 5 + (n * 4), decrease_rw_distance);
 
         break;
     }
@@ -248,7 +254,8 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
                           __builtin_bswap32(*(u32 *)(stream + 1)) & 0x03FFFFE0,
                           __builtin_bswap32(*(u32 *)(stream + 5)) & 0x03FFFFE0);
 
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_CALL_DL_LENGTH);
+        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_CALL_DL_LENGTH,
+                        decrease_rw_distance);
 
         break;
     }
@@ -270,7 +277,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
             if (len == 0) {
                 return;
             }
-            add_len_to_regs(command_processor_registers, stream_ptr, len);
+            add_len_to_regs(command_processor_registers, stream_ptr, len, decrease_rw_distance);
 
         } else {
             printf("opcode : 0x%02x\n", op);
@@ -289,7 +296,7 @@ void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
     while (stream < (u8 *)&cpu->bus->ram[command_processor_registers->WRITE_POINTER]) {
         const u8 op = stream[0];
         u8 *before = stream;
-        execute_command(cpu, command_processor_registers, op, &stream);
+        execute_command(cpu, command_processor_registers, op, &stream, true);
 
         if (stream == before)
             return;
