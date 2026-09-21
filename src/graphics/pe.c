@@ -1,4 +1,5 @@
 #include "pe.h"
+#include "bus/bus.h"
 #include "bus/interfaces/interface_utils.h"
 #include "bus/interfaces/pi.h"
 #include "core/config/config.h"
@@ -6,6 +7,7 @@
 #include <stdio.h>
 
 static PERegs pe_regs;
+static u32 token;
 
 u16 pe_get_ctrl(void)
 {
@@ -33,5 +35,23 @@ u64 pe_read(CPU *cpu, u32 adr, u32 size)
 {
     assert(size == 2);
 
+    assert(adr < 0xCC001010);
+
+    switch (adr) {
+    case 0xCC00100E:
+        return token;
+    }
+
     return ((u16 *)&pe_regs)[(adr - 0xCC001000) >> 1];
+}
+
+void pe_set_interrupt(CPU *cpu, const u8 interrupt_source)
+{
+    pe_regs.CTRL |= BIT(2) << interrupt_source;
+    pi_update_interrupts(cpu);
+}
+
+void pe_set_token(u32 t)
+{
+    token = t;
 }

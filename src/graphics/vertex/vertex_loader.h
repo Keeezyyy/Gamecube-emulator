@@ -2,6 +2,7 @@
 
 #include "bus/bus.h"
 #include "core/config/config.h"
+#include "graphics/cp/cp.h"
 #include <assert.h>
 #include <stdbool.h>
 
@@ -110,4 +111,6 @@ typedef struct {
 } PACKED Vertex;
 
 Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C,
-                                u32 CP_REGS[256], u32 **stream);
+                                u32 CP_REGS[256], u8 **stream);
+
+void init_vertex_loader(CPU *cpu, GXFifoRegs *command_processor_registers);

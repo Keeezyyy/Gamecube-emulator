@@ -1,4 +1,6 @@
+#include "bus/bus.h"
 #include "cp.h"
+#include "graphics/pe.h"
 #include "graphics/vertex/vertex_loader.h"
 #include <_abort.h>
 #include <assert.h>
@@ -8,7 +10,7 @@
 static u32 bp_regs[256];
 
 static u32 bp_mask = 0xFFFFFF;
-static void load_bp_reg(u32 cmd)
+static void load_bp_reg(CPU *cpu, u32 cmd)
 {
 
     u8 reg = cmd >> 24;
@@ -30,8 +32,19 @@ static void load_bp_reg(u32 cmd)
     if (reg == 0x45 || reg == 0x47 || reg == 0x48 || reg == 0x52 || reg == 0x55 || reg == 0x56 ||
         reg == 0x57 || reg == 0x63 || reg == 0x64 || reg == 0x65 || reg == 0x66) {
         switch (reg) {
+        case BP_SET_DRAW_DONE: {
+            pe_set_interrupt(cpu, PE_INTERRUPT_FINISH);
+            printf("[GPU] : GX_DawDone\n");
+            break;
+        }
+        case BP_SET_PE_TOKEN: {
+            assert(!"pe token");
+            break;
+        }
         case 0x52: {
             // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
+
+            printf("BP reg 0x52 write\n");
             break;
         }
         case 0x55:
@@ -66,32 +79,19 @@ static void load_cp_reg(u8 reg_num, u32 val)
     printf("CP LOAD [0x%02x] = 0x%06x\n", reg_num, val);
 }
 
-u64 read_stream(u32 **stream, u8 size)
+u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, u8 size)
 {
-    switch (size) {
-    case 1: {
-        u8 val = ((u8 *)*stream)[0];
-        *stream = (u32 *)(&((u8 *)*stream)[1]);
+    u64 val = 0;
 
-        return (u64)(val);
+    for (u8 i = 0; i < size; i++) {
+        if (command_processor_registers &&
+            *stream > &cpu->bus->ram[command_processor_registers->FIFO_END])
+            *stream = &cpu->bus->ram[command_processor_registers->FIFO_BASE];
+
+        val = (val << 8) | *(*stream)++;
     }
-    case 2: {
 
-        u16 val = ((u16 *)*stream)[0];
-        *stream = (u32 *)(&((u16 *)*stream)[1]);
-
-        return (u64)__builtin_bswap16(val);
-    }
-    case 4: {
-
-        u32 val = ((u32 *)*stream)[0];
-        *stream = (u32 *)(&((u32 *)*stream)[1]);
-
-        return (u64)__builtin_bswap32(val);
-    }
-    default:
-        assert(!"u64 reads from steram\n");
-    }
+    return val;
 }
 
 static u32 _comp_size(u32 fmt)
@@ -132,9 +132,8 @@ u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C)
     return size;
 }
 
-// returns 0 if data length is too short for data requiered
-static u16 load_primitive(CPU *cpu, u8 primitive_info_byte, const u16 vertex_count,
-                          u32 *stream) // returns total length of command
+static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
+                           u8 primitive_info_byte, const u16 vertex_count, u8 **stream)
 {
     const u8 vat_index = primitive_info_byte & 0x7;
     const u8 primitive_type = primitive_info_byte & ~0x7;
@@ -142,29 +141,17 @@ static u16 load_primitive(CPU *cpu, u8 primitive_info_byte, const u16 vertex_cou
     printf("PRIMITIVE: type :  0x%02x, index :  0x%02x , length  0x%04x\n", primitive_type,
            vat_index, vertex_count);
 
-    // pos data
+    init_vertex_loader(cpu, command_processor_registers);
 
-    u32 VAT_A = cp_regs[0x70 + vat_index];
-    u32 VAT_B = cp_regs[0x80 + vat_index];
-    u32 VAT_C = cp_regs[0x90 + vat_index];
-
-    const u32 *stream_at_start = stream;
-    Vertex v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], VAT_A, VAT_B, VAT_C,
-                                        cp_regs, &stream);
-
-    const u64 size_of_vertex = (u64)stream - (u64)stream_at_start;
-
-    for (int i = 0; i < vertex_count - 1; i++) {
-        Vertex v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], VAT_A, VAT_B, VAT_C,
-                                            cp_regs, &stream);
-    }
-
-    return size_of_vertex * vertex_count + 3;
+    for (u16 i = 0; i < vertex_count; i++)
+        parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
+                                 cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
+                                 stream);
 }
 
 static u32 xf_regs[0x1057];
 
-static void load_xf_reg(u16 adr, u16 n, u32 *stream)
+static void load_xf_reg(u16 adr, u16 n, const u32 *values)
 {
 
     printf("XF: adr:  0x%04x n: 0x%04x\n", adr, n);
@@ -173,17 +160,7 @@ static void load_xf_reg(u16 adr, u16 n, u32 *stream)
     assert(n <= 16);
 
     for (int i = 0; i < n; i++) {
-        xf_regs[adr + i] = stream[i];
-    }
-}
-
-static void add_len_to_regs(GXFifoRegs *command_processor_registers, u8 **stream, u32 len,
-                            bool use_cp_regs)
-{
-    *stream += len;
-    if (use_cp_regs) {
-        command_processor_registers->READ_POINTER += len;
-        command_processor_registers->RW_DISTANCE -= len;
+        xf_regs[adr + i] = values[i];
     }
 }
 
@@ -205,95 +182,92 @@ static void call_display_list(CPU *cpu, GXFifoRegs *command_processor_registers,
 void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
                      u8 **stream_ptr, bool decrease_rw_distance)
 {
+    GXFifoRegs *fifo = decrease_rw_distance ? command_processor_registers : NULL;
     u8 *stream = *stream_ptr;
+
+    read_stream(cpu, fifo, &stream, 1);
 
     switch (op) {
     case OPCODE_NOP:
-    case OPCODE_INVL_VC: {
-
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_NOP_LENGTH,
-                        decrease_rw_distance);
-
+    case OPCODE_INVL_VC:
         break;
-    }
     case OPCODE_LOAD_BP_REG: {
         if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_BP_REG_LENGTH)
             return;
 
-        load_bp_reg(__builtin_bswap32(*(u32 *)(stream + 1)));
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_BP_REG_LENGTH,
-                        decrease_rw_distance);
-
+        load_bp_reg(cpu, (u32)read_stream(cpu, fifo, &stream, 4));
         break;
     }
     case OPCODE_LOAD_CP_REG: {
         if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_CP_REG_LENGTH)
             return;
-        load_cp_reg(*(stream + 1), __builtin_bswap32(*(u32 *)(stream + 2)));
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_LOAD_CP_REG_LENGTH,
-                        decrease_rw_distance);
 
+        const u8 reg = (u8)read_stream(cpu, fifo, &stream, 1);
+        load_cp_reg(reg, (u32)read_stream(cpu, fifo, &stream, 4));
         break;
     }
     case OPCODE_LOAD_XF_REG: {
-        const u16 n = ((__builtin_bswap32(*(u32 *)(stream + 1)) >> 16) & 0xF) + 1;
+        const u32 head = (u32)read_stream(cpu, fifo, &stream, 4);
+        const u16 n = ((head >> 16) & 0xF) + 1;
 
         if (command_processor_registers->RW_DISTANCE < (5 + (n * 4)))
             return;
 
-        load_xf_reg(__builtin_bswap32(*(u32 *)(stream + 1)) & 0xFFFF, n, (u32 *)(stream + 5));
+        u32 values[16];
+        for (u16 i = 0; i < n; i++)
+            values[i] = (u32)read_stream(cpu, fifo, &stream, 4);
 
-        add_len_to_regs(command_processor_registers, stream_ptr, 5 + (n * 4), decrease_rw_distance);
-
+        load_xf_reg(head & 0xFFFF, n, values);
         break;
     }
     case OPCODE_CALL_DL: {
         if (command_processor_registers->RW_DISTANCE < OPCODE_CALL_DL_LENGTH)
             return;
-        call_display_list(cpu, command_processor_registers,
-                          __builtin_bswap32(*(u32 *)(stream + 1)) & 0x03FFFFE0,
-                          __builtin_bswap32(*(u32 *)(stream + 5)) & 0x03FFFFE0);
 
-        add_len_to_regs(command_processor_registers, stream_ptr, OPCODE_CALL_DL_LENGTH,
-                        decrease_rw_distance);
+        const u32 adr = (u32)read_stream(cpu, fifo, &stream, 4) & 0x03FFFFE0;
+        const u32 size = (u32)read_stream(cpu, fifo, &stream, 4) & 0x03FFFFE0;
 
+        call_display_list(cpu, command_processor_registers, adr, size);
         break;
     }
     default: {
-        if (op >= OPCODE_PRIMITIVE_START && op <= OPCODE_PRIMITIVE_END) {
-
-            u16 vertex_count = __builtin_bswap16(*(u16 *)(stream + 1));
-
-            const u8 vat_index = op & 0x7;
-            const u32 vertex_size =
-                get_size_of_vertex(cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
-                                   cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index]);
-
-            if (command_processor_registers->RW_DISTANCE < (vertex_size * vertex_count) + 3)
-                return;
-
-            u32 len = load_primitive(cpu, op, vertex_count, (u32 *)(stream + 3));
-
-            if (len == 0) {
-                return;
-            }
-            add_len_to_regs(command_processor_registers, stream_ptr, len, decrease_rw_distance);
-
-        } else {
+        if (op < OPCODE_PRIMITIVE_START || op > OPCODE_PRIMITIVE_END) {
             printf("opcode : 0x%02x\n", op);
             assert(!"gpu opcode not implemented\n");
+            return;
         }
+
+        const u16 vertex_count = (u16)read_stream(cpu, fifo, &stream, 2);
+        const u8 vat_index = op & 0x7;
+        const u32 vertex_size =
+            get_size_of_vertex(cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
+                               cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index]);
+
+        if (command_processor_registers->RW_DISTANCE < (vertex_size * vertex_count) + 3)
+            return;
+
+        load_primitive(cpu, fifo, op, vertex_count, &stream);
+        break;
     }
+    }
+
+    u32 len = (u32)(stream - *stream_ptr);
+    if (fifo && stream < *stream_ptr)
+        len += command_processor_registers->FIFO_END - command_processor_registers->FIFO_BASE + 1;
+
+    *stream_ptr = stream;
+
+    if (decrease_rw_distance) {
+        command_processor_registers->READ_POINTER = (u32)(stream - cpu->bus->ram);
+        command_processor_registers->RW_DISTANCE -= len;
     }
 }
 
 void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
 {
     u8 *stream = (u8 *)&cpu->bus->ram[command_processor_registers->READ_POINTER];
-    printf("@%08x: %02x %02x %02x %02x %02x %02x\n", (u32)(stream - (u8 *)cpu->bus->ram), stream[0],
-           stream[1], stream[2], stream[3], stream[4], stream[5]);
 
-    while (stream < (u8 *)&cpu->bus->ram[command_processor_registers->WRITE_POINTER]) {
+    while (command_processor_registers->RW_DISTANCE != 0) {
         const u8 op = stream[0];
         u8 *before = stream;
         execute_command(cpu, command_processor_registers, op, &stream, true);

@@ -1,5 +1,6 @@
 #include "cp.h"
 #include "bus/interfaces/pi.h"
+#include "graphics/vertex/vertex_loader.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -83,4 +84,9 @@ void cp_recieve_gather_pipe(CPU *cpu)
 GXFifoRegs *get_cp_regs(void)
 {
     return &cp_regs;
+}
+
+void cp_init(CPU *cpu)
+{
+    init_vertex_loader(cpu, &cp_regs);
 }

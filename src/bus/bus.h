@@ -34,4 +34,4 @@ struct Bus {
     void (*write)(Bus *self, u32 adr, u64 val, u32 size);
 };
 
-void init_bus(Bus *self);
+void init_bus(Bus *self, CPU *cpu);

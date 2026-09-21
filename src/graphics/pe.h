@@ -25,3 +25,9 @@ typedef struct PERegs {
 void pe_write(CPU *cpu, u32 adr, u32 val, u32 size);
 u64 pe_read(CPU *cpu, u32 adr, u32 size);
 u16 pe_get_ctrl(void);
+
+#define PE_INTERRUPT_TOKEN 0
+#define PE_INTERRUPT_FINISH 1
+void pe_set_interrupt(CPU *cpu, const u8 interrupt_source);
+
+void pe_set_token(u32 token);

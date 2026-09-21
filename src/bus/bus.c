@@ -312,7 +312,7 @@ static const Bus BUS_TEMPLATE = {
     .set_cpu_ptr = _set_cpu_ptr,
 };
 
-void init_bus(Bus *self)
+void init_bus(Bus *self, CPU *cpu)
 {
 
     *self = BUS_TEMPLATE;
@@ -324,4 +324,8 @@ void init_bus(Bus *self)
     init_exi();
     vi_init();
     ai_init();
+
+    cp_init(cpu);
+
+    self->cpu = cpu;
 }

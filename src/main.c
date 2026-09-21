@@ -8,6 +8,7 @@
 #include "bus/bus.h"
 #include "cpu/cpu.h"
 #include "cpu/cpu_types.h"
+#include "graphics/cp/cp.h"
 #include "graphics/vi.h"
 
 static Bus b;
@@ -38,9 +39,8 @@ static void print_clock(int sig)
 static int _init(void)
 {
 
-    init_bus(&b);
+    init_bus(&b, &cpu);
 
-    b.set_cpu_ptr(&b, &cpu);
     init_disc(&disc);
     if (disc.load_rom(&disc, "./roms/example.bin") != 0) {
         return 1;

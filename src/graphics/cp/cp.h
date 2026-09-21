@@ -23,6 +23,9 @@
 #define OPCODE_PRIMITIVE_START 0x80
 #define OPCODE_PRIMITIVE_END 0xBF
 
+#define BP_SET_DRAW_DONE 0x45
+#define BP_SET_PE_TOKEN 0x47
+
 typedef struct GXFifoRegs {
     /* +0x00 */
     volatile uint16_t SR; // r    FIFO-Status
@@ -124,5 +127,7 @@ void decode_data_stream(CPU *cpu, GXFifoRegs *cp_regs);
 void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8 op,
                      u8 **stream_ptr, bool decrease_rw_distance);
 
-u64 read_stream(u32 **stream, u8 size);
+u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, u8 size);
 u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C);
+
+void cp_init(CPU *cpu);
