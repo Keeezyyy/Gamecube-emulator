@@ -27,8 +27,18 @@ CFLAGS   := $(CSTD) $(WARN)
 AS       := $(CC)
 ASFLAGS  :=
 
-LDFLAGS  :=
-LDLIBS   :=
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+LDFLAGS := 
+LDLIBS  :=
+
+# macOS: GLFW aus Homebrew + Apples OpenGL-Framework
+ifeq ($(UNAME_S),Darwin)
+    GLFW_PREFIX := $(shell brew --prefix glfw)
+    LDFLAGS += -L$(GLFW_PREFIX)/lib
+    LDLIBS  += -lglfw -framework OpenGL
+endif
 
 # Debugger fuer "make debug". Standard ist gdb; per Kommandozeile
 # ueberschreibbar, z.B. "make debug DEBUGGER=lldb" (auf macOS meist der
@@ -46,9 +56,6 @@ DEBUGGER ?= lldb
 # OUT_DIR), ein Wechsel des BUILD_TYPE braucht also kein "make clean".
 
 BUILD_TYPE ?= debug
-
-UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
 
 ifeq ($(BUILD_TYPE),debug)
     OPTFLAGS := -O0 -g3 -fno-omit-frame-pointer
@@ -217,8 +224,8 @@ run: $(BIN)
 
 # ==== Debug (gdb) ============================================================
 # Startet den Emulator unter dem Debugger. Erzwingt einen Debug-Build
-# (-O0 -g3), damit Symbole und Zeilennummern auch dann stimmen, wenn zuvor
-# ein Release-Build im Baum lag.
+# (-O0 -g3), damit Symbole und Zeilennummern auch dann stimmen, wenn zuvor  ein
+# Release-Build im Baum lag.
 #
 #   make debug
 #   make debug ARGS=rom.iso          - Argumente an den Emulator durchreichen

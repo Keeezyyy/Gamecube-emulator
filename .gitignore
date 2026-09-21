@@ -5,7 +5,10 @@ build/
 *.a
 *.so
 *.dylib
+*.sh
+*.sh
 /build/gcemu
+/include/GLFW
 
 # Tools / IDE
 compile_commands.json

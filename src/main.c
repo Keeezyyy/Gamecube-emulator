@@ -10,6 +10,7 @@
 #include "cpu/cpu_types.h"
 #include "graphics/cp/cp.h"
 #include "graphics/vi.h"
+#include "graphics/window.h"
 
 static Bus b;
 static Disc disc;
@@ -59,6 +60,8 @@ static int _init(void)
 
     init_cpu(&cpu, &disc, &b);
 
+    windows_init();
+
     return 0;
 }
 
@@ -74,6 +77,10 @@ static void _threads(void)
     pthread_t main_thread;
     pthread_create(&main_thread, NULL, (void *)cpu.main, &cpu);
     pthread_detach(main_thread);
+
+    pthread_t gpu_pipeline_cp_thread;
+    pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
+    pthread_detach(gpu_pipeline_cp_thread);
 }
 
 int main(int argc, char **argv)
@@ -93,7 +100,7 @@ int main(int argc, char **argv)
 #endif
     _threads();
 
-    cp_thread(&cpu);
+    window_thread();
 
     while (true) {
     }

@@ -1,7 +1,7 @@
 #include "cp.h"
 #include "bus/bus.h"
 #include "bus/interfaces/pi.h"
-#include "graphics/vertex/vertex_loader.h"
+#include "graphics/gpu/vertex/vertex_loader.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -106,7 +106,6 @@ void cp_recieve_gather_pipe(CPU *cpu)
     atomic_fetch_add(&cp_regs.fifo_markers.RW_DISTANCE, 32);
     // decode_data_stream(cpu, &cp_regs);
 
-    printf("rw distance : %d\n", atomic_load(&cp_regs.fifo_markers.RW_DISTANCE));
     u32 write_pointer = atomic_load(&cp_regs.fifo_markers.WRITE_POINTER);
     u32 fifo_end = atomic_load(&cp_regs.fifo_markers.FIFO_END);
     if (write_pointer > fifo_end) {

@@ -1,12 +1,13 @@
 #include "bus/bus.h"
 #include "cp.h"
 #include "graphics/pe.h"
-#include "graphics/vertex/vertex_loader.h"
+#include "graphics/gpu/vertex/vertex_loader.h"
 #include <_abort.h>
 #include <assert.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <GLFW/glfw3.h>
 
 static u32 bp_regs[256];
 
@@ -36,6 +37,9 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         case BP_SET_DRAW_DONE: {
             pe_set_interrupt(cpu, PE_INTERRUPT_FINISH);
             GPU_PRINT("[GPU] : GX_DawDone\n");
+            GPU_PRINT("----------------------------------------------------------------------------"
+                      "-----\n");
+            // trigger for render
             break;
         }
         case BP_SET_PE_TOKEN: {
@@ -59,6 +63,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
                 bbox_active = true;
 
             */
+
             break;
         }
         case 0x66: {

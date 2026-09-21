@@ -83,7 +83,7 @@
     } while (0)
 #endif
 
-#if 1
+#if defined(GPU_DEBUG)
 #define GPU_PRINT(...) printf(__VA_ARGS__)
 #else
 #define GPU_PRINT(...)                                                                             \
