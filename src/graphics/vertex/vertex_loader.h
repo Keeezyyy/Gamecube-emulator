@@ -100,6 +100,17 @@ typedef struct {
 
 } PACKED VertexTexture;
 
+typedef enum {
+    GX_QUADS,
+    GX_QUADS_2,
+    GX_TRIANGLES,
+    GX_TRIANGLESTRIP,
+    GX_TRIANGLEFAN,
+    GX_LINES,
+    GX_LINESTRIP,
+    GX_POINTS
+} PrimitiveType;
+
 typedef struct {
     PosMat pm;
     TexMat tm[8];
@@ -108,9 +119,11 @@ typedef struct {
     VertexColor color[2];
     VertexTexture texture[8];
 
+    PrimitiveType type;
+
 } PACKED Vertex;
 
 Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C,
-                                u32 CP_REGS[256], u8 **stream);
+                                u32 CP_REGS[256], u8 **stream, PrimitiveType type);
 
 void init_vertex_loader(CPU *cpu, GXFifoRegs *command_processor_registers);

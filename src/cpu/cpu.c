@@ -57,13 +57,15 @@ static void hle_check_panic(CPU *self)
     assert(!"guest OSPanic");
 }
 
+static u64 counter = 0;
 static void handle_interrupt(CPU *self)
 {
     TranslationBlock *tb;
     CpuMode m = self->get_current_cpu_mode(self);
 
     _helper_write_switch_to_exception(self->state.pc - 4);
-    printf("[INTERRUPT], source : 0x%08x\n", self->exception.interrupt_source_register);
+    // printf("[INTERRUPT], source : 0x%08x, counter : %d\n",
+    // self->exception.interrupt_source_register, counter++);
 
     // NOTE:FOR NOW
     self->state.pc = 0x00000500;

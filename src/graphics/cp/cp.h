@@ -2,6 +2,8 @@
 
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include <sys/_pthread/_pthread_cond_t.h>
+#include <sys/_pthread/_pthread_mutex_t.h>
 
 #define CP_CONTROL_REGISTER 0xCC000002
 
@@ -25,6 +27,15 @@
 
 #define BP_SET_DRAW_DONE 0x45
 #define BP_SET_PE_TOKEN 0x47
+
+typedef struct {
+    _Atomic u32 RW_DISTANCE;
+    _Atomic u32 FIFO_BASE;
+    _Atomic u32 FIFO_END;
+    _Atomic u32 WRITE_POINTER;
+    _Atomic u32 READ_POINTER;
+
+} GXFifoFifoMarkers;
 
 typedef struct GXFifoRegs {
     /* +0x00 */
@@ -57,10 +68,10 @@ typedef struct GXFifoRegs {
 
     /* +0x18 .. +0x1E */
     uint16_t _pad18[4];
-    volatile uint32_t FIFO_BASE;
+    volatile uint32_t _FIFO_BASE;
 
     /* +0x24 */
-    volatile uint32_t FIFO_END;
+    volatile uint32_t _FIFO_END;
 
     /* +0x28 */
     volatile uint32_t HI_WATERMARK;
@@ -69,13 +80,13 @@ typedef struct GXFifoRegs {
     volatile uint32_t LO_WATERMARK;
 
     /* +0x30 */
-    volatile uint32_t RW_DISTANCE;
+    volatile uint32_t _RW_DISTANCE;
 
     /* +0x34 */
-    volatile uint32_t WRITE_POINTER;
+    volatile uint32_t _WRITE_POINTER;
 
     /* +0x38 */
-    volatile uint32_t READ_POINTER;
+    volatile uint32_t _READ_POINTER;
 
     /* +0x3C */
     volatile uint32_t BP; /* +0x40 */
@@ -111,8 +122,14 @@ typedef struct GXFifoRegs {
     /* +0x62 */
     volatile uint16_t CLKS_PER_VTX_OUT;
 
-    /* +0x64 */
+    GXFifoFifoMarkers fifo_markers;
+
 } PACKED GXFifoRegs;
+
+typedef struct {
+    pthread_cond_t fifo_cond;
+    pthread_mutex_t fifo_mutex;
+} FifoControlRegisters;
 
 void cp_write(CPU *cpu, u32 adr, u32 val, u32 size);
 u64 cp_read(CPU *cpu, u32 adr, u32 size);
@@ -131,3 +148,4 @@ u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, 
 u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C);
 
 void cp_init(CPU *cpu);
+void cp_thread(CPU *cpu);

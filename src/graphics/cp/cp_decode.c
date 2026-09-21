@@ -4,6 +4,7 @@
 #include "graphics/vertex/vertex_loader.h"
 #include <_abort.h>
 #include <assert.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -70,6 +71,15 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
     } // trigger
 }
 
+static u32 _get_fifo_end(GXFifoRegs *command_processor_registers)
+{
+    return atomic_load(&command_processor_registers->fifo_markers.FIFO_END);
+}
+static u32 _get_fifo_base(GXFifoRegs *command_processor_registers)
+{
+    return atomic_load(&command_processor_registers->fifo_markers.FIFO_BASE);
+}
+
 static u32 cp_regs[256]; // ends with 0xBF
 static void load_cp_reg(u8 reg_num, u32 val)
 {
@@ -85,8 +95,8 @@ u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, 
 
     for (u8 i = 0; i < size; i++) {
         if (command_processor_registers &&
-            *stream > &cpu->bus->ram[command_processor_registers->FIFO_END + 3])
-            *stream = &cpu->bus->ram[command_processor_registers->FIFO_BASE];
+            *stream > &cpu->bus->ram[_get_fifo_end(command_processor_registers) + 3])
+            *stream = &cpu->bus->ram[_get_fifo_base(command_processor_registers)];
 
         val = (val << 8) | *(*stream)++;
     }
@@ -146,7 +156,7 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
     for (u16 i = 0; i < vertex_count; i++)
         parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
                                  cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
-                                 stream);
+                                 stream, primitive_type);
 }
 
 static u32 xf_regs[0x1057];
@@ -187,19 +197,21 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
 
     read_stream(cpu, fifo, &stream, 1);
 
+    u32 rw_d = atomic_load(&command_processor_registers->fifo_markers.RW_DISTANCE);
+
     switch (op) {
     case OPCODE_NOP:
     case OPCODE_INVL_VC:
         break;
     case OPCODE_LOAD_BP_REG: {
-        if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_BP_REG_LENGTH)
+        if (rw_d < OPCODE_LOAD_BP_REG_LENGTH)
             return;
 
         load_bp_reg(cpu, (u32)read_stream(cpu, fifo, &stream, 4));
         break;
     }
     case OPCODE_LOAD_CP_REG: {
-        if (command_processor_registers->RW_DISTANCE < OPCODE_LOAD_CP_REG_LENGTH)
+        if (rw_d < OPCODE_LOAD_CP_REG_LENGTH)
             return;
 
         const u8 reg = (u8)read_stream(cpu, fifo, &stream, 1);
@@ -210,7 +222,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
         const u32 head = (u32)read_stream(cpu, fifo, &stream, 4);
         const u16 n = ((head >> 16) & 0xF) + 1;
 
-        if (command_processor_registers->RW_DISTANCE < (5 + (n * 4)))
+        if (rw_d < (5 + (n * 4)))
             return;
 
         u32 values[16];
@@ -221,7 +233,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
         break;
     }
     case OPCODE_CALL_DL: {
-        if (command_processor_registers->RW_DISTANCE < OPCODE_CALL_DL_LENGTH)
+        if (rw_d < OPCODE_CALL_DL_LENGTH)
             return;
 
         const u32 adr = (u32)read_stream(cpu, fifo, &stream, 4) & 0x03FFFFE0;
@@ -243,7 +255,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
             get_size_of_vertex(cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
                                cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index]);
 
-        if (command_processor_registers->RW_DISTANCE < (vertex_size * vertex_count) + 3)
+        if (rw_d < (vertex_size * vertex_count) + 3)
             return;
 
         load_primitive(cpu, fifo, op, vertex_count, &stream);
@@ -253,21 +265,24 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
 
     u32 len = (u32)(stream - *stream_ptr);
     if (fifo && stream < *stream_ptr)
-        len += command_processor_registers->FIFO_END + 4 - command_processor_registers->FIFO_BASE;
+        len += _get_fifo_end(command_processor_registers) + 4 -
+               _get_fifo_base(command_processor_registers);
 
     *stream_ptr = stream;
 
     if (decrease_rw_distance) {
-        command_processor_registers->READ_POINTER = (u32)(stream - cpu->bus->ram);
-        command_processor_registers->RW_DISTANCE -= len;
+        atomic_store(&command_processor_registers->fifo_markers.READ_POINTER,
+                     (u32)(stream - cpu->bus->ram));
+        atomic_fetch_sub(&command_processor_registers->fifo_markers.RW_DISTANCE, len);
     }
 }
 
 void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
 {
-    u8 *stream = (u8 *)&cpu->bus->ram[command_processor_registers->READ_POINTER];
+    u8 *stream =
+        (u8 *)&cpu->bus->ram[atomic_load(&command_processor_registers->fifo_markers.READ_POINTER)];
 
-    while (command_processor_registers->RW_DISTANCE != 0) {
+    while (atomic_load(&command_processor_registers->fifo_markers.RW_DISTANCE) != 0) {
         const u8 op = stream[0];
         u8 *before = stream;
         execute_command(cpu, command_processor_registers, op, &stream, true);

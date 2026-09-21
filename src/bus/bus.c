@@ -19,6 +19,7 @@
 #include <string.h>
 
 static u8 ram_buffer[RAM_SIZE];
+static u8 gpu_ram_buffer_mirror[RAM_SIZE];
 
 static int dol_load_into_ram(Bus *self);
 
@@ -245,11 +246,19 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
     if (off != RAM_OFFSET_INVALID) {
         assert(off + size <= RAM_SIZE);
         be_store((u8 *)self->ram + off, val, size);
+        be_store((u8 *)self->gpu_ram_mirror + off, val, size);
+
         return;
     }
 
     if (in_ipl(self, adr)) {
         DEBUG_PRINT("[BUS] write to IPL rom at 0x%08x ignored\n", adr);
+        return;
+    }
+    if (adr >= 0xCC008000 && adr < 0xe0000000) {
+        // GX FIFO BUFFER
+
+        gx_write_to_fifo(self->cpu, val, size);
         return;
     }
 
@@ -292,11 +301,6 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
 
         ai_write(self->cpu, adr, val, size);
         return;
-    } else if (adr >= 0xCC008000 && adr < 0xe0000000) {
-        // GX FIFO BUFFER
-
-        gx_write_to_fifo(self->cpu, val, size);
-        return;
     }
 
     DEBUG_PRINT("[BUS] write to unmapped adr : 0x%08x\n", adr);
@@ -310,6 +314,7 @@ static const Bus BUS_TEMPLATE = {
     .read = &_read,
     .write = &_write,
     .set_cpu_ptr = _set_cpu_ptr,
+    .gpu_ram_mirror = &gpu_ram_buffer_mirror[0],
 };
 
 void init_bus(Bus *self, CPU *cpu)
@@ -320,6 +325,7 @@ void init_bus(Bus *self, CPU *cpu)
     DEBUG_PRINT("ram buffer : %p\n", (void *)ram_buffer);
 
     self->ram = ram_buffer;
+    self->ram = gpu_ram_buffer_mirror;
 
     init_exi();
     vi_init();

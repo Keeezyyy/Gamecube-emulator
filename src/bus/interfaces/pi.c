@@ -10,6 +10,8 @@
 #include "graphics/vi.h"
 #include <_abort.h>
 #include <assert.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -79,8 +81,11 @@ void pi_recieve_gx_gather_piper(CPU *cpu, u32 *buffer)
 
     GXFifoRegs *cp = get_cp_regs();
 
-    u32 cp_fifo_base = (cp->FIFO_BASE & 0x03FFFFE0);
-    u32 cp_fifo_end = (cp->FIFO_END & 0x03FFFFE0);
+    u32 fifo_base = atomic_load(&cp->fifo_markers.FIFO_BASE);
+    u32 fifo_end = atomic_load(&cp->fifo_markers.FIFO_END);
+
+    u32 cp_fifo_base = (fifo_base & 0x03FFFFE0);
+    u32 cp_fifo_end = (fifo_end & 0x03FFFFE0);
 
     u32 pi_fifo_base = (pi_regs.PI_FIFO_BASE & 0x03FFFFE0);
     u32 pi_fifo_end = (pi_regs.PI_FIFO_END & 0x03FFFFE0);

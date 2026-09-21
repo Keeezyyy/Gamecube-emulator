@@ -15,6 +15,7 @@ static Bus b;
 static Disc disc;
 static CPU cpu;
 
+#define CLOCK_STATS
 #ifdef CLOCK_STATS
 #include "scheduler/scheduler.h"
 #include <signal.h>
@@ -68,6 +69,13 @@ static void _free(void)
     cpu.free(&cpu);
 }
 
+static void _threads(void)
+{
+    pthread_t main_thread;
+    pthread_create(&main_thread, NULL, (void *)cpu.main, &cpu);
+    pthread_detach(main_thread);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -83,8 +91,9 @@ int main(int argc, char **argv)
     signal(SIGINT, print_clock);
     signal(SIGABRT, print_clock);
 #endif
+    _threads();
 
-    cpu.main(&cpu);
+    cp_thread(&cpu);
 
     while (true) {
     }

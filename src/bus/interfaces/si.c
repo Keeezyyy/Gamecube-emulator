@@ -19,13 +19,13 @@ static void start_transfer(CPU *cpu)
     const u8 out0 = (chnl.OUTBUF & MASK(8, 15)) >> 8;
     const u8 out1 = (chnl.OUTBUF & MASK(0, 7));
 
-    printf("[SI] Transfer startet cmd : 0x%02x, chnl : %d, ut0 : 0x%02x, out1 : 0x%02x\n", cmd,
-           transfer_target, out0, out1);
+    SI_PRINT("[SI] Transfer startet cmd : 0x%02x, chnl : %d, ut0 : 0x%02x, out1 : 0x%02x\n", cmd,
+             transfer_target, out0, out1);
 
     switch (cmd) {
     case SI_CMD_GET_STATUS_ID:
-        // si_regs.channel[transfer_target].INBUFH = SI_TYPE_GC_CONTROLLER;
-        si_regs.SIIOBUF[0] = SI_TYPE_GC_CONTROLLER;
+        // si_regs.channel[transfer_target].INBUFH = SI_TYPE_NOT_CONNECTED;
+        si_regs.SIIOBUF[0] = SI_TYPE_NOT_CONNECTED;
         break;
     default:
         assert(!"transfer not implemented transfer\n");
@@ -51,7 +51,7 @@ void si_vblank_trigger(void)
 
 void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
 {
-    printf("[SI] write to adr : 0x%08x, val : 0x%08x\n", adr, val);
+    SI_PRINT("[SI] write to adr : 0x%08x, val : 0x%08x\n", adr, val);
     assert(size == 4);
     assert(adr <= 0xCC0064FF && adr >= 0xCC006400);
 
@@ -129,7 +129,7 @@ u64 si_read(CPU *cpu, u32 adr, u32 size)
         }
     }
 
-    printf("[SI] READ : 0x%08x, val : 0x%08x\n", adr, ((u32 *)&si_regs)[rel_adr / 4]);
+    SI_PRINT("[SI] READ : 0x%08x, val : 0x%08x\n", adr, ((u32 *)&si_regs)[rel_adr / 4]);
 
     return ((u32 *)&si_regs)[rel_adr / 4];
 }

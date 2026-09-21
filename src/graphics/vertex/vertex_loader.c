@@ -132,9 +132,12 @@ static void _parse_tex(const u32 *VAT, u8 **stream, VertexTexture *t, u8 t_idx)
 }
 
 Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C,
-                                u32 CP_REGS[256], u8 **stream)
+                                u32 CP_REGS[256], u8 **stream, PrimitiveType type)
 {
     Vertex out_v = {0};
+
+    out_v.type = type;
+
     const u32 VAT[3] = {VAT_A, VAT_B, VAT_C};
     // Parse PosMat
     if (VCD_LO & 1) {

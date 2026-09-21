@@ -32,6 +32,5 @@ void gx_write_to_fifo(CPU *cpu, u64 val, u32 size)
 
         buffer_ptr -= 32;
         memcpy(fifo_buffer.buffer_8, fifo_buffer.buffer_8 + 32, buffer_ptr);
-        GPU_PRINT("[GX] FIFO BUFFER FULL\n");
     }
 }

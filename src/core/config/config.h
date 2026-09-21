@@ -82,10 +82,21 @@
             printf(__VA_ARGS__);                                                                   \
     } while (0)
 #endif
-#if defined(DEBUG)
+
+#if 1
 #define GPU_PRINT(...) printf(__VA_ARGS__)
 #else
 #define GPU_PRINT(...)                                                                             \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
+#if defined(SI_DEBUG)
+#define SI_PRINT(...) printf(__VA_ARGS__)
+#else
+#define SI_PRINT(...)                                                                              \
     do {                                                                                           \
         if (0)                                                                                     \
             printf(__VA_ARGS__);                                                                   \
