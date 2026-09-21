@@ -25,7 +25,9 @@ static DI_Regs di_dma_regs;
 u64 di_read(CPU *cpu, u32 adr, u32 size)
 {
 
-    printf("[DI-READ] :  adr : 0x%08x, size : %d\n", adr, size);
+    if (adr != 0xcc006004)
+        printf("[DI-READ] :  adr : 0x%08x, size : %d\n", adr, size);
+
     switch (adr) {
     case 0xCC006000:
         return disc_register;
@@ -124,11 +126,14 @@ static const dvd_disk_id_t dvddiskid = {
 
 void di_start_dma(CPU *cpu)
 {
+    printf("DVD DMA : 0x%08x\n", di_dma_regs.DICMDBUF0);
     u8 op = (di_dma_regs.DICMDBUF0 >> 24) & 0xFF;
     switch (op) {
     case 0xA8: {
         if ((op & 0xFF) == 0x00) {
             // DVD_READSECTOR
+
+            assert(!"dvd read sector\n");
         } else {
             // DVD_READDISKID
 

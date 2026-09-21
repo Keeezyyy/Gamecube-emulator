@@ -51,6 +51,7 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define ROUND_UP(x, n) (((x) + (n) - 1) / (n) * (n))
 #define FLOOR_TO(x, n) ((x) / (n) * (n))
+#define MASK(start, end) (((1u << ((end) - (start) + 1u)) - 1u) << (start))
 
 #define PACKED __attribute__((__packed__))
 
