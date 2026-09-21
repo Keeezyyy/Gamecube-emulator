@@ -81,5 +81,14 @@
             printf(__VA_ARGS__);                                                                   \
     } while (0)
 #endif
+#if defined(DEBUG)
+#define GPU_PRINT(...) printf(__VA_ARGS__)
+#else
+#define GPU_PRINT(...)                                                                             \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
 
 #define UNUSED(x) ((void)(x))

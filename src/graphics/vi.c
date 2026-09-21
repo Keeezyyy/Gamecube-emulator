@@ -23,19 +23,15 @@ static u32 vi_offset(u32 adr, u32 size)
     }
     return off;
 }
-static u32 vP = 0;
+static u32 vP = 1;
 static u32 hP = 1;
 
 static void vi_clock(CPU *cpu)
 {
-
-    vP++;
     // vi interrupt
     u32 hlw = dpr.HTR0 & 0x1FF;
-    u32 lines = 263; // TODO: aus VTR/VTO/VTE ableiten (NTSC vs PAL)
-                     //
-                     //
-                     //
+    u32 lines = ((dpr.DCR >> 8) & 3) ? 313 : 263; // PAL : NTSC
+
     for (int i = 0; i < 4; i++) {
         u32 di = (&dpr.DI0)[i];
         if ((di >> 28 & 1) && (di & 0x3FF) == hP && ((di >> 16) & 0x3FF) == vP) {
@@ -44,12 +40,10 @@ static void vi_clock(CPU *cpu)
         }
     }
 
-    if (vP == lines) {
-        hP++;
-        vP = 0;
-    }
-    if (hP == (2 * hlw)) {
+    if (++hP > (2 * hlw)) {
         hP = 1;
+        if (++vP > lines)
+            vP = 1;
     }
 }
 static SchedulerEvent e = {.active = false, .callback = &vi_clock, .clock_speed = 27000000};

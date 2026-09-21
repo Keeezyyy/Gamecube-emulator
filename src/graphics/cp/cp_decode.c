@@ -27,14 +27,14 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
     if (reg == 0xFE)
         bp_mask = value;
 
-    printf("BP LOAD [0x%02x] = 0x%06x\n", reg, new_val);
+    GPU_PRINT("BP LOAD [0x%02x] = 0x%06x\n", reg, new_val);
 
     if (reg == 0x45 || reg == 0x47 || reg == 0x48 || reg == 0x52 || reg == 0x55 || reg == 0x56 ||
         reg == 0x57 || reg == 0x63 || reg == 0x64 || reg == 0x65 || reg == 0x66) {
         switch (reg) {
         case BP_SET_DRAW_DONE: {
             pe_set_interrupt(cpu, PE_INTERRUPT_FINISH);
-            printf("[GPU] : GX_DawDone\n");
+            GPU_PRINT("[GPU] : GX_DawDone\n");
             break;
         }
         case BP_SET_PE_TOKEN: {
@@ -44,7 +44,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         case 0x52: {
             // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
 
-            printf("BP reg 0x52 write\n");
+            GPU_PRINT("BP reg 0x52 write\n");
             break;
         }
         case 0x55:
@@ -76,7 +76,7 @@ static void load_cp_reg(u8 reg_num, u32 val)
     assert(reg_num <= 0xBF);
     cp_regs[reg_num] = val;
 
-    printf("CP LOAD [0x%02x] = 0x%06x\n", reg_num, val);
+    GPU_PRINT("CP LOAD [0x%02x] = 0x%06x\n", reg_num, val);
 }
 
 u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, u8 size)
@@ -85,7 +85,7 @@ u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, 
 
     for (u8 i = 0; i < size; i++) {
         if (command_processor_registers &&
-            *stream > &cpu->bus->ram[command_processor_registers->FIFO_END])
+            *stream > &cpu->bus->ram[command_processor_registers->FIFO_END + 3])
             *stream = &cpu->bus->ram[command_processor_registers->FIFO_BASE];
 
         val = (val << 8) | *(*stream)++;
@@ -138,8 +138,8 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
     const u8 vat_index = primitive_info_byte & 0x7;
     const u8 primitive_type = primitive_info_byte & ~0x7;
 
-    printf("PRIMITIVE: type :  0x%02x, index :  0x%02x , length  0x%04x\n", primitive_type,
-           vat_index, vertex_count);
+    GPU_PRINT("PRIMITIVE: type :  0x%02x, index :  0x%02x , length  0x%04x\n", primitive_type,
+              vat_index, vertex_count);
 
     init_vertex_loader(cpu, command_processor_registers);
 
@@ -154,7 +154,7 @@ static u32 xf_regs[0x1057];
 static void load_xf_reg(u16 adr, u16 n, const u32 *values)
 {
 
-    printf("XF: adr:  0x%04x n: 0x%04x\n", adr, n);
+    GPU_PRINT("XF: adr:  0x%04x n: 0x%04x\n", adr, n);
 
     assert(adr <= 0x1057);
     assert(n <= 16);
@@ -232,7 +232,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
     }
     default: {
         if (op < OPCODE_PRIMITIVE_START || op > OPCODE_PRIMITIVE_END) {
-            printf("opcode : 0x%02x\n", op);
+            GPU_PRINT("opcode : 0x%02x\n", op);
             assert(!"gpu opcode not implemented\n");
             return;
         }
@@ -253,7 +253,7 @@ void execute_command(CPU *cpu, GXFifoRegs *command_processor_registers, const u8
 
     u32 len = (u32)(stream - *stream_ptr);
     if (fifo && stream < *stream_ptr)
-        len += command_processor_registers->FIFO_END - command_processor_registers->FIFO_BASE + 1;
+        len += command_processor_registers->FIFO_END + 4 - command_processor_registers->FIFO_BASE;
 
     *stream_ptr = stream;
 
