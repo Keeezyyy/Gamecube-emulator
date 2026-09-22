@@ -6,6 +6,7 @@ static GLFWwindow *window;
 
 void windows_init(void)
 {
+    return;
     if (!glfwInit())
         return;
 
@@ -18,6 +19,7 @@ void windows_init(void)
 
 void window_finish_frame(void)
 {
+    return;
     glClear(GL_COLOR_BUFFER_BIT);
 
     glfwSwapBuffers(window);
@@ -25,6 +27,7 @@ void window_finish_frame(void)
 
 void window_thread(void)
 {
+    return;
 
     glfwMakeContextCurrent(window);
 

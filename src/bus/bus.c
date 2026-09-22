@@ -205,7 +205,6 @@ static u64 _read(Bus *self, u32 adr, u32 size)
         return be_load((u8 *)self->ipl + (adr - IPL_BASE), size);
     }
 
-    // printf("[read2] :  adr : 0x%08x, size : 0x%08x\n", adr, size);
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
 
@@ -216,7 +215,7 @@ static u64 _read(Bus *self, u32 adr, u32 size)
     } else if (adr >= 0xCC002000 && adr < 0xCC003000) {
         return vi_read(self->cpu, adr, size);
     } else if (adr >= 0xCC004000 && adr < 0xCC005000) {
-        assert(!"notaksdlfj aksldfl a");
+        return mi_read(self->cpu, adr, size);
     } else if (adr >= 0xCC005000 && adr < 0xCC006000) {
         return dsp_read(self->cpu, adr, size);
     } else if (adr >= 0xCC006000 && adr < 0xCC006400) {
@@ -232,6 +231,8 @@ static u64 _read(Bus *self, u32 adr, u32 size)
 
         return ai_read(self->cpu, adr, size);
     }
+
+    printf("[read2] :  adr : 0x%08x, size : 0x%08x\n", adr, size);
 
     printf("[BUS] read from unmapped adr : 0x%08x\n", adr);
     assert(!"_read in bus");
@@ -262,7 +263,6 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         return;
     }
 
-    // printf("[write] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
     if (adr >= 0xCC000000 && adr < 0xCC001000) {
         cp_write(self->cpu, adr, val, size);
         return;
@@ -302,6 +302,7 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         ai_write(self->cpu, adr, val, size);
         return;
     }
+    printf("[write] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
 
     DEBUG_PRINT("[BUS] write to unmapped adr : 0x%08x\n", adr);
     assert(!"_write in bus");

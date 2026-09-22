@@ -2,6 +2,7 @@
 #include "bus/bus.h"
 #include "bus/interfaces/pi.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
+#include "graphics/gpu/render/render.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -130,6 +131,7 @@ void cp_init(CPU *cpu)
     pthread_cond_init(&fifo_ctr.fifo_cond, NULL);
     pthread_mutex_init(&fifo_ctr.fifo_mutex, NULL);
     init_vertex_loader(cpu, &cp_regs);
+    init_renderer();
 }
 
 void cp_thread(CPU *cpu)
@@ -137,11 +139,12 @@ void cp_thread(CPU *cpu)
     // TODO:make fast thread save version
     // TODO:make fast thread save version
     // TODO:make fast thread save version
+    u32 last_rw_distance = 0;
     while (true) {
 
         pthread_mutex_lock(&fifo_ctr.fifo_mutex);
 
-        while (atomic_load(&cp_regs.fifo_markers.RW_DISTANCE) == 0) {
+        while (atomic_load(&cp_regs.fifo_markers.RW_DISTANCE) == last_rw_distance) {
             pthread_cond_wait(&fifo_ctr.fifo_cond, &fifo_ctr.fifo_mutex);
         }
 
@@ -149,5 +152,6 @@ void cp_thread(CPU *cpu)
         pthread_mutex_unlock(&fifo_ctr.fifo_mutex);
 
         decode_data_stream(cpu, &cp_regs);
+        last_rw_distance = atomic_load(&cp_regs.fifo_markers.RW_DISTANCE);
     }
 }

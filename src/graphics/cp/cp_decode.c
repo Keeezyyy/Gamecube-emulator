@@ -1,5 +1,6 @@
 #include "bus/bus.h"
 #include "cp.h"
+#include "graphics/gpu/render/render.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <_abort.h>
@@ -10,6 +11,8 @@
 #include <GLFW/glfw3.h>
 
 static u32 bp_regs[256];
+static u32 cp_regs[256]; // ends with 0xBF
+static u32 xf_regs[0x1057];
 
 static u32 bp_mask = 0xFFFFFF;
 static void load_bp_reg(CPU *cpu, u32 cmd)
@@ -40,6 +43,8 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
             GPU_PRINT("----------------------------------------------------------------------------"
                       "-----\n");
             // trigger for render
+
+            cpy_reg_state(bp_regs, cp_regs, xf_regs);
             break;
         }
         case BP_SET_PE_TOKEN: {
@@ -85,7 +90,6 @@ static u32 _get_fifo_base(GXFifoRegs *command_processor_registers)
     return atomic_load(&command_processor_registers->fifo_markers.FIFO_BASE);
 }
 
-static u32 cp_regs[256]; // ends with 0xBF
 static void load_cp_reg(u8 reg_num, u32 val)
 {
     assert(reg_num <= 0xBF);
@@ -157,14 +161,15 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
               vat_index, vertex_count);
 
     init_vertex_loader(cpu, command_processor_registers);
+    Vertex v;
+    for (u16 i = 0; i < vertex_count; i++) {
+        v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
+                                     cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
+                                     stream, primitive_type);
 
-    for (u16 i = 0; i < vertex_count; i++)
-        parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
-                                 cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
-                                 stream, primitive_type);
+        push_vertex_to_vertex_buffer(v);
+    }
 }
-
-static u32 xf_regs[0x1057];
 
 static void load_xf_reg(u16 adr, u16 n, const u32 *values)
 {
@@ -288,6 +293,8 @@ void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
         (u8 *)&cpu->bus->ram[atomic_load(&command_processor_registers->fifo_markers.READ_POINTER)];
 
     while (atomic_load(&command_processor_registers->fifo_markers.RW_DISTANCE) != 0) {
+        if (stream > &cpu->bus->ram[_get_fifo_end(command_processor_registers) + 3])
+            stream = &cpu->bus->ram[_get_fifo_base(command_processor_registers)];
         const u8 op = stream[0];
         u8 *before = stream;
         execute_command(cpu, command_processor_registers, op, &stream, true);

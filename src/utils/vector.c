@@ -4,15 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static u32 _get_num_of_bytes(Vector *self)
-{
-    return self->num_of_bytes;
-}
-static u32 _get_cap(Vector *self)
-{
-    return self->cap_in_bytes;
-}
-
 static void *_grow(Vector *self)
 {
     const void *p = calloc(self->cap_in_bytes * 2, 1);
@@ -27,6 +18,8 @@ static void *_grow(Vector *self)
 
     self->buffer = p;
     self->cap_in_bytes *= 2;
+
+    return p;
 }
 
 void init_Vector(Vector *self, u32 initial_cap)
@@ -40,7 +33,5 @@ void init_Vector(Vector *self, u32 initial_cap)
     self->cap_in_bytes = initial_cap;
     self->num_of_bytes = 0;
 
-    self->get_cap = &_get_cap;
-    self->get_num_of_bytes = &_get_num_of_bytes;
     self->grow = &_grow;
 }

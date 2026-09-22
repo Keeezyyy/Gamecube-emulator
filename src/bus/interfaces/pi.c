@@ -66,7 +66,8 @@ void pi_write(CPU *cpu, u32 adr, u64 val, u32 size)
         break;
     }
     default:
-        printf("adr : 0x%08x, val : 0x%08x\n", adr, val);
+        printf("!!!!adr : 0x%08x, val : 0x%08x\n", adr, val);
+
         assert(!"write pi not implemented\n");
     }
 }

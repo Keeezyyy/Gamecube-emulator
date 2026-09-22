@@ -49,9 +49,17 @@ static int _init(void)
     }
     // load the decrypted rom
     // NOTE: might implement encryption
+
+    /*
     if (b.load_ipl(&b, "./roms/ngc_pal_ipl.dol") != 0) {
         return 1;
     }
+  */
+
+    if (b.load_ipl(&b, "./roms/triangle.dol") != 0) {
+        return 1;
+    }
+
     if (b.load_ipl_scrambled(&b, "./roms/ipl.bin") != 0) {
         return 1;
     }
@@ -60,7 +68,7 @@ static int _init(void)
 
     init_cpu(&cpu, &disc, &b);
 
-    windows_init();
+    // windows_init();
 
     return 0;
 }
@@ -100,7 +108,7 @@ int main(int argc, char **argv)
 #endif
     _threads();
 
-    window_thread();
+    // window_thread();
 
     while (true) {
     }
