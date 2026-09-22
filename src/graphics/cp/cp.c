@@ -131,11 +131,12 @@ void cp_init(CPU *cpu)
     pthread_cond_init(&fifo_ctr.fifo_cond, NULL);
     pthread_mutex_init(&fifo_ctr.fifo_mutex, NULL);
     init_vertex_loader(cpu, &cp_regs);
-    init_renderer();
 }
 
 void cp_thread(CPU *cpu)
 {
+
+    init_renderer();
     // TODO:make fast thread save version
     // TODO:make fast thread save version
     // TODO:make fast thread save version

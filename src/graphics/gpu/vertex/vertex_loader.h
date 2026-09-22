@@ -101,14 +101,14 @@ typedef struct {
 } PACKED VertexTexture;
 
 typedef enum {
-    GX_QUADS,
-    GX_QUADS_2,
-    GX_TRIANGLES,
-    GX_TRIANGLESTRIP,
-    GX_TRIANGLEFAN,
-    GX_LINES,
-    GX_LINESTRIP,
-    GX_POINTS
+    GX_QUADS = 0,
+    GX_QUADS_2 = 1,
+    GX_TRIANGLES = 2,
+    GX_TRIANGLESTRIP = 3,
+    GX_TRIANGLEFAN = 4,
+    GX_LINES = 5,
+    GX_LINESTRIP = 6,
+    GX_POINTS = 7
 } PrimitiveType;
 
 typedef struct {

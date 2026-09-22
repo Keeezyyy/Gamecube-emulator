@@ -155,7 +155,7 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
                            u8 primitive_info_byte, const u16 vertex_count, u8 **stream)
 {
     const u8 vat_index = primitive_info_byte & 0x7;
-    const u8 primitive_type = primitive_info_byte & ~0x7;
+    const u8 primitive_type = (primitive_info_byte >> 3) & 0x7;
 
     GPU_PRINT("PRIMITIVE: type :  0x%02x, index :  0x%02x , length  0x%04x\n", primitive_type,
               vat_index, vertex_count);

@@ -2,7 +2,6 @@
 #include "bus/interfaces/pi.h"
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
-#include "graphics/window.h"
 #include "scheduler/scheduler.h"
 #include <_time.h>
 #include <assert.h>

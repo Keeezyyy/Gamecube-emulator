@@ -38,6 +38,12 @@ ifeq ($(UNAME_S),Darwin)
     GLFW_PREFIX := $(shell brew --prefix glfw)
     LDFLAGS += -L$(GLFW_PREFIX)/lib
     LDLIBS  += -lglfw -framework OpenGL
+
+    # SDL3 aus Homebrew (brew install sdl3)
+    SDL3_PREFIX := $(shell brew --prefix sdl3)
+    CPPFLAGS += -I$(SDL3_PREFIX)/include
+    LDFLAGS  += -L$(SDL3_PREFIX)/lib -Wl,-rpath,$(SDL3_PREFIX)/lib
+    LDLIBS   += -lSDL3
 endif
 
 # Debugger fuer "make debug". Standard ist gdb; per Kommandozeile
@@ -152,8 +158,23 @@ VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
+# ==== Shader =================================================================
+# GLSL-Quellen werden mit glslangValidator nach SPIR-V uebersetzt. Das Ziel
+# ist bewusst unabhaengig vom BUILD_TYPE, weil render.c die Dateien fest unter
+# ./build/shader/<name>.spv sucht (relativ zur Projektwurzel).
+#
+#   brew install glslang
+GLSLC      := glslangValidator
+SHADER_DIR := $(BUILD)/shader
+
+SHADER_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.vert' -o -name '*.frag' \))
+SHADER_SPVS := $(addprefix $(SHADER_DIR)/,$(addsuffix .spv,$(notdir $(SHADER_SRCS))))
+
+vpath %.vert $(sort $(dir $(SHADER_SRCS)))
+vpath %.frag $(sort $(dir $(SHADER_SRCS)))
+
 # ==== Regeln =================================================================
-.PHONY: all asm run debug release lsp clean distclean format compdb help test test-build test-vertex
+.PHONY: all shaders asm run debug release lsp clean distclean format compdb help test test-build test-vertex
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -162,7 +183,13 @@ asm: $(ASM_OBJS)
 
 # ==== Build ==================================================================
 
-all: $(BIN) compile_flags.txt
+all: $(BIN) shaders compile_flags.txt
+
+shaders: $(SHADER_SPVS)
+
+$(SHADER_DIR)/%.spv: %
+	@mkdir -p $(dir $@)
+	$(GLSLC) -V $< -o $@
 
 $(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS)
 	@mkdir -p $(dir $@)
@@ -219,7 +246,7 @@ release:
 
 # ==== Run ====================================================================
 
-run: $(BIN)
+run: $(BIN) shaders
 	./$(BIN) $(ARGS)
 
 # ==== Debug (gdb) ============================================================
@@ -240,7 +267,7 @@ debug:
 		echo "$(DEBUGGER) nicht gefunden"; \
 		exit 1; \
 	}
-	$(MAKE) BUILD_TYPE=debug $(BIN)
+	$(MAKE) BUILD_TYPE=debug $(BIN) shaders
 	@case '$(DEBUGGER)' in \
 		*lldb*) $(DEBUGGER) -- ./$(BIN) $(ARGS) ;; \
 		*)      $(DEBUGGER) --args ./$(BIN) $(ARGS) ;; \
@@ -250,7 +277,7 @@ debug:
 
 # Raeumt beide Build-Typen ab, nicht nur den gerade eingestellten.
 clean:
-	$(RM) -r $(BUILD)/debug* $(BUILD)/release*
+	$(RM) -r $(BUILD)/debug* $(BUILD)/release* $(SHADER_DIR)
 
 distclean: clean
 	$(RM) -r $(BUILD) compile_commands.json compile_flags.txt
@@ -314,6 +341,7 @@ help:
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
 	@echo "make asm                   - nur die Assembler-Objekte bauen"
+	@echo "make shaders               - GLSL-Shader nach build/shader/*.spv uebersetzen"
 	@echo "make lsp                   - compile_flags.txt fuer clangd erzeugen"
 	@echo "make compdb                - compile_commands.json erzeugen"
 	@echo "make test                  - Gast-Unit-Tests bauen und ausfuehren"
