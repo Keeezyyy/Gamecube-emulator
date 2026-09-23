@@ -12,6 +12,7 @@
 #include <_abort.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -26,6 +27,10 @@ static GLFWwindow *window;
 
 static u32 frag_shader;
 static u32 vert_shader;
+static u32 shader_program;
+
+static GLuint VAO;
+static GLuint vertex_buffer;
 
 static u8 _get_vertices_count_for_primitive_type(PrimitiveType t)
 {
@@ -158,6 +163,8 @@ void init_renderer(void)
         abort();
     }
 
+    // Shader
+    //------------------------------------------------------------------------
     vert_shader = glCreateShader(GL_VERTEX_SHADER);
     const char *vert_str = load_shader("./build/shader/vert.glsl");
     glShaderSource(vert_shader, 1, &vert_str, NULL_PTR);
@@ -169,6 +176,38 @@ void init_renderer(void)
     glShaderSource(frag_shader, 1, &frag_str, NULL_PTR);
     glCompileShader(frag_shader);
     free_shader(frag_str);
+
+    shader_program = glCreateProgram();
+    glAttachShader(shader_program, vert_shader);
+    glAttachShader(shader_program, frag_shader);
+    glLinkProgram(shader_program);
+
+    /*
+      glDeleteShader(vert_shader);
+      glDeleteShader(frag_shader);
+    */
+    //------------------------------------------------------------------------
+
+    // Vertex Buffers
+    //------------------------------------------------------------------------
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &vertex_buffer);
+
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, MAX_RENDER_VERTICES * sizeof(GpuVertex), NULL_PTR,
+                 GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GpuVertex),
+                          (void *)offsetof(GpuVertex, pos));
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 1, GL_UNSIGNED_INT, GL_FALSE, sizeof(GpuVertex),
+                          (void *)offsetof(GpuPos, is_3d));
+    glEnableVertexAttribArray(1);
+
+    //------------------------------------------------------------------------
 }
 
 void push_vertex_to_vertex_buffer(Vertex v)

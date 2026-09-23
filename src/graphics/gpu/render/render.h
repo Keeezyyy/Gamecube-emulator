@@ -3,6 +3,7 @@
 #include "graphics/gpu/vertex/vertex_loader.h"
 
 #define INITIAL_VERTEX_BUFFER_CAP 0x1000
+#define MAX_RENDER_VERTICES 10000
 
 typedef union {
     u32 bp_registers[256];
