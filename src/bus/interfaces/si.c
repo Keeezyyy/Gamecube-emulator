@@ -25,7 +25,7 @@ static void start_transfer(CPU *cpu)
     switch (cmd) {
     case SI_CMD_GET_STATUS_ID:
         // si_regs.channel[transfer_target].INBUFH = SI_TYPE_NOT_CONNECTED;
-        si_regs.SIIOBUF[0] = SI_TYPE_NOT_CONNECTED;
+        si_regs.SIIOBUF[0] = SI_TYPE_GC_CONTROLLER;
         break;
     default:
         assert(!"transfer not implemented transfer\n");

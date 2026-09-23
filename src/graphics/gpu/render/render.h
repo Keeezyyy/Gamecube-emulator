@@ -40,6 +40,7 @@ typedef struct {
 typedef struct {
     GpuPos pos;
     GpuColor color;
+    Float4 pos_mat[3];
 
 } PACKED GpuVertex;
 

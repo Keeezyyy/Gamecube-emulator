@@ -1,8 +1,10 @@
 #include "vertex_loader.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gpu/render/matlib.h"
 #include <_abort.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <string.h>
 
 static CPU *static_cpu_ptr;
 static GXFifoRegs *gx_fifo_regs;
@@ -144,6 +146,11 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
     if (VCD_LO & 1) {
         out_v.pm.has_pos_mat_idx = true;
         out_v.pm.pos_mat_idx = (u8)read_stream(static_cpu_ptr, gx_fifo_regs, stream, 1);
+
+        memcpy(out_v.pm.mat, &get_xf_register_pointer()[out_v.pm.pos_mat_idx * 4], sizeof(Float4) * 3);
+    } else {
+        u8 idx = get_cp_register_pointer()[0x30] & 0b111111;
+        memcpy(out_v.pm.mat, &get_xf_register_pointer()[idx * 4], sizeof(Float4) * 3);
     }
     // Parse TexMat
     for (int i = 0; i < 8; i++) {

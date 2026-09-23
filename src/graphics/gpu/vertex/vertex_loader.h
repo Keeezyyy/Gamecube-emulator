@@ -3,12 +3,15 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gpu/render/matlib.h"
 #include <assert.h>
 #include <stdbool.h>
 
 typedef struct {
     bool has_pos_mat_idx;
     u8 pos_mat_idx;
+
+    Float4 mat[3];
 } PosMat;
 
 typedef struct {

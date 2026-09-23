@@ -14,6 +14,19 @@ static u32 bp_regs[256];
 static u32 cp_regs[256]; // ends with 0xBF
 static u32 xf_regs[0x1057];
 
+u32 *get_xf_register_pointer(void)
+{
+    return xf_regs;
+}
+u32 *get_bp_register_pointer(void)
+{
+    return bp_regs;
+}
+u32 *get_cp_register_pointer(void)
+{
+    return cp_regs;
+}
+
 static u32 bp_mask = 0xFFFFFF;
 static void load_bp_reg(CPU *cpu, u32 cmd)
 {
