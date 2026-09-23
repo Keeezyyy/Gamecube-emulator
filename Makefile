@@ -159,20 +159,25 @@ VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Shader =================================================================
-# HLSL-Quellen werden mit glslangValidator (-D = HLSL-Frontend) nach SPIR-V
-# uebersetzt. Die Stage steckt im Dateinamen: <name>.vert.hlsl bzw.
-# <name>.frag.hlsl, Einstiegspunkt ist jeweils "main". Das Ziel ist bewusst
-# unabhaengig vom BUILD_TYPE, weil render.c die Dateien fest unter
-# ./build/shader/<name>.<stage>.spv sucht (relativ zur Projektwurzel).
+# GLSL-Quellen fuer OpenGL. Der Treiber uebersetzt sie erst zur Laufzeit
+# (glShaderSource/glCompileShader), der Build prueft sie aber vorab mit
+# glslangValidator (OpenGL-Semantik, kein SPIR-V), damit Syntaxfehler schon
+# beim "make" auffallen, und kopiert sie danach nach ./build/shader/.
+# Das Ziel ist bewusst unabhaengig vom BUILD_TYPE (Pfad relativ zur
+# Projektwurzel).
+#
+# Die Stage steckt im Dateinamen: vert.glsl / frag.glsl oder
+# <name>.vert.glsl / <name>.frag.glsl.
 #
 #   brew install glslang
-HLSLC      := glslangValidator
+GLSLC      := glslangValidator
 SHADER_DIR := $(BUILD)/shader
 
-SHADER_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.vert.hlsl' -o -name '*.frag.hlsl' \))
-SHADER_SPVS := $(addprefix $(SHADER_DIR)/,$(addsuffix .spv,$(basename $(notdir $(SHADER_SRCS)))))
+SHADER_SRCS := $(shell find $(SRC_DIR) -type f \( -name 'vert.glsl' -o -name '*.vert.glsl' \
+                                                -o -name 'frag.glsl' -o -name '*.frag.glsl' \))
+SHADER_OUTS := $(addprefix $(SHADER_DIR)/,$(notdir $(SHADER_SRCS)))
 
-vpath %.hlsl $(sort $(dir $(SHADER_SRCS)))
+vpath %.glsl $(sort $(dir $(SHADER_SRCS)))
 
 # ==== Regeln =================================================================
 .PHONY: all shaders asm run debug release lsp clean distclean format compdb help test test-build test-vertex
@@ -186,15 +191,16 @@ asm: $(ASM_OBJS)
 
 all: $(BIN) shaders compile_flags.txt
 
-shaders: $(SHADER_SPVS)
+shaders: $(SHADER_OUTS)
 
-$(SHADER_DIR)/%.vert.spv: %.vert.hlsl
-	@mkdir -p $(dir $@)
-	$(HLSLC) -D -V -S vert -e main $< -o $@
+# Stage aus dem Dateinamen ableiten: ".../vert.glsl" und ".../x.vert.glsl"
+# enden beide auf "vert.glsl".
+shader_stage = $(if $(filter %vert.glsl,$(1)),vert,frag)
 
-$(SHADER_DIR)/%.frag.spv: %.frag.hlsl
+$(SHADER_OUTS): $(SHADER_DIR)/%.glsl: %.glsl
 	@mkdir -p $(dir $@)
-	$(HLSLC) -D -V -S frag -e main $< -o $@
+	$(GLSLC) -S $(call shader_stage,$<) $<
+	cp $< $@
 
 $(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS)
 	@mkdir -p $(dir $@)
@@ -346,7 +352,7 @@ help:
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
 	@echo "make asm                   - nur die Assembler-Objekte bauen"
-	@echo "make shaders               - HLSL-Shader nach build/shader/*.spv uebersetzen"
+	@echo "make shaders               - GLSL-Shader pruefen, nach build/shader/ kopieren"
 	@echo "make lsp                   - compile_flags.txt fuer clangd erzeugen"
 	@echo "make compdb                - compile_commands.json erzeugen"
 	@echo "make test                  - Gast-Unit-Tests bauen und ausfuehren"

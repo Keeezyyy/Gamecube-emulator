@@ -1,6 +1,7 @@
 #include "render.h"
 #include "core/config/config.h"
 #include "graphics/gpu/render/matlib.h"
+#include "graphics/gpu/render/shader/shader.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include "utils/vector.h"
 
@@ -22,6 +23,9 @@ static CPRegisters cp;
 static XFRegisters xf;
 
 static GLFWwindow *window;
+
+static u32 frag_shader;
+static u32 vert_shader;
 
 static u8 _get_vertices_count_for_primitive_type(PrimitiveType t)
 {
@@ -153,6 +157,18 @@ void init_renderer(void)
         glfwTerminate();
         abort();
     }
+
+    vert_shader = glCreateShader(GL_VERTEX_SHADER);
+    const char *vert_str = load_shader("./build/shader/vert.glsl");
+    glShaderSource(vert_shader, 1, &vert_str, NULL_PTR);
+    glCompileShader(vert_shader);
+    free_shader(vert_str);
+
+    frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    const char *frag_str = load_shader("./build/shader/frag.glsl");
+    glShaderSource(frag_shader, 1, &frag_str, NULL_PTR);
+    glCompileShader(frag_shader);
+    free_shader(frag_str);
 }
 
 void push_vertex_to_vertex_buffer(Vertex v)
