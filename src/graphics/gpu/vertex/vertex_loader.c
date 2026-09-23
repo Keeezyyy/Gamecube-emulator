@@ -169,7 +169,7 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
             idx = (u16)read_stream(static_cpu_ptr, gx_fifo_regs, stream, pos_type - 1);
 
             u8 *ram_stream =
-                (u8 *)&cpu->bus->ram[(CP_REGS[0xA0] & 0x03FFFFFF) + idx * CP_REGS[0xB0] & 0xFF];
+                (u8 *)&cpu->bus->ram[(CP_REGS[0xA0] & 0x03FFFFFF) + idx * (CP_REGS[0xB0] & 0xFF)];
             _parse_pos(VAT_A, &ram_stream, &out_v.pos);
             break;
         }

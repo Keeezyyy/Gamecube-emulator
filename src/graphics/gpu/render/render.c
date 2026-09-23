@@ -10,6 +10,7 @@
 
 #include <_abort.h>
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -65,25 +66,26 @@ static u8 _get_vertices_count_for_primitive_type(PrimitiveType t)
 static GpuVertex prepare_vertex(Vertex *v)
 {
     GpuVertex out_v = {0};
+
     for (int i = 0; i < (2 + (u8)v->pos.position_elements); i++) {
         switch (v->pos.position_data_type) {
         case DATA_TYPE_U8: {
-            u8 val = ((u8 *)&v->pos.vec)[i];
+            u8 val = (u8)((u32 *)&v->pos.vec)[i];
             ((f32 *)&out_v.pos.pos)[i] = (f32)val;
             break;
         }
         case DATA_TYPE_S8: {
-            s8 val = ((s8 *)&v->pos.vec)[i];
+            s8 val = (s8)((u32 *)&v->pos.vec)[i];
             ((f32 *)&out_v.pos.pos)[i] = (f32)val;
             break;
         }
         case DATA_TYPE_U16: {
-            u16 val = ((u16 *)&v->pos.vec)[i];
+            u16 val = (u16)((u32 *)&v->pos.vec)[i];
             ((f32 *)&out_v.pos.pos)[i] = (f32)val;
             break;
         }
         case DATA_TYPE_S16: {
-            s16 val = ((s16 *)&v->pos.vec)[i];
+            s16 val = (s16)((u32 *)&v->pos.vec)[i];
             ((f32 *)&out_v.pos.pos)[i] = (f32)val;
             break;
         }
@@ -92,6 +94,14 @@ static GpuVertex prepare_vertex(Vertex *v)
             ((f32 *)&out_v.pos.pos)[i] = val;
             break;
         }
+        }
+    }
+
+    if (v->pos.frac != 0 && v->pos.position_data_type != DATA_TYPE_F32) {
+        for (int i = 0; i < (2 + (u8)v->pos.position_elements); i++) {
+            f32 *cord = &out_v.pos.pos.x;
+
+            cord[i] /= powf(2.0f, (f32)v->pos.frac);
         }
     }
 
@@ -246,6 +256,7 @@ static void _set_render_settings(void)
 
 static void swap_buffers(void)
 {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glfwPollEvents();
 
     glClear(GL_COLOR_BUFFER_BIT);
@@ -382,6 +393,8 @@ void push_vertex_to_vertex_buffer(Vertex v)
 
     memcpy(((u8 *)vertex_vector.buffer) + vertex_vector.num_of_bytes, &v, sizeof(Vertex));
     vertex_vector.num_of_bytes += sizeof(Vertex);
+
+    // printf("the vertices are : %s\n", v.pos.position_elements == POS_ELEMNTS_XY ? "2D" : "3D");
 
     GpuVertex g_v = prepare_vertex(&v);
 

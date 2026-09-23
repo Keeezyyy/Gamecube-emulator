@@ -4,6 +4,8 @@ Gamecube emulator with dynamic recompilation(qemu arch)
 
 
 TODO RENDER:
+  - [ ] transformation
+      - [ ] frac in pos
   - [ ] Texture mapping 
   - [ ] color channels 
   - [ ] effects
