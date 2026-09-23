@@ -11,6 +11,10 @@ layout(std140) uniform Matrices
 
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in uint data; 
+layout (location = 2) in vec4 aColor;
+
+out vec4 vColor;
+
 
 void main()
 {
@@ -22,4 +26,5 @@ void main()
                       dot(matrix_lines[row + 2], p));
 
     gl_Position = proj * vec4(world, 1.0);
+    vColor = aColor;
 }

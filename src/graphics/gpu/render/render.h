@@ -25,14 +25,21 @@ typedef struct {
 
 typedef struct {
     Float3 pos;
-
     u8 is_3d;
     u8 has_pos_mat_idx;
     u16 pos_mat_idx;
 } GpuPos;
 
 typedef struct {
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 a;
+} GpuColor;
+
+typedef struct {
     GpuPos pos;
+    GpuColor color;
 
 } PACKED GpuVertex;
 

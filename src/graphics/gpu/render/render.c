@@ -98,6 +98,8 @@ static GpuVertex prepare_vertex(Vertex *v)
     out_v.pos.has_pos_mat_idx = v->pm.has_pos_mat_idx;
     out_v.pos.pos_mat_idx = v->pm.pos_mat_idx;
 
+    memcpy(&out_v.color.r, v->color->rgba, 4 * sizeof(u8));
+
     return out_v;
 }
 
@@ -354,6 +356,10 @@ void init_renderer(void)
     glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GpuVertex),
                            (void *)offsetof(GpuPos, is_3d));
     glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(GpuVertex),
+                          (void *)offsetof(GpuVertex, color));
+    glEnableVertexAttribArray(2);
 
     // matrix buffer
     glGenBuffers(1, &matrixBuffer);
