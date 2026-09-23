@@ -1,7 +1,6 @@
 #pragma once
 #include "core/config/config.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
-#include <SDL3/SDL.h>
 
 #define INITIAL_VERTEX_BUFFER_CAP 0x1000
 
@@ -38,8 +37,5 @@ typedef struct {
 
 void init_renderer(void);
 void push_vertex_to_vertex_buffer(Vertex v);
-void renderer_load_shaders(void);
 
 void cpy_reg_state(u32 *bp_s, u32 *cp_s, u32 *xf_s);
-
-SDL_GPUShader *LoadShader(SDL_GPUDevice *dev, const char *path, SDL_GPUShaderStage stage);

@@ -113,4 +113,6 @@
     } while (0)
 #endif
 
+#define ERROR(s) (printf("[ERRPR] : %s\n", s))
+
 #define UNUSED(x) ((void)(x))

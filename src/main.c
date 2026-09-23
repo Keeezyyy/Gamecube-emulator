@@ -50,15 +50,15 @@ static int _init(void)
     // NOTE: might implement encryption
 
     /*
-    if (b.load_ipl(&b, "./roms/ngc_pal_ipl.dol") != 0) {
+if (b.load_ipl(&b, "./roms/ngc_pal_ipl.dol") != 0) {
         return 1;
     }
-
-
 
     if (b.load_ipl(&b, "./roms/shapes.dol") != 0) {
         return 1;
     }
+
+
 
   */
     if (b.load_ipl(&b, "./roms/triangle.dol") != 0) {
@@ -90,9 +90,12 @@ static void _threads(void)
     pthread_create(&main_thread, NULL, (void *)cpu.main, &cpu);
     pthread_detach(main_thread);
 
-    pthread_t gpu_pipeline_cp_thread;
-    pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
-    pthread_detach(gpu_pipeline_cp_thread);
+    /*
+      pthread_t gpu_pipeline_cp_thread;
+      pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
+      pthread_detach(gpu_pipeline_cp_thread);
+    */
+    cp_thread(&cpu);
 }
 
 int main(int argc, char **argv)

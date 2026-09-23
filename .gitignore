@@ -9,6 +9,8 @@ build/
 *.sh
 /build/gcemu
 /include/GLFW
+/include/glad
+/include/KHR
 
 # Tools / IDE
 compile_commands.json

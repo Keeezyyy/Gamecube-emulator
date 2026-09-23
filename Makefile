@@ -159,19 +159,20 @@ VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
 
 # ==== Shader =================================================================
-# GLSL-Quellen werden mit glslangValidator nach SPIR-V uebersetzt. Das Ziel
-# ist bewusst unabhaengig vom BUILD_TYPE, weil render.c die Dateien fest unter
-# ./build/shader/<name>.spv sucht (relativ zur Projektwurzel).
+# HLSL-Quellen werden mit glslangValidator (-D = HLSL-Frontend) nach SPIR-V
+# uebersetzt. Die Stage steckt im Dateinamen: <name>.vert.hlsl bzw.
+# <name>.frag.hlsl, Einstiegspunkt ist jeweils "main". Das Ziel ist bewusst
+# unabhaengig vom BUILD_TYPE, weil render.c die Dateien fest unter
+# ./build/shader/<name>.<stage>.spv sucht (relativ zur Projektwurzel).
 #
 #   brew install glslang
-GLSLC      := glslangValidator
+HLSLC      := glslangValidator
 SHADER_DIR := $(BUILD)/shader
 
-SHADER_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.vert' -o -name '*.frag' \))
-SHADER_SPVS := $(addprefix $(SHADER_DIR)/,$(addsuffix .spv,$(notdir $(SHADER_SRCS))))
+SHADER_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.vert.hlsl' -o -name '*.frag.hlsl' \))
+SHADER_SPVS := $(addprefix $(SHADER_DIR)/,$(addsuffix .spv,$(basename $(notdir $(SHADER_SRCS)))))
 
-vpath %.vert $(sort $(dir $(SHADER_SRCS)))
-vpath %.frag $(sort $(dir $(SHADER_SRCS)))
+vpath %.hlsl $(sort $(dir $(SHADER_SRCS)))
 
 # ==== Regeln =================================================================
 .PHONY: all shaders asm run debug release lsp clean distclean format compdb help test test-build test-vertex
@@ -187,9 +188,13 @@ all: $(BIN) shaders compile_flags.txt
 
 shaders: $(SHADER_SPVS)
 
-$(SHADER_DIR)/%.spv: %
+$(SHADER_DIR)/%.vert.spv: %.vert.hlsl
 	@mkdir -p $(dir $@)
-	$(GLSLC) -V $< -o $@
+	$(HLSLC) -D -V -S vert -e main $< -o $@
+
+$(SHADER_DIR)/%.frag.spv: %.frag.hlsl
+	@mkdir -p $(dir $@)
+	$(HLSLC) -D -V -S frag -e main $< -o $@
 
 $(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS)
 	@mkdir -p $(dir $@)
@@ -341,7 +346,7 @@ help:
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
 	@echo "make asm                   - nur die Assembler-Objekte bauen"
-	@echo "make shaders               - GLSL-Shader nach build/shader/*.spv uebersetzen"
+	@echo "make shaders               - HLSL-Shader nach build/shader/*.spv uebersetzen"
 	@echo "make lsp                   - compile_flags.txt fuer clangd erzeugen"
 	@echo "make compdb                - compile_commands.json erzeugen"
 	@echo "make test                  - Gast-Unit-Tests bauen und ausfuehren"
