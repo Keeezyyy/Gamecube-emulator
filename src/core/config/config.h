@@ -103,7 +103,9 @@
             printf(__VA_ARGS__);                                                                   \
     } while (0)
 #endif
-#if defined(RENDER_DEBUG)
+
+// #if defined(RENDER_DEBUG)
+#if 0
 #define RENDER_PRINT(...) printf(__VA_ARGS__)
 #else
 #define RENDER_PRINT(...)                                                                          \

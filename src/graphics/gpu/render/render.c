@@ -5,7 +5,6 @@
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include "utils/vector.h"
 
-// glad muss vor GLFW kommen, sonst zieht GLFW die System-gl.h zuerst rein.
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
@@ -183,6 +182,66 @@ static Mat4 build_viewport(void)
     return m;
 }
 
+static void _draw_primitives(void)
+{
+
+    RENDER_PRINT("-----\n");
+    for (int i = 0; i < (vertex_vector.num_of_bytes / sizeof(Vertex));) {
+        Vertex v = ((Vertex *)vertex_vector.buffer)[i];
+
+        RENDER_PRINT("type : %d, first : %d\n", v.type, i);
+
+        switch (v.type) {
+        case GX_QUADS:
+        case GX_QUADS_2:
+            for (u16 q = 0; q < v.count / 4; q++) {
+                glDrawArrays(GL_TRIANGLE_FAN, i + q * 4, 4);
+            }
+            break;
+
+        case GX_TRIANGLES:
+            glDrawArrays(GL_TRIANGLES, i, v.count);
+            break;
+
+        case GX_TRIANGLESTRIP:
+
+            glDrawArrays(GL_TRIANGLE_STRIP, i, v.count);
+            break;
+        case GX_TRIANGLEFAN:
+
+            glDrawArrays(GL_TRIANGLE_FAN, i, v.count);
+            break;
+
+        case GX_LINES:
+            glDrawArrays(GL_LINES, i, v.count);
+            break;
+
+        case GX_LINESTRIP:
+            glDrawArrays(GL_LINE_STRIP, i, v.count);
+            break;
+
+        case GX_POINTS:
+            glDrawArrays(GL_POINTS, i, v.count);
+            break;
+
+        default:
+            assert(!"type unknown \n");
+        }
+        i += v.count;
+    }
+
+    RENDER_PRINT("-----\n");
+}
+
+static void _set_render_settings(void)
+{
+    u8 line_size = ((u32 *)bp.bp_registers)[0x22] & 0xFF;
+    glLineWidth((float)line_size / 6.0f);
+
+    u8 point_size = (((u32 *)bp.bp_registers)[0x22] >> 8) & 0xFF;
+    glPointSize((float)point_size / 6.0f);
+}
+
 static void swap_buffers(void)
 {
     glfwPollEvents();
@@ -190,6 +249,7 @@ static void swap_buffers(void)
     glClear(GL_COLOR_BUFFER_BIT);
 
     _bind_buffers();
+    _set_render_settings();
 
     // load projection
 
@@ -202,12 +262,13 @@ static void swap_buffers(void)
     glViewport(0, 0, 640, 480);
 
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    _draw_primitives();
 
     glfwSwapBuffers(window);
 
     if (glfwWindowShouldClose(window)) {
-        printf("[Render] : window was closed\n");
+        RENDER_PRINT("[Render] : window was closed\n");
         glfwDestroyWindow(window);
         glfwTerminate();
         abort();
@@ -231,10 +292,11 @@ void init_renderer(void)
     init_Vector(&gpu_vertex_vector, INITIAL_VERTEX_BUFFER_CAP);
 
     if (!glfwInit()) {
-        printf("[ERRPR]: glfw init failed\n");
+        RENDER_PRINT("[ERRPR]: glfw init failed\n");
         abort();
     }
 
+    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);

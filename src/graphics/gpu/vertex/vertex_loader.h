@@ -120,10 +120,10 @@ typedef struct {
     VertexTexture texture[8];
 
     PrimitiveType type;
-
+    u16 count;
 } PACKED Vertex;
 
 Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C,
-                                u32 CP_REGS[256], u8 **stream, PrimitiveType type);
+                                u32 CP_REGS[256], u8 **stream, PrimitiveType type, u16 count);
 
 void init_vertex_loader(CPU *cpu, GXFifoRegs *command_processor_registers);

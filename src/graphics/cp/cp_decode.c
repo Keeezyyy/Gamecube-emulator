@@ -165,7 +165,7 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
     for (u16 i = 0; i < vertex_count; i++) {
         v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
                                      cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
-                                     stream, primitive_type);
+                                     stream, primitive_type, vertex_count);
 
         push_vertex_to_vertex_buffer(v);
     }

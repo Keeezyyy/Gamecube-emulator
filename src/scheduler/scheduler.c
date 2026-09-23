@@ -23,7 +23,6 @@ void report_cycle_count(CPU *cpu, u32 cycle_count)
     u64 elapsed_ticks = next / 12 - global_cycle_counter / 12;
     global_cycle_counter = next;
 
-    // weiterzaehlen statt neu setzen, sonst gehen mttbl/mttbu des Gastes verloren
     u64 time_base = ((u64)cpu->special_purpose_registers.buf[269] << 32 |
                      cpu->special_purpose_registers.buf[268]) +
                     elapsed_ticks;
