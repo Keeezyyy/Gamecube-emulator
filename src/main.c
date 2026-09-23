@@ -56,6 +56,7 @@ static int _init(void)
 
 
 
+
     if (b.load_ipl(&b, "./roms/shapes.dol") != 0) {
         return 1;
     }
