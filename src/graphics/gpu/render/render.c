@@ -31,6 +31,9 @@ static u32 shader_program;
 
 static GLuint VAO;
 static GLuint vertex_buffer;
+static GLuint matrixBuffer;
+static GLint projection_loc;
+static GLint viewport_loc;
 
 static u8 _get_vertices_count_for_primitive_type(PrimitiveType t)
 {
@@ -111,13 +114,97 @@ static void prepare_vertex_buffer_for_frame(void)
     }
 }
 
+static void _bind_buffers(void)
+{
+
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, gpu_vertex_vector.num_of_bytes, gpu_vertex_vector.buffer);
+
+    glBindBuffer(GL_UNIFORM_BUFFER, matrixBuffer);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64 * sizeof(Float4), xf.xf_registers);
+}
+
+static Mat4 build_projection(void)
+{
+    Mat4 out = {0};
+
+    float p0 = ((f32 *)xf.xf_registers)[0x1020];
+    float p1 = ((f32 *)xf.xf_registers)[0x1021];
+    float p2 = ((f32 *)xf.xf_registers)[0x1022];
+    float p3 = ((f32 *)xf.xf_registers)[0x1023];
+    float p4 = ((f32 *)xf.xf_registers)[0x1024];
+    float p5 = ((f32 *)xf.xf_registers)[0x1025];
+
+    if (xf.xf_registers[0x1026] == 0) {
+        // perspektivisch
+        out.m[0][0] = p0;
+        out.m[0][2] = p1;
+        out.m[1][1] = p2;
+        out.m[1][2] = p3;
+        out.m[2][2] = p4;
+        out.m[2][3] = p5;
+        out.m[3][2] = -1.0f;
+        out.m[3][3] = 0.0f;
+    } else {
+        // orthografisch
+        out.m[0][0] = p0;
+        out.m[0][3] = p1;
+        out.m[1][1] = p2;
+        out.m[1][3] = p3;
+        out.m[2][2] = p4;
+        out.m[2][3] = p5;
+        out.m[3][3] = 1.0f;
+    }
+    return out;
+}
+static Mat4 build_viewport(void)
+{
+    float sx = ((f32 *)xf.xf_registers)[0x101A];
+    float sy = ((f32 *)xf.xf_registers)[0x101B];
+    float sz = ((f32 *)xf.xf_registers)[0x101C];
+
+    float cx = ((f32 *)xf.xf_registers)[0x101D];
+    float cy = ((f32 *)xf.xf_registers)[0x101E];
+    float farZ = ((f32 *)xf.xf_registers)[0x101F];
+
+    Mat4 m = {0};
+
+    m.m[0][0] = sx;
+    m.m[0][3] = cx;
+
+    m.m[1][1] = sy;
+    m.m[1][3] = cy;
+
+    m.m[2][2] = sz;
+    m.m[2][3] = farZ;
+
+    m.m[3][3] = 1.0f;
+
+    return m;
+}
+
 static void swap_buffers(void)
 {
-    glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+    glfwPollEvents();
+
     glClear(GL_COLOR_BUFFER_BIT);
 
+    _bind_buffers();
+
+    // load projection
+
+    glUseProgram(shader_program);
+
+    Mat4 proj = build_projection();
+    Mat4 view = build_viewport();
+
+    glUniformMatrix4fv(projection_loc, 1, GL_TRUE, &proj.m[0][0]);
+    glViewport(0, 0, 640, 480);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
     glfwSwapBuffers(window);
-    glfwPollEvents();
 
     if (glfwWindowShouldClose(window)) {
         printf("[Render] : window was closed\n");
@@ -192,7 +279,6 @@ void init_renderer(void)
     //------------------------------------------------------------------------
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &vertex_buffer);
-
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -203,11 +289,21 @@ void init_renderer(void)
                           (void *)offsetof(GpuVertex, pos));
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 1, GL_UNSIGNED_INT, GL_FALSE, sizeof(GpuVertex),
-                          (void *)offsetof(GpuPos, is_3d));
+    glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GpuVertex),
+                           (void *)offsetof(GpuPos, is_3d));
     glEnableVertexAttribArray(1);
 
+    // matrix buffer
+    glGenBuffers(1, &matrixBuffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, matrixBuffer);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(Float4) * 64, NULL_PTR, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, matrixBuffer);
+    glUniformBlockBinding(shader_program, glGetUniformBlockIndex(shader_program, "Matrices"), 0);
+
     //------------------------------------------------------------------------
+    //
+    projection_loc = glGetUniformLocation(shader_program, "proj");
+    viewport_loc = glGetUniformLocation(shader_program, "view");
 }
 
 void push_vertex_to_vertex_buffer(Vertex v)
