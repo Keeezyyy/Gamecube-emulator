@@ -1,6 +1,6 @@
 Gamecube emulator with dynamic recompilation(qemu arch)
 
-![MIT License](media/progress-screenshot-02.png)
+![MIT License](media/progress-screenshot-03.gif)
 
 
 TODO RENDER:
