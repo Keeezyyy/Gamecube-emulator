@@ -1,7 +1,9 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "cp.h"
-#include "graphics/gpu/render/opengl/render.h"
+#include "graphics/gpu/render/backend/opengl/render.h"
+#include "graphics/gpu/render/backend/software/transform/transform.h"
+#include "graphics/gpu/render/pipeline.h"
 #include "graphics/gpu/render/texture/texture.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
@@ -59,7 +61,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
                       "-----\n");
             // trigger for render
 
-            cpy_reg_state(bp_regs, cp_regs, xf_regs);
+            // cpy_reg_state(bp_regs, cp_regs, xf_regs);
             break;
         }
         case BP_SET_PE_TOKEN: {
@@ -182,8 +184,10 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
                                      cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
                                      stream, primitive_type, vertex_count);
 
-        load_texture_for_primitive(cpu, &v);
-        push_vertex_to_vertex_buffer(v);
+        // load_texture_for_primitive(cpu, &v);
+        // push_vertex_to_vertex_buffer(v);
+
+        load_vertex_into_pipeline(cpu, v);
     }
 }
 
@@ -196,7 +200,10 @@ static void load_xf_reg(u16 adr, u16 n, const u32 *values)
     assert(n <= 16);
 
     for (int i = 0; i < n; i++) {
-        xf_regs[adr + i] = values[i];
+        // xf_regs[adr + i] = values[i];
+#ifdef SOFTWARE_TRANSFORM
+        software_backend_write_to_xf_reg(adr + 1, values[i]);
+#endif
     }
 }
 

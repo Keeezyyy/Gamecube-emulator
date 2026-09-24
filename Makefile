@@ -44,6 +44,15 @@ ifeq ($(UNAME_S),Darwin)
     CPPFLAGS += -I$(SDL3_PREFIX)/include
     LDFLAGS  += -L$(SDL3_PREFIX)/lib -Wl,-rpath,$(SDL3_PREFIX)/lib
     LDLIBS   += -lSDL3
+
+    # OpenBLAS aus Homebrew (brew install openblas) fuer <cblas.h>. Die
+    # Formel ist keg-only, Header und Lib liegen also nicht im Standardpfad.
+    OPENBLAS_PREFIX := $(shell brew --prefix openblas)
+    CPPFLAGS += -I$(OPENBLAS_PREFIX)/include
+    LDFLAGS  += -L$(OPENBLAS_PREFIX)/lib -Wl,-rpath,$(OPENBLAS_PREFIX)/lib
+    LDLIBS   += -lopenblas
+else
+    LDLIBS   += -lopenblas
 endif
 
 # Debugger fuer "make debug". Standard ist gdb; per Kommandozeile
