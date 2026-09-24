@@ -1,26 +1,20 @@
-
+#include <unistd.h>
 #include <_abort.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "texture.h"
+
+#define OUTPUT_TEXTURE
+
+#ifdef OUTPUT_TEXTURE
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb/stb_image_write.h>
 
-static u8 *p_buffer[1000];
-static u32 g_counter = 0;
+#endif
 
-void i8_decode(const u8 *src, u32 width, u32 height)
+Texture i8_decode(const u8 *src, u32 width, u32 height)
 {
-    for (int i = 0; i < g_counter; i++) {
-        if (p_buffer[i] == src) {
-            return;
-        }
-    }
-
-    p_buffer[g_counter++] = src;
-    if (g_counter == 1000)
-        assert(!"limit reached\n");
 
     const int channels = 4;
 
@@ -43,23 +37,22 @@ void i8_decode(const u8 *src, u32 width, u32 height)
         }
     }
 
+#ifdef OUTPUT_TEXTURE
     char buffer[128];
     sprintf(buffer, "texture-output/i8-output-%p.png", src);
-    stbi_write_png(buffer, width, height, 4, pixels, width * 4);
 
-    free(pixels);
+    if (!access(buffer, F_OK) == 0)
+        stbi_write_png(buffer, width, height, 4, pixels, width * 4);
+#endif
+
+    Texture out = {0};
+    out.buffer = pixels;
+    out.height = height;
+    out.width = width;
+    return out;
 }
-void i4_decode(const u8 *src, u32 width, u32 height)
+Texture i4_decode(const u8 *src, u32 width, u32 height)
 {
-    for (int i = 0; i < g_counter; i++) {
-        if (p_buffer[i] == src) {
-            return;
-        }
-    }
-
-    p_buffer[g_counter++] = src;
-    if (g_counter == 1000)
-        assert(!"limit reached\n");
 
     const int channels = 4;
 
@@ -79,23 +72,24 @@ void i4_decode(const u8 *src, u32 width, u32 height)
             pixels[i + 3] = I; // A
         }
     }
+
+#ifdef OUTPUT_TEXTURE
     char buffer[1024];
     sprintf(buffer, "texture-output/i4-output-%p.png", src);
-    stbi_write_png(buffer, width, height, 4, pixels, width * 4);
 
-    free(pixels);
+    if (!access(buffer, F_OK) == 0)
+        stbi_write_png(buffer, width, height, 4, pixels, width * 4);
+
+#endif
+
+    Texture out = {0};
+    out.buffer = pixels;
+    out.height = height;
+    out.width = width;
+    return out;
 }
-void rgba8_decode(const u8 *src, u32 width, u32 height)
+Texture rgba8_decode(const u8 *src, u32 width, u32 height)
 {
-    for (int i = 0; i < g_counter; i++) {
-        if (p_buffer[i] == src) {
-            return;
-        }
-    }
-
-    p_buffer[g_counter++] = src;
-    if (g_counter == 1000)
-        assert(!"limit reached\n");
 
     const int channels = 4;
 
@@ -114,9 +108,18 @@ void rgba8_decode(const u8 *src, u32 width, u32 height)
             pixels[i + 3] = src[base + off];
         }
     }
+
+#ifdef OUTPUT_TEXTURE
     char buffer[1024];
     sprintf(buffer, "texture-output/rgba8-output-%p.png", src);
-    stbi_write_png(buffer, width, height, 4, pixels, width * 4);
 
-    free(pixels);
+    if (!access(buffer, F_OK) == 0)
+        stbi_write_png(buffer, width, height, 4, pixels, width * 4);
+#endif
+
+    Texture out = {0};
+    out.buffer = pixels;
+    out.height = height;
+    out.width = width;
+    return out;
 }
