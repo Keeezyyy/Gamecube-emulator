@@ -25,6 +25,12 @@ typedef struct {
     u32 mode0, mode1, img0, img1, img2, img3, lut;
 } TextureUnit;
 
+typedef struct {
+    u32 width;
+    u32 height;
+    u8 *buffer;
+} Texture;
+
 void decode_texture(CPU *cpu, void *dest, const void *src, const u32 *bp, u8 tex_num);
 
 void get_hash_from_bp_stat(const u32 *bp, char *dest);
@@ -34,3 +40,5 @@ void load_texture(const u8 tex_usage_bitmap, const char *hash);
 void load_texture_for_primitive(CPU *cpu, Vertex *v);
 
 void i8_decode(const u8 *src, u32 width, u32 height);
+void i4_decode(const u8 *src, u32 width, u32 height);
+void rgba8_decode(const u8 *src, u32 width, u32 height);
