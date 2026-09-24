@@ -135,6 +135,35 @@ static Float4 read_position(const Vertex *v)
     return pos;
 }
 
+static Float3 read_normal(const Vertex *v, const u32 j)
+{
+    Float3 norm = {0.0f, 0.0f, 0.0f};
+
+    const u32 *raw = &(&v->norm.N)[j].X;
+
+    for (int i = 0; i < 3; i++) {
+        switch (v->norm.normal_data_type) {
+        case DATA_TYPE_S8:
+            norm.m[i] = (f32)(s8)raw[i] / 64.0f;
+            break;
+        case DATA_TYPE_S16:
+            norm.m[i] = (f32)(s16)raw[i] / 16384.0f;
+            break;
+        case DATA_TYPE_F32: {
+            f32 f;
+            memcpy(&f, &raw[i], sizeof f);
+            norm.m[i] = f;
+            break;
+        }
+        default:
+            assert(!"unbekannter Positions-Datentyp");
+            break;
+        }
+    }
+
+    return norm;
+}
+
 static void calc_pos(Float4 *out, const Vertex *v)
 {
 
@@ -177,13 +206,15 @@ static void calc_nomral(const Vertex *v, Float3 *NBT)
 
     for (u32 j = 0; j < ((v->norm.normal_elements * 2) + 1); j++) {
 
-        Float3 val = {0.0, 0.0, 0.0};
-
-        memcpy(val.m, &(((Float3 *)&v->norm.N)[j]), sizeof(Float3));
+        Float3 val = read_normal(v, j);
 
         cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0f, (u32 *)v->norm.normal_matrix.m, 3,
                     val.m, 1, 0.0f, &NBT[j].m, 1);
     }
+
+    const f32 len = cblas_snrm2(3, NBT[0].m, 1);
+    if (len > 0.0f)
+        cblas_sscal(3, 1.0f / len, NBT[0].m, 1);
 }
 
 bool transform_vertex(const Vertex *v)

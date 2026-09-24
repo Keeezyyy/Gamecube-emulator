@@ -8,6 +8,7 @@
 
 typedef struct {
     Float4 mat[3];
+    u8 posMatId;
 
 } PosMat;
 

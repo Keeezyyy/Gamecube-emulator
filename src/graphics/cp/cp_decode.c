@@ -186,6 +186,9 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
                                      cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
                                      stream, primitive_type, vertex_count);
 
+        if (v.pm.posMatId == 0xFF) {
+            continue;
+        }
         // load_texture_for_primitive(cpu, &v);
         // push_vertex_to_vertex_buffer(v);
 
@@ -204,7 +207,7 @@ static void load_xf_reg(u16 adr, u16 n, const u32 *values)
     for (int i = 0; i < n; i++) {
         // xf_regs[adr + i] = values[i];
 #ifdef SOFTWARE_TRANSFORM
-        software_backend_write_to_xf_reg(adr + 1, values[i]);
+        software_backend_write_to_xf_reg(adr + i, values[i]);
 #endif
     }
 }
