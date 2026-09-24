@@ -105,9 +105,6 @@ static GpuVertex prepare_vertex(Vertex *v)
         }
     }
 
-    out_v.pos.has_pos_mat_idx = v->pm.has_pos_mat_idx;
-    out_v.pos.pos_mat_idx = v->pm.pos_mat_idx;
-
     memcpy(&out_v.color.r, v->color->rgba, 4 * sizeof(u8));
     memcpy(out_v.pos_mat, v->pm.mat, sizeof(Float4) * 3);
 

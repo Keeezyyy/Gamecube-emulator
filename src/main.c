@@ -58,6 +58,7 @@ static int _init(void)
         return 1;
     }
 
+
     if (b.load_ipl(&b, "./roms/primitives.dol") != 0) {
         return 1;
     }

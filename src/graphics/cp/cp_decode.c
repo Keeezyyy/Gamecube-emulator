@@ -1,6 +1,8 @@
 #include "bus/bus.h"
+#include "core/config/config.h"
 #include "cp.h"
 #include "graphics/gpu/render/render.h"
+#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <_abort.h>
@@ -180,6 +182,7 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
                                      cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
                                      stream, primitive_type, vertex_count);
 
+        load_texture_for_primitive(cpu, &v);
         push_vertex_to_vertex_buffer(v);
     }
 }

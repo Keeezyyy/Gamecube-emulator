@@ -11,6 +11,7 @@ build/
 /include/GLFW
 /include/glad
 /include/KHR
+/include/stb
 
 # Tools / IDE
 compile_commands.json

@@ -8,9 +8,6 @@
 #include <stdbool.h>
 
 typedef struct {
-    bool has_pos_mat_idx;
-    u8 pos_mat_idx;
-
     Float4 mat[3];
 } PosMat;
 
