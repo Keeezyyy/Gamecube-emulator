@@ -18,12 +18,6 @@ typedef union {
 } PACKED XFRegisters;
 
 typedef struct {
-    f32 x;
-    f32 y;
-    f32 z;
-} Float3;
-
-typedef struct {
     Float3 pos;
     u8 is_3d;
     u8 has_pos_mat_idx;

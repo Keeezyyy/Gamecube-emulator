@@ -22,10 +22,18 @@
 typedef struct {
     f32 m[4];
 } Float4;
+typedef struct {
+    f32 m[3];
+} Float3;
 
 typedef struct {
     f32 m[4][4];
 } Mat4;
+typedef struct {
+    f32 m[3][3];
+} Mat3;
+
+_Static_assert(sizeof(Float3) == 3 * sizeof(float), "Float3 hat Padding");
 
 #define U8_MAX UINT8_MAX
 #define U16_MAX UINT16_MAX

@@ -63,11 +63,17 @@ typedef struct {
     bool has_normal;
     FormatDataType normal_data_type;
     NormalFormatElements normal_elements;
+    Mat3 normal_matrix;
 
     Vec3 N;
     Vec3 B;
     Vec3 T;
 } PACKED VertexNormal;
+
+_Static_assert(offsetof(VertexNormal, B) == offsetof(VertexNormal, N) + sizeof(Float3),
+               "B folgt nicht auf N");
+_Static_assert(offsetof(VertexNormal, T) == offsetof(VertexNormal, B) + sizeof(Float3),
+               "T folgt nicht auf B");
 
 typedef enum {
     RGB565 = 0,

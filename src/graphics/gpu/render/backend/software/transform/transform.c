@@ -9,6 +9,15 @@
 static XF_Memory xf_mem;
 static XF_Registers xf_reg;
 
+static u32 buffer[0x1058];
+const u32 *software_backend_get_xf_buffer(void)
+{
+    memcpy(buffer, xf_mem.matrices, sizeof(XF_Memory));
+    memcpy(&buffer[0x1000], &xf_reg, sizeof(XF_Registers));
+
+    return buffer;
+}
+
 void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val)
 {
     if (reg_num <= 0x1000) {
@@ -126,9 +135,8 @@ static Float4 read_position(const Vertex *v)
     return pos;
 }
 
-bool transform_vertex(const Vertex *v)
+static void calc_pos(Float4 *out, const Vertex *v)
 {
-    Float4 *out;
 
     Float4 pos = read_position(v);
 
@@ -145,8 +153,10 @@ bool transform_vertex(const Vertex *v)
     cblas_sgemv(CblasRowMajor, CblasNoTrans, 4, 4, 1.0f, &mvp[0][0], 4, pos.m, 1, 0.0f, clip.m, 1);
 
     const f32 w = clip.m[3];
-    if (w <= 0.0f)
-        return false;
+
+    if (w <= 0.0f) {
+        assert(!"implement clipping or ");
+    }
 
     const f32 inv_w = 1.0f / w;
     Float4 ndc = {
@@ -161,5 +171,28 @@ bool transform_vertex(const Vertex *v)
                 1);
 
     out->m[3] = inv_w;
+}
+static void calc_nomral(const Vertex *v, Float3 *NBT)
+{
+
+    for (u32 j = 0; j < ((v->norm.normal_elements * 2) + 1); j++) {
+
+        Float3 val = {0.0, 0.0, 0.0};
+
+        memcpy(val.m, &(((Float3 *)&v->norm.N)[j]), sizeof(Float3));
+
+        cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0f, (u32 *)v->norm.normal_matrix.m, 3,
+                    val.m, 1, 0.0f, &NBT[j].m, 1);
+    }
+}
+
+bool transform_vertex(const Vertex *v)
+{
+    Float4 out;
+    calc_pos(&out, v);
+
+    Float3 NBT[3];
+    calc_nomral(v, NBT);
+
     return true;
 }

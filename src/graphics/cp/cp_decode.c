@@ -1,7 +1,6 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "cp.h"
-#include "graphics/gpu/render/backend/opengl/render.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/pipeline.h"
 #include "graphics/gpu/render/texture/texture.h"
@@ -20,7 +19,10 @@ static u32 xf_regs[0x1057];
 
 u32 *get_xf_register_pointer(void)
 {
-    return xf_regs;
+
+#ifdef SOFTWARE_TRANSFORM
+    return software_backend_get_xf_buffer();
+#endif
 }
 u32 *get_bp_register_pointer(void)
 {

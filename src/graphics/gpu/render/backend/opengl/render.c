@@ -98,7 +98,7 @@ static GpuVertex prepare_vertex(Vertex *v)
 
     if (v->pos.frac != 0 && v->pos.position_data_type != DATA_TYPE_F32) {
         for (int i = 0; i < (2 + (u8)v->pos.position_elements); i++) {
-            f32 *cord = &out_v.pos.pos.x;
+            f32 *cord = &out_v.pos.pos.m;
 
             cord[i] /= powf(2.0f, (f32)v->pos.frac);
         }
