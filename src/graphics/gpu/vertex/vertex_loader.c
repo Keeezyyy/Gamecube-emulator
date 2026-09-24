@@ -1,6 +1,5 @@
 #include "vertex_loader.h"
 #include "graphics/cp/cp.h"
-#include "graphics/gpu/render/matlib.h"
 #include <_abort.h>
 #include <assert.h>
 #include <stdbool.h>

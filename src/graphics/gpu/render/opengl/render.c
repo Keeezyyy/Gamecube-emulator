@@ -1,9 +1,8 @@
 #include "render.h"
 #include "core/config/config.h"
-#include "graphics/gpu/render/matlib.h"
-#include "graphics/gpu/render/shader/shader.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include "utils/vector.h"
+#include "./shader/shader.h"
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>

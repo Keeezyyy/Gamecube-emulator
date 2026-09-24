@@ -1,7 +1,7 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "cp.h"
-#include "graphics/gpu/render/render.h"
+#include "graphics/gpu/render/opengl/render.h"
 #include "graphics/gpu/render/texture/texture.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"

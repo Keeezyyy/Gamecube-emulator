@@ -59,7 +59,6 @@ void decode_texture(CPU *cpu, void *dest, const void *src, const u32 *bp, u8 tex
         i8_decode(&cpu->bus->ram[ram_adr << 5], width, height);
     } else if (tex_format == TEXTURE_FORMAT_I4) {
         i4_decode(&cpu->bus->ram[ram_adr << 5], width, height);
-
     } else if (tex_format == TEXTURE_FORMAT_RGBA8) {
         rgba8_decode(&cpu->bus->ram[ram_adr << 5], width, height);
 

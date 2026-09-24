@@ -2,7 +2,7 @@
 #include "bus/bus.h"
 #include "bus/interfaces/pi.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
-#include "graphics/gpu/render/render.h"
+#include "graphics/gpu/render/opengl/render.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stdatomic.h>

@@ -3,7 +3,6 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
-#include "graphics/gpu/render/matlib.h"
 #include <assert.h>
 #include <stdbool.h>
 

@@ -19,6 +19,13 @@
 #define s64 int64_t
 
 #define f32 float
+typedef struct {
+    f32 m[4];
+} Float4;
+
+typedef struct {
+    f32 m[4][4];
+} Mat4;
 
 #define U8_MAX UINT8_MAX
 #define U16_MAX UINT16_MAX
