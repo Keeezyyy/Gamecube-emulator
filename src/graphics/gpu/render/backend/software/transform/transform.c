@@ -24,7 +24,6 @@ void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val)
         u32 *p = &xf_mem.matrices;
         p[reg_num] = val;
 
-        assert(reg_num <= 0x067F);
     } else {
 
         u32 *p = &xf_reg.error;
@@ -217,6 +216,145 @@ static void calc_nomral(const Vertex *v, Float3 *NBT)
         cblas_sscal(3, 1.0f / len, NBT[0].m, 1);
 }
 
+static Float3 calc_eye_pos(const Vertex *v)
+{
+    Float4 pos = read_position(v);
+    Float3 eye;
+
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 4, 1.0f, v->pm.mat[0].m, 4, pos.m, 1, 0.0f, eye.m,
+                1);
+
+    return eye;
+}
+
+static RGBA reg_to_rgba(const u32 reg)
+{
+    RGBA c;
+    const u32 be = __builtin_bswap32(reg);
+    memcpy(c.rgba, &be, sizeof(RGBA));
+
+    return c;
+}
+
+static void normalize3(f32 *vec)
+{
+    const f32 len = cblas_snrm2(3, vec, 1);
+    if (len > 0.0f)
+        cblas_sscal(3, 1.0f / len, vec, 1);
+}
+
+static void add_lights(const u32 ctrl, const Float3 *eye, const Float3 *N, f32 lit[4])
+{
+    const u32 mask = ((ctrl >> 2) & 0xF) | (((ctrl >> 11) & 0xF) << 4);
+    const u32 diff_fn = (ctrl >> 7) & 3;
+    const u32 attn_fn = (ctrl >> 9) & 3;
+
+    for (int l = 0; l < 8; l++) {
+        if (!((mask >> l) & 1))
+            continue;
+
+        const XF_Light *light = &xf_mem.lights[l];
+
+        Float3 ldir = {{
+            light->pos[0] - eye->m[0],
+            light->pos[1] - eye->m[1],
+            light->pos[2] - eye->m[2],
+        }};
+        f32 attn;
+
+        switch (attn_fn) {
+        case 1: {
+            normalize3(ldir.m);
+
+            attn = cblas_sdot(3, ldir.m, 1, N->m, 1) >= 0.0f
+                       ? fmaxf(0.0f, cblas_sdot(3, light->dir, 1, N->m, 1))
+                       : 0.0f;
+
+            const f32 A[3] = {1.0f, attn, attn * attn};
+            f32 k[3];
+            memcpy(k, light->distatt, sizeof k);
+            if (diff_fn != 0)
+                normalize3(k);
+
+            const f32 dist = cblas_sdot(3, A, 1, k, 1);
+            attn = dist != 0.0f ? fmaxf(0.0f, cblas_sdot(3, A, 1, light->cosatt, 1)) / dist : 0.0f;
+            break;
+        }
+        case 3: {
+            const f32 d = cblas_snrm2(3, ldir.m, 1);
+            if (d > 0.0f)
+                cblas_sscal(3, 1.0f / d, ldir.m, 1);
+
+            const f32 c = fmaxf(0.0f, cblas_sdot(3, ldir.m, 1, light->dir, 1));
+            const f32 cos_attn = light->cosatt[0] + light->cosatt[1] * c + light->cosatt[2] * c * c;
+            const f32 dist = light->distatt[0] + light->distatt[1] * d + light->distatt[2] * d * d;
+
+            attn = dist != 0.0f ? fmaxf(0.0f, cos_attn) / dist : 0.0f;
+            break;
+        }
+        default:
+            if (cblas_snrm2(3, ldir.m, 1) > 0.0f)
+                normalize3(ldir.m);
+            else
+                ldir = *N;
+
+            attn = 1.0f;
+            break;
+        }
+
+        f32 diff = 1.0f;
+        if (diff_fn != 0) {
+            diff = cblas_sdot(3, ldir.m, 1, N->m, 1);
+            if (diff_fn != 1)
+                diff = fmaxf(0.0f, diff);
+        }
+
+        const RGBA col = reg_to_rgba(light->color);
+        for (int c = 0; c < 4; c++)
+            lit[c] += (f32)col.rgba[c] * attn * diff;
+    }
+}
+
+static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA out[2])
+{
+    const u32 num_chans = xf_reg.num_channels & 3;
+
+    for (u32 i = 0; i < 2 && i < num_chans; i++) {
+        const RGBA mat_reg = reg_to_rgba(xf_reg.material_color[i]);
+        const RGBA amb_reg = reg_to_rgba(xf_reg.ambient_color[i]);
+        const u8 *vtx = v->color[i].rgba;
+
+        const u32 ctrls[2] = {xf_reg.channel_color[i], xf_reg.channel_alpha[i]};
+
+        for (int k = 0; k < 2; k++) {
+            const u32 ctrl = ctrls[k];
+            const int first = k == 0 ? 0 : 3;
+            const int last = k == 0 ? 3 : 4;
+
+            const u8 *mat = (ctrl & 1) ? vtx : mat_reg.rgba;
+
+            if (!((ctrl >> 1) & 1)) {
+                for (int c = first; c < last; c++)
+                    out[i].rgba[c] = mat[c];
+                continue;
+            }
+
+            const u8 *amb = ((ctrl >> 6) & 1) ? vtx : amb_reg.rgba;
+
+            f32 lit[4];
+            for (int c = 0; c < 4; c++)
+                lit[c] = (f32)amb[c];
+
+            add_lights(ctrl, eye, N, lit);
+
+            for (int c = first; c < last; c++) {
+                const u32 l = (u32)fminf(fmaxf(lit[c], 0.0f), 255.0f);
+                out[i].rgba[c] = (u8)((mat[c] * (l + (l >> 7))) >> 8);
+            }
+        }
+    }
+}
+
 bool transform_vertex(const Vertex *v)
 {
     Float4 out;
@@ -224,6 +362,11 @@ bool transform_vertex(const Vertex *v)
 
     Float3 NBT[3];
     calc_nomral(v, NBT);
+
+    const Float3 eye = calc_eye_pos(v);
+
+    RGBA colors[2] = {0};
+    calc_light(v, &eye, &NBT[0], colors);
 
     return true;
 }

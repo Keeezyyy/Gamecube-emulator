@@ -2,14 +2,32 @@
 
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <assert.h>
+
+typedef struct {
+    u32 unused[3];
+    u32 color;
+    f32 cosatt[3];
+    f32 distatt[3];
+    f32 pos[3];
+    f32 dir[3];
+} XF_Light;
+
+static_assert(sizeof(XF_Light) == 16 * 4, "XF_Light size");
+
 typedef struct {
     f32 matrices[64][4];
     u32 unused_0100[0x300];
     f32 normal_matrices[32][3];
     u32 unused_0460[0xA0];
     f32 post_matrices[64][4];
-    u32 lights[8][16];
+    XF_Light lights[8];
 } XF_Memory;
+
+typedef struct {
+    u8 rgba[4];
+} RGBA;
+
+static_assert(sizeof(RGBA) == sizeof(u32), "RGBA BUFFER SIZE");
 
 static_assert(sizeof(XF_Memory) == 0x680 * 4, "XF_Memory size");
 
