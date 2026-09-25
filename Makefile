@@ -189,7 +189,7 @@ SHADER_OUTS := $(addprefix $(SHADER_DIR)/,$(notdir $(SHADER_SRCS)))
 vpath %.glsl $(sort $(dir $(SHADER_SRCS)))
 
 # ==== Regeln =================================================================
-.PHONY: all shaders asm run debug release lsp clean distclean format compdb help test test-build test-vertex
+.PHONY: all shaders asm run debug release lsp clean distclean format compdb help test test-build test-vertex test-software
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -343,6 +343,9 @@ test-build:
 test-vertex:
 	$(MAKE) -C test run-vertex
 
+test-software:
+	$(MAKE) -C test run-software ARGS="$(ARGS)"
+
 # ==== Hilfe ==================================================================
 
 help:
@@ -367,6 +370,7 @@ help:
 	@echo "make test                  - Gast-Unit-Tests bauen und ausfuehren"
 	@echo "make test ARGS=stw         - nur passende Testfaelle ausfuehren"
 	@echo "make test-vertex           - Vertex-Loader-Tests (ohne Gast-Toolchain)"
+	@echo "make test-software         - Transform-/Clipper-Tests des Software-Renderers"
 
 # ==== Dependency Files =======================================================
 

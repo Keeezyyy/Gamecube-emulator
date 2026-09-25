@@ -74,4 +74,5 @@ static_assert(sizeof(XF_Registers) == (0x1057 - 0x1000 + 1) * 4, "XF_Registers s
 void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val);
 XFOutput transform_vertex(CPU *cpu, const Vertex *v);
 
+const XF_Registers *get_xf_regs(void);
 const u32 *software_backend_get_xf_buffer(void);

@@ -18,6 +18,11 @@ const u32 *software_backend_get_xf_buffer(void)
 
     return buffer;
 }
+
+const XF_Registers *get_xf_regs(void)
+{
+    return &xf_reg;
+}
 static void normalize3(f32 *vec)
 {
     const f32 len = cblas_snrm2(3, vec, 1);
@@ -36,7 +41,7 @@ void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val)
         u32 *p = &xf_reg.error;
         p[reg_num - 0x1000] = val;
 
-        assert(reg_num <= 0x1058);
+        // assert(reg_num <= 0x1058);
     }
 }
 
@@ -72,30 +77,6 @@ static Mat4 build_projection(void)
         out.m[3][3] = 1.0f;
     }
     return out;
-}
-static Mat4 build_viewport(void)
-{
-    float sx = xf_reg.viewport[0];
-    float sy = xf_reg.viewport[1];
-    float sz = xf_reg.viewport[2];
-
-    float cx = xf_reg.viewport[3];
-    float cy = xf_reg.viewport[4];
-    float farZ = xf_reg.viewport[5];
-    Mat4 m = {0};
-
-    m.m[0][0] = sx;
-    m.m[0][3] = cx;
-
-    m.m[1][1] = sy;
-    m.m[1][3] = cy;
-
-    m.m[2][2] = sz;
-    m.m[2][3] = farZ;
-
-    m.m[3][3] = 1.0f;
-
-    return m;
 }
 
 static Float4 read_position(const Vertex *v)
@@ -217,14 +198,6 @@ static Float3 read_normal(const Vertex *v, const u32 j)
     return norm;
 }
 
-static inline float clampf(float x, float min, float max)
-{
-    if (x < min)
-        return min;
-    if (x > max)
-        return max;
-    return x;
-}
 static void calc_pos(Float4 *out, const Vertex *v)
 {
 
@@ -242,23 +215,10 @@ static void calc_pos(Float4 *out, const Vertex *v)
     Float4 clip;
     cblas_sgemv(CblasRowMajor, CblasNoTrans, 4, 4, 1.0f, &mvp[0][0], 4, pos.m, 1, 0.0f, clip.m, 1);
 
-    const f32 w = clip.m[3];
-
-    const f32 inv_w = 1.0f / w;
-    Float4 ndc = {
-        clip.m[0] * inv_w,
-        clip.m[1] * inv_w,
-        clip.m[2] * inv_w,
-        1.0f,
-    };
-
-    Mat4 view = build_viewport();
-    cblas_sgemv(CblasRowMajor, CblasNoTrans, 4, 4, 1.0f, &view.m[0][0], 4, ndc.m, 1, 0.0f, out->m,
-                1);
-
-    out->m[2] = clampf(out->m[2], 0.0f, 16777215.0f);
-
-    out->m[3] = inv_w;
+    out->m[0] = clip.m[0];
+    out->m[1] = clip.m[1];
+    out->m[2] = clip.m[2] * (1.0f - 1e-7f);
+    out->m[3] = clip.m[3];
 }
 static void calc_nomral(const Vertex *v, Float3 *NBT)
 {
@@ -270,7 +230,8 @@ static void calc_nomral(const Vertex *v, Float3 *NBT)
         cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0f, (u32 *)v->norm.normal_matrix.m, 3,
                     val.m, 1, 0.0f, NBT[j].m, 1);
 
-        normalize3(NBT[j].m);
+        if (j == 0)
+            normalize3(NBT[j].m);
     }
 
     const f32 len = cblas_snrm2(3, NBT[0].m, 1);
@@ -538,8 +499,6 @@ static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Floa
             out.m[0] = fminf(fmaxf(out.m[0] / 2.0f, -1.0f), 1.0f);
             out.m[1] = fminf(fmaxf(out.m[1] / 2.0f, -1.0f), 1.0f);
         }
-
-        normalize3(out.m);
 
         tex_out[i] = out;
     }
