@@ -32,11 +32,11 @@ static void normalize3(f32 *vec)
 
 void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val)
 {
-    if (reg_num <= 0x1000) {
+    if (reg_num < 0x680) {
         u32 *p = &xf_mem.matrices;
         p[reg_num] = val;
 
-    } else {
+    } else if (reg_num >= 0x1000 && reg_num <= 0x1057) {
 
         u32 *p = &xf_reg.error;
         p[reg_num - 0x1000] = val;
@@ -229,9 +229,6 @@ static void calc_nomral(const Vertex *v, Float3 *NBT)
 
         cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0f, (u32 *)v->norm.normal_matrix.m, 3,
                     val.m, 1, 0.0f, NBT[j].m, 1);
-
-        if (j == 0)
-            normalize3(NBT[j].m);
     }
 
     const f32 len = cblas_snrm2(3, NBT[0].m, 1);
@@ -415,7 +412,7 @@ static Float4 get_texcoord_input(const Vertex *v, const u32 ctrl, const u8 idx)
     return in;
 }
 
-static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Float3 *eye,
+static void calc_tex_gen(CPU *cpu, const Vertex *v, const Float3 *eye,
                          const Float3 *NBT, const RGBA *colors, Float3 *tex_out)
 {
     const u8 num_of_tex_gens = xf_reg.num_tex_gens;
@@ -505,7 +502,7 @@ static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Floa
 }
 XFOutput transform_vertex(CPU *cpu, const Vertex *v)
 {
-    XFOutput output;
+    XFOutput output = {0};
 
     calc_pos(&output.pos, v);
 
@@ -515,7 +512,7 @@ XFOutput transform_vertex(CPU *cpu, const Vertex *v)
 
     calc_light(v, &output.eye, output.NBT, output.colors, output.lights);
 
-    calc_tex_gen(cpu, v, output.lights, &output.eye, output.NBT, output.colors, output.tex);
+    calc_tex_gen(cpu, v, &output.eye, output.NBT, output.colors, output.tex);
 
     return output;
 }

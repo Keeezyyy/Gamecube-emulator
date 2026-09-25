@@ -4,17 +4,58 @@
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
+#include "utils/vector.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
+#ifdef RENDER_TEST_RAYLIB
+#include <raylib.h>
+#include <rlgl.h>
+#endif
 
 #define SOFTWARE_CLIPPER
 #define SOFTWARE_RATERIZER
+
+void init_raylib_renderer_test(void)
+{
+#ifdef RENDER_TEST_RAYLIB
+    const int screenWidth = 640;
+    const int screenHeight = 480;
+
+    InitWindow(screenWidth, screenHeight, "render test");
+    rlDisableBackfaceCulling();
+    BeginDrawing();
+    ClearBackground(BLACK);
+#endif
+}
+
+#ifdef RENDER_TEST_RAYLIB
+static Vector2 to_raylib(const XFOutput *o)
+{
+    return (Vector2){o->pos.m[0] - 342.0f, o->pos.m[1] - 342.0f};
+}
+#endif
+
+static void draw_polygon(const XFOutput *out, const u16 polygon_count)
+{
+#ifdef RENDER_TEST_RAYLIB
+    for (int i = 0; i < polygon_count; i++)
+        DrawTriangle(to_raylib(&out[0]), to_raylib(&out[i + 1]), to_raylib(&out[i + 2]), VIOLET);
+#endif
+}
 
 void load_vertex_into_pipeline(CPU *cpu, Primitive p)
 {
 
     // TODO: find better alternative maybe gloabl dynamic array
-    XFOutput xf_output_buffer[U16_MAX] = {0};
+    static Vector xf_output_vector;
+    if (!xf_output_vector.buffer)
+        init_Vector(&xf_output_vector, sizeof(XFOutput) * 1024);
+
+    while (xf_output_vector.cap_in_bytes < p.vert_count * sizeof(XFOutput))
+        xf_output_vector.grow(&xf_output_vector);
+
+    XFOutput *xf_output_buffer = xf_output_vector.buffer;
     const XF_Registers *xf_regs;
 
     for (int i = 0; i < p.vert_count; i++) {
@@ -40,9 +81,11 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
             XFOutput clipper_output1[MAX_CLIP_VERTS];
             XFOutput clipper_output2[MAX_CLIP_VERTS];
 
-            if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output1, &polygon_count) &&
-                clipping(&v[i], &v[i + 2], &v[i + 3], xf_regs, clipper_output2, &polygon_count)) {
-                // draw both
+            if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output1, &polygon_count)) {
+                draw_polygon(clipper_output1, polygon_count);
+            }
+            if (clipping(&v[i], &v[i + 2], &v[i + 3], xf_regs, clipper_output2, &polygon_count)) {
+                draw_polygon(clipper_output2, polygon_count);
             }
         }
         break;
@@ -51,7 +94,7 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
         for (int i = 0; i + 2 < n; i += 3) {
             XFOutput clipper_output[MAX_CLIP_VERTS];
             if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output, &polygon_count)) {
-                //
+                draw_polygon(clipper_output, polygon_count);
             }
         }
 
@@ -64,11 +107,13 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
             if (i % 2 == 0) {
                 if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output,
                              &polygon_count)) {
+                    draw_polygon(clipper_output, polygon_count);
                 }
             } else {
 
                 if (clipping(&v[i + 1], &v[i], &v[i + 2], xf_regs, clipper_output,
                              &polygon_count)) {
+                    draw_polygon(clipper_output, polygon_count);
                 }
             }
         }
@@ -78,6 +123,7 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
         for (int i = 1; i + 1 < n; i++) {
             XFOutput clipper_output[MAX_CLIP_VERTS];
             if (clipping(&v[0], &v[i], &v[i + 1], xf_regs, clipper_output, &polygon_count)) {
+                draw_polygon(clipper_output, polygon_count);
             }
         }
         break;
@@ -86,6 +132,9 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
         for (int i = 0; i + 1 < n; i += 2) {
             XFOutput line_buffer[2];
             if (clip_line(&v[i], &v[i + 1], xf_regs, &line_buffer[0], &line_buffer[1])) {
+#ifdef RENDER_TEST_RAYLIB
+                DrawLineV(to_raylib(&line_buffer[0]), to_raylib(&line_buffer[1]), VIOLET);
+#endif
             }
         }
 
@@ -95,6 +144,9 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
         for (int i = 0; i + 1 < n; i++) {
             XFOutput line_buffer[2];
             if (clip_line(&v[i], &v[i + 1], xf_regs, &line_buffer[0], &line_buffer[1])) {
+#ifdef RENDER_TEST_RAYLIB
+                DrawLineV(to_raylib(&line_buffer[0]), to_raylib(&line_buffer[1]), VIOLET);
+#endif
             }
         }
 
@@ -103,6 +155,9 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
     case GX_POINTS:
         for (int i = 0; i < n; i++)
             if (clip_dot(&v[i], xf_regs)) {
+#ifdef RENDER_TEST_RAYLIB
+                DrawPixelV(to_raylib(&v[i]), VIOLET);
+#endif
             }
 
         break;

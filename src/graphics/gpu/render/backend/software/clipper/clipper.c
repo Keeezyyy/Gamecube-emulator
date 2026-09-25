@@ -3,14 +3,12 @@
 #include "graphics/cp/cp.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
-#include "core/config/config.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <cblas.h>
 #include <assert.h>
 #include <math.h>
-#include <stdbool.h>
-#include <string.h>
 enum {
     CLIP_POS_X = 1 << 0,
     CLIP_NEG_X = 1 << 1,
@@ -36,7 +34,7 @@ static inline u32 calc_clip_mask(const Float4 *v)
         mask |= CLIP_POS_Y;
     if (w + y < 0.0f)
         mask |= CLIP_NEG_Y;
-    if (w * z > 0.0f)
+    if (z > 0.0f)
         mask |= CLIP_POS_Z;
     if (z + w < 0.0f)
         mask |= CLIP_NEG_Z;
@@ -231,23 +229,8 @@ bool clipping(XFOutput *clipping_in1, XFOutput *clipping_in2, XFOutput *clipping
     if (count < 3)
         return false;
 
-    Mat4 view = build_viewport(xf_regs);
-    for (int i = 0; i < count; i++) {
-        const f32 inv_w = 1.0f / out[i].pos.m[3];
-
-        Float4 pos = {0};
-        pos.m[0] *= inv_w;
-        pos.m[1] *= inv_w;
-        pos.m[2] *= inv_w;
-        pos.m[2] = 1.0f;
-
-        cblas_sgemv(CblasRowMajor, CblasNoTrans, 4, 4, 1.0f, &view.m[0][0], 4, pos.m, 1, 0.0f,
-                    out[i].pos.m, 1);
-
-        out[i].pos.m[2] = clampf(out[i].pos.m[2], 0.0f, 16777215.0f);
-
-        out[i].pos.m[3] = inv_w;
-    }
+    for (u32 i = 0; i < count; i++)
+        to_screen(&out[i], xf_regs);
 
     *polygon_count = count - 2;
 

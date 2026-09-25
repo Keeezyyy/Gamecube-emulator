@@ -45,6 +45,12 @@ ifeq ($(UNAME_S),Darwin)
     LDFLAGS  += -L$(SDL3_PREFIX)/lib -Wl,-rpath,$(SDL3_PREFIX)/lib
     LDLIBS   += -lSDL3
 
+    # raylib aus Homebrew (brew install raylib)
+    RAYLIB_PREFIX := $(shell brew --prefix raylib)
+    CPPFLAGS += -I$(RAYLIB_PREFIX)/include
+    LDFLAGS  += -L$(RAYLIB_PREFIX)/lib -Wl,-rpath,$(RAYLIB_PREFIX)/lib
+    LDLIBS   += -lraylib
+
     # OpenBLAS aus Homebrew (brew install openblas) fuer <cblas.h>. Die
     # Formel ist keg-only, Header und Lib liegen also nicht im Standardpfad.
     OPENBLAS_PREFIX := $(shell brew --prefix openblas)
@@ -52,7 +58,7 @@ ifeq ($(UNAME_S),Darwin)
     LDFLAGS  += -L$(OPENBLAS_PREFIX)/lib -Wl,-rpath,$(OPENBLAS_PREFIX)/lib
     LDLIBS   += -lopenblas
 else
-    LDLIBS   += -lopenblas
+    LDLIBS   += -lopenblas -lraylib
 endif
 
 # Debugger fuer "make debug". Standard ist gdb; per Kommandozeile

@@ -6,3 +6,5 @@
 #define SOFTWARE_TRANSFORM
 
 void load_vertex_into_pipeline(CPU *cpu, Primitive p);
+
+void init_raylib_renderer_test(void);

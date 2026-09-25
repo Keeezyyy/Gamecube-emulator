@@ -146,7 +146,7 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
         u8 idx = (u8)read_stream(static_cpu_ptr, gx_fifo_regs, stream, 1);
         out_v.pm.posMatId = idx;
         memcpy(out_v.pm.mat, &get_xf_register_pointer()[idx * 4], sizeof(Float4) * 3);
-        memcpy(out_v.norm.normal_matrix.m, &get_xf_register_pointer()[0x400 + (idx * 3)],
+        memcpy(out_v.norm.normal_matrix.m, &get_xf_register_pointer()[0x400 + ((idx & 31) * 3)],
                sizeof(Float3) * 3);
 
     } else {
@@ -154,7 +154,7 @@ Vertex parse_vertex_from_stream(CPU *cpu, u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32
 
         out_v.pm.posMatId = idx;
         memcpy(out_v.pm.mat, &get_xf_register_pointer()[idx * 4], sizeof(Float4) * 3);
-        memcpy(out_v.norm.normal_matrix.m, &get_xf_register_pointer()[0x400 + (idx * 3)],
+        memcpy(out_v.norm.normal_matrix.m, &get_xf_register_pointer()[0x400 + ((idx & 31) * 3)],
                sizeof(Float3) * 3);
     }
     // Parse TexMat

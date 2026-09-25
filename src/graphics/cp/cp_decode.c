@@ -3,7 +3,6 @@
 #include "cp.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/pipeline.h"
-#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
@@ -13,6 +12,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <GLFW/glfw3.h>
+
+#ifdef RENDER_TEST_RAYLIB
+#include <raylib.h>
+#endif
 
 static u32 bp_regs[256];
 static u32 cp_regs[256]; // ends with 0xBF
@@ -75,6 +78,13 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
             // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
 
             GPU_PRINT("BP reg 0x52 write\n");
+#ifdef RENDER_TEST_RAYLIB
+            if ((new_val >> 14) & 1) {
+                EndDrawing();
+                BeginDrawing();
+                ClearBackground(BLACK);
+            }
+#endif
             break;
         }
         case 0x55:
@@ -190,7 +200,7 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
             cp_regs[0x90 + vat_index], cp_regs, stream, primitive_type, vertex_count);
 
         if (buffer[i].pm.posMatId == 0xFF) {
-            continue;
+            // continue;
         }
         buffer[i] = v;
     }
