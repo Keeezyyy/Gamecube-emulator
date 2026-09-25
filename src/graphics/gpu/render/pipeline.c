@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <stdbool.h>
 
+#define SOFTWARE_CLIPPER
+#define SOFTWARE_RATERIZER
+
 void load_vertex_into_pipeline(CPU *cpu, Primitive p)
 {
 
@@ -22,65 +25,94 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
 #endif
     }
 
-#ifdef SOFTWARE_TRANSFORM
-    const int n = p.vert_count;
-    XFOutput *v = xf_output_buffer;
-
-    XFOutput clipper_output[MAX_CLIP_VERTS];
     u16 polygon_count = 0;
     bool should_draw = true;
+
+#ifdef SOFTWARE_CLIPPER
+    const int n = p.vert_count;
+    XFOutput *v = xf_output_buffer;
 
     switch (p.t) {
     case GX_QUADS:
     case GX_QUADS_2:
         for (int i = 0; i + 3 < n; i += 4) {
-            should_draw =
-                clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output, &polygon_count);
-            should_draw =
-                clipping(&v[i], &v[i + 2], &v[i + 3], xf_regs, clipper_output, &polygon_count);
+
+            XFOutput clipper_output1[MAX_CLIP_VERTS];
+            XFOutput clipper_output2[MAX_CLIP_VERTS];
+
+            if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output1, &polygon_count) &&
+                clipping(&v[i], &v[i + 2], &v[i + 3], xf_regs, clipper_output2, &polygon_count)) {
+                // draw both
+            }
         }
         break;
 
     case GX_TRIANGLES:
-        for (int i = 0; i + 2 < n; i += 3)
-            should_draw =
-                clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output, &polygon_count);
+        for (int i = 0; i + 2 < n; i += 3) {
+            XFOutput clipper_output[MAX_CLIP_VERTS];
+            if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output, &polygon_count)) {
+                //
+            }
+        }
+
         break;
 
     case GX_TRIANGLESTRIP:
         for (int i = 0; i + 2 < n; i++) {
-            if (i % 2 == 0)
-                should_draw =
-                    clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output, &polygon_count);
-            else
-                should_draw =
-                    clipping(&v[i + 1], &v[i], &v[i + 2], xf_regs, clipper_output, &polygon_count);
+
+            XFOutput clipper_output[MAX_CLIP_VERTS];
+            if (i % 2 == 0) {
+                if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output,
+                             &polygon_count)) {
+                }
+            } else {
+
+                if (clipping(&v[i + 1], &v[i], &v[i + 2], xf_regs, clipper_output,
+                             &polygon_count)) {
+                }
+            }
         }
         break;
 
     case GX_TRIANGLEFAN:
-        for (int i = 1; i + 1 < n; i++)
-            should_draw =
-                clipping(&v[0], &v[i], &v[i + 1], xf_regs, clipper_output, &polygon_count);
+        for (int i = 1; i + 1 < n; i++) {
+            XFOutput clipper_output[MAX_CLIP_VERTS];
+            if (clipping(&v[0], &v[i], &v[i + 1], xf_regs, clipper_output, &polygon_count)) {
+            }
+        }
         break;
 
     case GX_LINES:
-        for (int i = 0; i + 1 < n; i += 2)
-            // TODO: clip_line(&v[i].pos, &v[i + 1].pos);
-            break;
+        for (int i = 0; i + 1 < n; i += 2) {
+            XFOutput line_buffer[2];
+            if (clip_line(&v[i], &v[i + 1], xf_regs, &line_buffer[0], &line_buffer[1])) {
+            }
+        }
+
+        break;
 
     case GX_LINESTRIP:
-        for (int i = 0; i + 1 < n; i++)
-            // TODO: clip_line(&v[i].pos, &v[i + 1].pos);
-            break;
+        for (int i = 0; i + 1 < n; i++) {
+            XFOutput line_buffer[2];
+            if (clip_line(&v[i], &v[i + 1], xf_regs, &line_buffer[0], &line_buffer[1])) {
+            }
+        }
+
+        break;
 
     case GX_POINTS:
         for (int i = 0; i < n; i++)
-            // TODO: clip_point(&v[i].pos);
-            break;
+            if (clip_dot(&v[i], xf_regs)) {
+            }
+
+        break;
 
     default:
         assert(!"unknown primitive type");
     }
+#endif
+
+#ifdef SOFTWARE_RATERIZER
+
 #endif
 }
