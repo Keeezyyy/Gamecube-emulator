@@ -95,12 +95,8 @@ static void lerp_f32(f32 *out, const f32 *a, const f32 *b, const f32 t, const in
         out[i] = a[i] + (b[i] - a[i]) * t;
 }
 
-static XFOutput intersection_point(const XFOutput *a, const XFOutput *b, const int plane)
+static XFOutput lerp_output(const XFOutput *a, const XFOutput *b, const f32 t)
 {
-    const f32 da = plane_dist(&a->pos, plane);
-    const f32 db = plane_dist(&b->pos, plane);
-    const f32 t = da / (da - db);
-
     XFOutput out = *a;
 
     lerp_f32(out.pos.m, a->pos.m, b->pos.m, t, 4);
@@ -117,6 +113,14 @@ static XFOutput intersection_point(const XFOutput *a, const XFOutput *b, const i
     }
 
     return out;
+}
+
+static XFOutput intersection_point(const XFOutput *a, const XFOutput *b, const int plane)
+{
+    const f32 da = plane_dist(&a->pos, plane);
+    const f32 db = plane_dist(&b->pos, plane);
+
+    return lerp_output(a, b, da / (da - db));
 }
 
 static u32 clip_polygon(XFOutput *poly, u32 count, XFOutput *clipped)
@@ -183,6 +187,20 @@ static inline float clampf(float x, float min, float max)
     return x;
 }
 
+static void to_screen(XFOutput *o, const XF_Registers *xf_regs)
+{
+    const Mat4 view = build_viewport(xf_regs);
+    const f32 inv_w = 1.0f / o->pos.m[3];
+
+    const Float4 ndc = {o->pos.m[0] * inv_w, o->pos.m[1] * inv_w, o->pos.m[2] * inv_w, 1.0f};
+
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, 4, 4, 1.0f, &view.m[0][0], 4, ndc.m, 1, 0.0f, o->pos.m,
+                1);
+
+    o->pos.m[2] = clampf(o->pos.m[2], 0.0f, 16777215.0f);
+    o->pos.m[3] = inv_w;
+}
+
 bool clipping(XFOutput *clipping_in1, XFOutput *clipping_in2, XFOutput *clipping_in3,
               const XF_Registers *xf_regs, XFOutput *out, u16 *polygon_count)
 {
@@ -232,4 +250,59 @@ bool clipping(XFOutput *clipping_in1, XFOutput *clipping_in2, XFOutput *clipping
     }
 
     *polygon_count = count - 2;
+
+    return true;
+}
+
+bool clip_line(XFOutput *clipping_in1, XFOutput *clipping_in2, const XF_Registers *xf_regs,
+               XFOutput *out_1, XFOutput *out_2)
+{
+    const Float4 *v1 = &clipping_in1->pos;
+    const Float4 *v2 = &clipping_in2->pos;
+
+    u32 cr0 = calc_clip_mask(v1);
+    u32 cr1 = calc_clip_mask(v2);
+
+    if ((cr0 & cr1) != 0)
+        return false;
+
+    f32 t0 = 0.0f;
+    f32 t1 = 1.0f;
+
+    for (int plane = 0; plane < 6; plane++) {
+        const f32 da = plane_dist(v1, plane);
+        const f32 db = plane_dist(v2, plane);
+
+        if (da < 0.0f && db < 0.0f)
+            return false;
+        if (da < 0.0f)
+            t0 = fmaxf(t0, da / (da - db));
+        else if (db < 0.0f)
+            t1 = fminf(t1, da / (da - db));
+    }
+
+    if (t0 > t1)
+        return false;
+
+    *out_1 = lerp_output(clipping_in1, clipping_in2, t0);
+    *out_2 = lerp_output(clipping_in1, clipping_in2, t1);
+
+    to_screen(out_1, xf_regs);
+    to_screen(out_2, xf_regs);
+
+    return true;
+}
+
+bool clip_dot(XFOutput *clipping_in1, const XF_Registers *xf_regs)
+{
+    const Float4 *v1 = &clipping_in1->pos;
+
+    u32 cr0 = calc_clip_mask(v1);
+
+    if ((cr0) != 0)
+        return false;
+
+    to_screen(clipping_in1, xf_regs);
+
+    return true;
 }
