@@ -3,12 +3,14 @@
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
+#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include "../framebuffer.h"
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct {
     s32 x0, y0, x1, y1;
@@ -142,29 +144,62 @@ static void interpolate_f32(s32 ax, s32 by, s32 bx, s32 ay, f32 f1, f32 f2, f32 
     *dfdy = (F3 * (f32)ax - F2 * (f32)bx) / (f32)A;
 }
 
-static void interpolate_s32(s32 ax, s32 by, s32 bx, s32 ay, s32 f1, s32 f2, s32 f3, s32 *dfdx,
-                            s32 *dfdy)
-{
-    s32 A = ax * by - bx * ay;
-
-    s32 F2 = f2 - f1;
-    s32 F3 = f3 - f1;
-
-    *dfdx = (F2 * (s32)by - F3 * (s32)ay) / (s32)A;
-    *dfdy = (F3 * (s32)ax - F2 * (s32)bx) / (s32)A;
-}
-
 static bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y)
 {
     const u32 ctrl = get_bp_register_pointer()[0x40];
-    if ((ctrl & 1) == 0 || (((ctrl >> 1) & 0xF) == 7)) {
+
+    if ((ctrl & 1) == 0)
+        return false;
+
+    const u32 func = (ctrl >> 1) & 0x7;
+    const u32 z_in_fb = get_z_in_fb(cpu, x, y);
+
+    switch (func) {
+    case 0:
+        return true;
+    case 1:
+        return z >= z_in_fb;
+    case 2:
+        return z != z_in_fb;
+    case 3:
+        return z > z_in_fb;
+    case 4:
+        return z <= z_in_fb;
+    case 5:
+        return z == z_in_fb;
+    case 6:
+        return z < z_in_fb;
+    case 7:
         return false;
     }
-    u32 z_in_fb = get_z_in_fb(cpu, x, y);
+
+    return false;
 }
 
-static void DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by, s32 bx,
-                      s32 ay)
+static f32 interp_at(const XFOutput v[3], s32 ax, s32 by, s32 bx, s32 ay, f32 f0, f32 f1, f32 f2,
+                     s32 x, s32 y)
+{
+    f32 dx, dy;
+    interpolate_f32(ax, by, bx, ay, f0, f1, f2, &dx, &dy);
+    return f0 + dx * 16.0f * ((f32)x - v[0].pos.m[0]) + dy * 16.0f * ((f32)y - v[0].pos.m[1]);
+}
+
+typedef struct {
+    s32 x;
+    s32 y;
+    u32 z;
+
+    u8 colors[2][4];
+    s32 tex[8][2];
+
+    u32 lod[8];
+
+    XFOutput *edges;
+    Vertex *vert;
+} PixelAttributes;
+
+static bool DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by, s32 bx,
+                      s32 ay, PixelAttributes *out)
 {
     static f32 dfdx, dfdy, z0, x0, y0;
     if (!((bp(0x00) >> 19) & 1)) {
@@ -182,7 +217,65 @@ static void DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 a
     u32 zDec = (u32)zInterpolated;
 
     if (test_if_z_test_fails(cpu, zDec, x, y))
-        return;
+        return false;
+
+    out->x = x;
+    out->y = y;
+    out->z = zDec;
+
+    out->edges = v;
+    out->vert = vert;
+
+    for (int c = 0; c < 2; c++)
+        for (int k = 0; k < 4; k++)
+            out->colors[c][k] =
+                (u8)fminf(fmaxf(interp_at(v, ax, by, bx, ay, v[0].colors[c].rgba[k],
+                                          v[1].colors[c].rgba[k], v[2].colors[c].rgba[k], x, y),
+                                0.0f),
+                          255.0f);
+
+    for (u32 i = 0; i < num_texgens(); i++) {
+        f32 stq[3];
+        for (int k = 0; k < 3; k++)
+            stq[k] =
+                interp_at(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
+                          v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3], x, y);
+
+        out->tex[i][0] = (s32)(stq[0] / stq[2] * 128.0f);
+        out->tex[i][1] = (s32)(stq[1] / stq[2] * 128.0f);
+
+        for (int k = 0; k < 3; k++)
+            stq[k] = interp_at(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
+                               v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3],
+                               x + 1, y);
+        s32 sb = (s32)(stq[0] / stq[2] * 128.0f);
+        s32 tb = (s32)(stq[1] / stq[2] * 128.0f);
+
+        for (int k = 0; k < 3; k++)
+            stq[k] = interp_at(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
+                               v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3],
+                               x, y + 1);
+        s32 sc = (s32)(stq[0] / stq[2] * 128.0f);
+        s32 tc = (s32)(stq[1] / stq[2] * 128.0f);
+
+        s32 s_right = abs(sb - out->tex[i][0]);
+        s32 s_down = abs(sc - out->tex[i][0]);
+
+        s32 t_right = abs(tb - out->tex[i][1]);
+        s32 t_down = abs(tc - out->tex[i][1]);
+
+        TextureUnit u = {0};
+        get_texture_unit_regs(&u, i, get_bp_register_pointer());
+
+        s32 sAdd = s_right + s_down;
+        s32 tAdd = t_right + t_down;
+
+        s32 maxAdd = sAdd > tAdd ? sAdd : tAdd;
+
+        out->lod[i] = (u32)log2((double)maxAdd);
+    }
+
+    return true;
 }
 
 void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)

@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-static void _get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp)
+void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp)
 {
 
     const u8 idx = 0x80 | (tex_unit_num & 0x3) | ((tex_unit_num & 0x4) << 3);
@@ -47,7 +47,7 @@ void load_texture_for_primitive(CPU *cpu, Vertex *v)
 void decode_texture(CPU *cpu, void *dest, const void *src, const u32 *bp, u8 tex_num)
 {
     TextureUnit u = {0};
-    _get_texture_unit_regs(&u, tex_num, bp);
+    get_texture_unit_regs(&u, tex_num, bp);
 
     const u32 ram_adr = (u.img3 & 0xFFFFFF);
     const u32 width = (u.img0 & 0x3FF) + 1;

@@ -39,6 +39,8 @@ void load_texture(const u8 tex_usage_bitmap, const char *hash);
 
 void load_texture_for_primitive(CPU *cpu, Vertex *v);
 
+void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp);
+
 Texture i8_decode(const u8 *src, u32 width, u32 height);
 Texture i4_decode(const u8 *src, u32 width, u32 height);
 Texture rgba8_decode(const u8 *src, u32 width, u32 height);
