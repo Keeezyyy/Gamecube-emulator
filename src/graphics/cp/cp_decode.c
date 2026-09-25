@@ -4,6 +4,7 @@
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/pipeline.h"
 #include "graphics/gpu/render/texture/texture.h"
+#include "graphics/gpu/vertex/primitive.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <_abort.h>
@@ -180,20 +181,22 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
               vat_index, vertex_count);
 
     init_vertex_loader(cpu, command_processor_registers);
-    Vertex v;
-    for (u16 i = 0; i < vertex_count; i++) {
-        v = parse_vertex_from_stream(cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index],
-                                     cp_regs[0x80 + vat_index], cp_regs[0x90 + vat_index], cp_regs,
-                                     stream, primitive_type, vertex_count);
 
-        if (v.pm.posMatId == 0xFF) {
+    // TODO: find better alternative maybe gloabl dynamic array
+    Vertex buffer[U16_MAX];
+    for (u16 i = 0; i < vertex_count; i++) {
+        Vertex v = parse_vertex_from_stream(
+            cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index], cp_regs[0x80 + vat_index],
+            cp_regs[0x90 + vat_index], cp_regs, stream, primitive_type, vertex_count);
+
+        if (buffer[i].pm.posMatId == 0xFF) {
             continue;
         }
-        // load_texture_for_primitive(cpu, &v);
-        // push_vertex_to_vertex_buffer(v);
-
-        load_vertex_into_pipeline(cpu, v);
+        buffer[i] = v;
     }
+
+    Primitive p = {buffer, vertex_count, primitive_type};
+    load_vertex_into_pipeline(cpu, p);
 }
 
 static void load_xf_reg(u16 adr, u16 n, const u32 *values)

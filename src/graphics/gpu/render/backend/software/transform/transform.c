@@ -217,6 +217,14 @@ static Float3 read_normal(const Vertex *v, const u32 j)
     return norm;
 }
 
+static inline float clampf(float x, float min, float max)
+{
+    if (x < min)
+        return min;
+    if (x > max)
+        return max;
+    return x;
+}
 static void calc_pos(Float4 *out, const Vertex *v)
 {
 
@@ -236,10 +244,6 @@ static void calc_pos(Float4 *out, const Vertex *v)
 
     const f32 w = clip.m[3];
 
-    if (w <= 0.0f) {
-        assert(!"implement clipping or ");
-    }
-
     const f32 inv_w = 1.0f / w;
     Float4 ndc = {
         clip.m[0] * inv_w,
@@ -251,6 +255,8 @@ static void calc_pos(Float4 *out, const Vertex *v)
     Mat4 view = build_viewport();
     cblas_sgemv(CblasRowMajor, CblasNoTrans, 4, 4, 1.0f, &view.m[0][0], 4, ndc.m, 1, 0.0f, out->m,
                 1);
+
+    out->m[2] = clampf(out->m[2], 0.0f, 16777215.0f);
 
     out->m[3] = inv_w;
 }
@@ -449,10 +455,9 @@ static Float4 get_texcoord_input(const Vertex *v, const u32 ctrl, const u8 idx)
 }
 
 static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Float3 *eye,
-                         const Float3 *NBT, const RGBA *colors)
+                         const Float3 *NBT, const RGBA *colors, Float3 *tex_out)
 {
     const u8 num_of_tex_gens = xf_reg.num_tex_gens;
-    Float3 tex[8] = {0};
 
     for (int i = 0; i < num_of_tex_gens; i++) {
         const u32 ctrl = xf_reg.tex_mtx_info[i];
@@ -501,8 +506,8 @@ static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Floa
             }};
             normalize3(L.m);
 
-            out.m[0] = tex[src].m[0] + cblas_sdot(3, L.m, 1, NBT[1].m, 1);
-            out.m[1] = tex[src].m[1] + cblas_sdot(3, L.m, 1, NBT[2].m, 1);
+            out.m[0] = tex_out[src].m[0] + cblas_sdot(3, L.m, 1, NBT[1].m, 1);
+            out.m[1] = tex_out[src].m[1] + cblas_sdot(3, L.m, 1, NBT[2].m, 1);
             out.m[2] = 1.0f;
             break;
         }
@@ -536,24 +541,22 @@ static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Floa
 
         normalize3(out.m);
 
-        tex[i] = out;
+        tex_out[i] = out;
     }
 }
-bool transform_vertex(CPU *cpu, const Vertex *v)
+XFOutput transform_vertex(CPU *cpu, const Vertex *v)
 {
-    Float4 out;
-    calc_pos(&out, v);
+    XFOutput output;
 
-    Float3 NBT[3] = {0};
-    calc_nomral(v, NBT);
+    calc_pos(&output.pos, v);
 
-    const Float3 eye = calc_eye_pos(v);
+    calc_nomral(v, output.NBT);
 
-    RGBA colors[2] = {0};
-    XF_Light lights[2] = {0};
-    calc_light(v, &eye, &NBT[0], colors, lights);
+    output.eye = calc_eye_pos(v);
 
-    calc_tex_gen(cpu, v, lights, &eye, NBT, colors);
+    calc_light(v, &output.eye, output.NBT, output.colors, output.lights);
 
-    return true;
+    calc_tex_gen(cpu, v, output.lights, &output.eye, output.NBT, output.colors, output.tex);
+
+    return output;
 }

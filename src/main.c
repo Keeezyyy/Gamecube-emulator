@@ -6,8 +6,10 @@
 
 #include "./disc/disc.h"
 #include "bus/bus.h"
+#include "core/config/config.h"
 #include "cpu/cpu.h"
 #include "cpu/cpu_types.h"
+#include "cpu/translation/translation.h"
 #include "graphics/cp/cp.h"
 #include "graphics/vi.h"
 
@@ -32,6 +34,10 @@ static void print_clock(int sig)
     double hz = (double)global_cycle_counter / s;
     printf("\n[CLOCK] %.2f MHz avg ueber %.2f s (%.2f%% von %u MHz)\n", hz / 1e6, s,
            hz / CPU_CLOCK_SPEED * 100.0, CPU_CLOCK_SPEED / 1000000u);
+
+    printf("translation mem usage : %.2lf mB\n",
+           (double)get_global_translation_mem_usage() / (double)MB(1));
+
     fflush(stdout);
     _exit(128 + sig);
 }
@@ -43,9 +49,11 @@ static int _init(void)
     init_bus(&b, &cpu);
 
     init_disc(&disc);
-    if (disc.load_rom(&disc, "./roms/example.bin") != 0) {
-        return 1;
-    }
+    /*
+        if (disc.load_rom(&disc, "./roms/example.bin") != 0) {
+            return 1;
+        }
+        */
     // load the decrypted rom
     // NOTE: might implement encryption
 

@@ -97,3 +97,5 @@ bool code_buffer_make_executable(CodeBuffer *cb);
 bool code_buffer_reserve(CodeBuffer *cb, u32 extra);
 
 void code_buffer_destroy(CodeBuffer *cb);
+
+u64 get_global_translation_mem_usage(void);

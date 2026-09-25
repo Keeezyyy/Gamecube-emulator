@@ -3,6 +3,13 @@
 #include <string.h>
 #include <sys/mman.h>
 
+static u64 global_cap;
+
+u64 get_global_translation_mem_usage(void)
+{
+    return global_cap;
+}
+
 bool code_buffer_init(CodeBuffer *cb, u32 capacity)
 {
     void *mapping =
@@ -15,6 +22,8 @@ bool code_buffer_init(CodeBuffer *cb, u32 capacity)
     cb->code = mapping;
     cb->size = 0;
     cb->capacity = capacity;
+
+    global_cap += capacity;
     return true;
 }
 
@@ -32,6 +41,8 @@ bool code_buffer_reserve(CodeBuffer *cb, u32 extra)
         return true;
     }
 
+    global_cap -= cb->capacity;
+
     u32 new_capacity = cb->capacity;
     while (new_capacity < cb->size + extra) {
         new_capacity *= 2;
@@ -39,6 +50,8 @@ bool code_buffer_reserve(CodeBuffer *cb, u32 extra)
     if (new_capacity > TB_MAX_CAPACITY) {
         return false;
     }
+
+    global_cap += new_capacity;
 
     void *mapping =
         mmap(NULL, new_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
