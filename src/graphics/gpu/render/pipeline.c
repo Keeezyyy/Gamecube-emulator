@@ -1,6 +1,7 @@
 #include "pipeline.h"
 #include "core/config/config.h"
 #include "graphics/gpu/render/backend/software/clipper/clipper.h"
+#include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
@@ -36,12 +37,14 @@ static Vector2 to_raylib(const XFOutput *o)
 }
 #endif
 
-static void draw_polygon(const XFOutput *out, const u16 polygon_count)
+static void draw_polygon(CPU *cpu, const XFOutput *out, const u16 polygon_count, Vertex *v)
 {
 #ifdef RENDER_TEST_RAYLIB
     for (int i = 0; i < polygon_count; i++)
         DrawTriangle(to_raylib(&out[0]), to_raylib(&out[i + 1]), to_raylib(&out[i + 2]), VIOLET);
 #endif
+
+    rasterize_polygon(cpu, out, v);
 }
 
 void load_vertex_into_pipeline(CPU *cpu, Primitive p)
@@ -82,10 +85,10 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
             XFOutput clipper_output2[MAX_CLIP_VERTS];
 
             if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output1, &polygon_count)) {
-                draw_polygon(clipper_output1, polygon_count);
+                draw_polygon(cpu, clipper_output1, polygon_count, p.vertecies);
             }
             if (clipping(&v[i], &v[i + 2], &v[i + 3], xf_regs, clipper_output2, &polygon_count)) {
-                draw_polygon(clipper_output2, polygon_count);
+                draw_polygon(cpu, clipper_output2, polygon_count, p.vertecies);
             }
         }
         break;
@@ -94,7 +97,7 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
         for (int i = 0; i + 2 < n; i += 3) {
             XFOutput clipper_output[MAX_CLIP_VERTS];
             if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output, &polygon_count)) {
-                draw_polygon(clipper_output, polygon_count);
+                draw_polygon(cpu, clipper_output, polygon_count, p.vertecies);
             }
         }
 
@@ -107,13 +110,13 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
             if (i % 2 == 0) {
                 if (clipping(&v[i], &v[i + 1], &v[i + 2], xf_regs, clipper_output,
                              &polygon_count)) {
-                    draw_polygon(clipper_output, polygon_count);
+                    draw_polygon(cpu, clipper_output, polygon_count, p.vertecies);
                 }
             } else {
 
                 if (clipping(&v[i + 1], &v[i], &v[i + 2], xf_regs, clipper_output,
                              &polygon_count)) {
-                    draw_polygon(clipper_output, polygon_count);
+                    draw_polygon(cpu, clipper_output, polygon_count, p.vertecies);
                 }
             }
         }
@@ -123,7 +126,7 @@ void load_vertex_into_pipeline(CPU *cpu, Primitive p)
         for (int i = 1; i + 1 < n; i++) {
             XFOutput clipper_output[MAX_CLIP_VERTS];
             if (clipping(&v[0], &v[i], &v[i + 1], xf_regs, clipper_output, &polygon_count)) {
-                draw_polygon(clipper_output, polygon_count);
+                draw_polygon(cpu, clipper_output, polygon_count, p.vertecies);
             }
         }
         break;
