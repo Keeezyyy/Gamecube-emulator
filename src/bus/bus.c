@@ -328,6 +328,7 @@ void init_bus(Bus *self, CPU *cpu)
 
     self->ram = ram_buffer;
     self->ram = gpu_ram_buffer_mirror;
+    self->efb = efb;
 
     init_exi();
     vi_init();

@@ -4,6 +4,8 @@
 #include "graphics/cp/cp.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
+#include "../framebuffer.h"
+#include <assert.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -152,6 +154,15 @@ static void interpolate_s32(s32 ax, s32 by, s32 bx, s32 ay, s32 f1, s32 f2, s32 
     *dfdy = (F3 * (s32)ax - F2 * (s32)bx) / (s32)A;
 }
 
+static bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y)
+{
+    const u32 ctrl = get_bp_register_pointer()[0x40];
+    if ((ctrl & 1) == 0 || (((ctrl >> 1) & 0xF) == 7)) {
+        return false;
+    }
+    u32 z_in_fb = get_z_in_fb(cpu, x, y);
+}
+
 static void DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by, s32 bx,
                       s32 ay)
 {
@@ -167,6 +178,11 @@ static void DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 a
 
     f32 zInterpolated =
         fminf(fmaxf(z0 + dfdx * ((f32)x - x0) + dfdy * ((f32)y - y0), 0.0f), 16777215.0f);
+
+    u32 zDec = (u32)zInterpolated;
+
+    if (test_if_z_test_fails(cpu, zDec, x, y))
+        return;
 }
 
 void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)

@@ -13,6 +13,7 @@ struct Bus {
     // RAM 0x80000000 | 0xC0000000 ram is mirrored to these locations
     u8 *ram;
     u8 *gpu_ram_mirror;
+    u8 *efb;
 
     void *ipl;
     size_t ipl_size;
