@@ -4,6 +4,7 @@
 #include <cblas.h>
 #include <assert.h>
 #include <math.h>
+#include <stdbool.h>
 #include <string.h>
 
 static XF_Memory xf_mem;
@@ -16,6 +17,12 @@ const u32 *software_backend_get_xf_buffer(void)
     memcpy(&buffer[0x1000], &xf_reg, sizeof(XF_Registers));
 
     return buffer;
+}
+static void normalize3(f32 *vec)
+{
+    const f32 len = cblas_snrm2(3, vec, 1);
+    if (len > 0.0f)
+        cblas_sscal(3, 1.0f / len, vec, 1);
 }
 
 void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val)
@@ -134,9 +141,56 @@ static Float4 read_position(const Vertex *v)
     return pos;
 }
 
+static Float4 read_texcoords(const Vertex *v, u32 idx)
+{
+    Float4 out = {0.0, 0.0, 1.0f, 1.0f};
+
+    assert(v->texture[idx].has_texture);
+
+    const u32 *raw = (const u32 *)&v->texture[idx].elemets;
+    const int count = 1 + (int)v->texture[idx].texture_elements;
+
+    for (int i = 0; i < count; i++) {
+        switch (v->texture[idx].texture_data_type) {
+        case DATA_TYPE_U8:
+            out.m[i] = (f32)(u8)raw[i];
+            break;
+        case DATA_TYPE_S8:
+            out.m[i] = (f32)(s8)raw[i];
+            break;
+        case DATA_TYPE_U16:
+            out.m[i] = (f32)(u16)raw[i];
+            break;
+        case DATA_TYPE_S16:
+            out.m[i] = (f32)(s16)raw[i];
+            break;
+        case DATA_TYPE_F32: {
+            f32 f;
+            memcpy(&f, &raw[i], sizeof f);
+            out.m[i] = f;
+            break;
+        }
+        default:
+            assert(!"unbekannter Positions-Datentyp");
+            break;
+        }
+    }
+    if (v->texture[idx].frac != 0 && v->texture[idx].texture_data_type != DATA_TYPE_F32) {
+        for (int i = 0; i < (1 + v->texture[idx].texture_elements); i++) {
+            f32 *cord = &out.m[0];
+
+            cord[i] /= powf(2.0f, (f32)v->texture[idx].frac);
+        }
+    }
+    return out;
+}
+
 static Float3 read_normal(const Vertex *v, const u32 j)
 {
     Float3 norm = {0.0f, 0.0f, 0.0f};
+
+    if (!v->norm.has_normal)
+        return norm;
 
     const u32 *raw = &(&v->norm.N)[j].X;
 
@@ -208,7 +262,9 @@ static void calc_nomral(const Vertex *v, Float3 *NBT)
         Float3 val = read_normal(v, j);
 
         cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 3, 1.0f, (u32 *)v->norm.normal_matrix.m, 3,
-                    val.m, 1, 0.0f, &NBT[j].m, 1);
+                    val.m, 1, 0.0f, NBT[j].m, 1);
+
+        normalize3(NBT[j].m);
     }
 
     const f32 len = cblas_snrm2(3, NBT[0].m, 1);
@@ -234,13 +290,6 @@ static RGBA reg_to_rgba(const u32 reg)
     memcpy(c.rgba, &be, sizeof(RGBA));
 
     return c;
-}
-
-static void normalize3(f32 *vec)
-{
-    const f32 len = cblas_snrm2(3, vec, 1);
-    if (len > 0.0f)
-        cblas_sscal(3, 1.0f / len, vec, 1);
 }
 
 static void add_lights(const u32 ctrl, const Float3 *eye, const Float3 *N, f32 lit[4])
@@ -315,7 +364,9 @@ static void add_lights(const u32 ctrl, const Float3 *eye, const Float3 *N, f32 l
     }
 }
 
-static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA out[2])
+static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA out[2],
+                       XF_Light *lights)
+
 {
     const u32 num_chans = xf_reg.num_channels & 3;
 
@@ -325,6 +376,10 @@ static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA
         const u8 *vtx = v->color[i].rgba;
 
         const u32 ctrls[2] = {xf_reg.channel_color[i], xf_reg.channel_alpha[i]};
+
+        const u32 mask = ((ctrls[0] >> 2) & 0xF) | (((ctrls[0] >> 11) & 0xF) << 4);
+        if (mask)
+            lights[i] = xf_mem.lights[__builtin_ctz(mask)];
 
         for (int k = 0; k < 2; k++) {
             const u32 ctrl = ctrls[k];
@@ -355,18 +410,150 @@ static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA
     }
 }
 
-bool transform_vertex(const Vertex *v)
+static Float4 get_texcoord_input(const Vertex *v, const u32 ctrl, const u8 idx)
+{
+    const u8 row = (ctrl >> 7) & 0x1F;
+    Float4 in = {0.0f, 0.0f, 1.0f, 1.0f};
+
+    switch (row) {
+    case 0:
+        in = read_position(v);
+        break;
+    case 1:
+    case 3:
+    case 4: {
+        const Float3 n = read_normal(v, row == 1 ? 0 : row - 2);
+        memcpy(in.m, n.m, sizeof(Float3));
+        break;
+    }
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+        in = read_texcoords(v, row - 5);
+        break;
+    default:
+        assert(!"ungueltige Texgen-Quelle");
+        break;
+    }
+
+    if (!((ctrl >> 2) & 1))
+        in.m[2] = 1.0f;
+    in.m[3] = 1.0f;
+
+    return in;
+}
+
+static void calc_tex_gen(CPU *cpu, const Vertex *v, XF_Light *lights, const Float3 *eye,
+                         const Float3 *NBT, const RGBA *colors)
+{
+    const u8 num_of_tex_gens = xf_reg.num_tex_gens;
+    Float3 tex[8] = {0};
+
+    for (int i = 0; i < num_of_tex_gens; i++) {
+        const u32 ctrl = xf_reg.tex_mtx_info[i];
+        const u8 type = (ctrl >> 4) & 0x7;
+        const bool is_STQ = (ctrl >> 1) & 1;
+
+        Float3 out = {0};
+
+        switch (type) {
+        case 0: {
+            // regualar matrix
+            u8 matIdx = v->tm[i].tex_mat_idx;
+            if (!v->tm[i].has_tex_mat_idx) {
+                if (i <= 3)
+                    matIdx = (xf_reg.matrix_index_a >> (6 + i * 6)) & 0x3F;
+                if (i > 3)
+                    matIdx = (xf_reg.matrix_index_b >> ((i - 4) * 6)) & 0x3F;
+            }
+
+            Float4 texCoord = get_texcoord_input(v, ctrl, i);
+            Float4 mat[3] = {0};
+            if (is_STQ) {
+                memcpy(mat, xf_mem.matrices[matIdx], sizeof(Float4) * 3);
+                cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 4, 1.0f, &mat[0].m[0], 4, texCoord.m, 1,
+                            0.0f, out.m, 1);
+
+            } else {
+                memcpy(mat, xf_mem.matrices[matIdx], sizeof(Float4) * 2);
+                cblas_sgemv(CblasRowMajor, CblasNoTrans, 2, 4, 1.0f, &mat[0].m[0], 4, texCoord.m, 1,
+                            0.0f, out.m, 1);
+
+                out.m[2] = 1.0f;
+            }
+            break;
+        }
+        case 1: {
+            // EMboss
+            const u8 lightIdx = (ctrl >> 15) & 0x7;
+            const u8 src = (ctrl >> 12) & 0x7;
+            const XF_Light *light = &xf_mem.lights[lightIdx];
+
+            Float3 L = {{
+                light->pos[0] - eye->m[0],
+                light->pos[1] - eye->m[1],
+                light->pos[2] - eye->m[2],
+            }};
+            normalize3(L.m);
+
+            out.m[0] = tex[src].m[0] + cblas_sdot(3, L.m, 1, NBT[1].m, 1);
+            out.m[1] = tex[src].m[1] + cblas_sdot(3, L.m, 1, NBT[2].m, 1);
+            out.m[2] = 1.0f;
+            break;
+        }
+        case 2:
+            out.m[0] = ((f32)colors[0].rgba[0]) / 255.0f;
+            out.m[1] = ((f32)colors[0].rgba[1]) / 255.0f;
+            out.m[2] = 1.0f;
+            break;
+        case 3:
+            out.m[0] = ((f32)colors[1].rgba[0]) / 255.0f;
+            out.m[1] = ((f32)colors[1].rgba[1]) / 255.0f;
+            out.m[2] = 1.0f;
+
+            break;
+        }
+
+        if (type == 0 && (xf_reg.dual_tex & 1)) {
+            const u32 post = xf_reg.post_mtx_info[i];
+            if ((post >> 8) & 1)
+                normalize3(out.m);
+
+            const Float4 in = {out.m[0], out.m[1], out.m[2], 1.0f};
+            cblas_sgemv(CblasRowMajor, CblasNoTrans, 3, 4, 1.0f, xf_mem.post_matrices[post & 0x3F],
+                        4, in.m, 1, 0.0f, out.m, 1);
+        }
+
+        if (out.m[2] == 0.0f) {
+            out.m[0] = fminf(fmaxf(out.m[0] / 2.0f, -1.0f), 1.0f);
+            out.m[1] = fminf(fmaxf(out.m[1] / 2.0f, -1.0f), 1.0f);
+        }
+
+        normalize3(out.m);
+
+        tex[i] = out;
+    }
+}
+bool transform_vertex(CPU *cpu, const Vertex *v)
 {
     Float4 out;
     calc_pos(&out, v);
 
-    Float3 NBT[3];
+    Float3 NBT[3] = {0};
     calc_nomral(v, NBT);
 
     const Float3 eye = calc_eye_pos(v);
 
     RGBA colors[2] = {0};
-    calc_light(v, &eye, &NBT[0], colors);
+    XF_Light lights[2] = {0};
+    calc_light(v, &eye, &NBT[0], colors, lights);
+
+    calc_tex_gen(cpu, v, lights, &eye, NBT, colors);
 
     return true;
 }

@@ -6,6 +6,6 @@ void load_vertex_into_pipeline(CPU *cpu, Vertex v)
 
     // XF TRANSFORM
 #ifdef SOFTWARE_TRANSFORM
-    transform_vertex(&v);
+    transform_vertex(cpu, &v);
 #endif
 }
