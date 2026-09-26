@@ -6,6 +6,7 @@
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp)
 {
@@ -127,7 +128,9 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
             s_coord = apply_wrap(wrap_s, width, s_coord);
             t_coord = apply_wrap(wrap_t, height, t_coord);
 
-            return colors[(t_coord * width + s_coord)];
+            RGBA texel = colors[(t_coord * width + s_coord)];
+            free(texture.buffer);
+            return texel;
         }
 
     } else {
