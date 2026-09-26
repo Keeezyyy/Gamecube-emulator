@@ -25,7 +25,10 @@ typedef struct {
 } XF_Memory;
 
 typedef struct {
-    u8 rgba[4];
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 a;
 } RGBA;
 
 static_assert(sizeof(RGBA) == sizeof(u32), "RGBA BUFFER SIZE");

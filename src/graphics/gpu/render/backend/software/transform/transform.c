@@ -251,7 +251,7 @@ static RGBA reg_to_rgba(const u32 reg)
 {
     RGBA c;
     const u32 be = __builtin_bswap32(reg);
-    memcpy(c.rgba, &be, sizeof(RGBA));
+    memcpy(&c, &be, sizeof(RGBA));
 
     return c;
 }
@@ -324,7 +324,7 @@ static void add_lights(const u32 ctrl, const Float3 *eye, const Float3 *N, f32 l
 
         const RGBA col = reg_to_rgba(light->color);
         for (int c = 0; c < 4; c++)
-            lit[c] += (f32)col.rgba[c] * attn * diff;
+            lit[c] += (f32)((const u8 *)&col)[c] * attn * diff;
     }
 }
 
@@ -350,15 +350,15 @@ static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA
             const int first = k == 0 ? 0 : 3;
             const int last = k == 0 ? 3 : 4;
 
-            const u8 *mat = (ctrl & 1) ? vtx : mat_reg.rgba;
+            const u8 *mat = (ctrl & 1) ? vtx : (const u8 *)&mat_reg;
 
             if (!((ctrl >> 1) & 1)) {
                 for (int c = first; c < last; c++)
-                    out[i].rgba[c] = mat[c];
+                    ((u8 *)&out[i])[c] = mat[c];
                 continue;
             }
 
-            const u8 *amb = ((ctrl >> 6) & 1) ? vtx : amb_reg.rgba;
+            const u8 *amb = ((ctrl >> 6) & 1) ? vtx : (const u8 *)&amb_reg;
 
             f32 lit[4];
             for (int c = 0; c < 4; c++)
@@ -368,7 +368,7 @@ static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA
 
             for (int c = first; c < last; c++) {
                 const u32 l = (u32)fminf(fmaxf(lit[c], 0.0f), 255.0f);
-                out[i].rgba[c] = (u8)((mat[c] * (l + (l >> 7))) >> 8);
+                ((u8 *)&out[i])[c] = (u8)((mat[c] * (l + (l >> 7))) >> 8);
             }
         }
     }
@@ -470,13 +470,13 @@ static void calc_tex_gen(CPU *cpu, const Vertex *v, const Float3 *eye,
             break;
         }
         case 2:
-            out.m[0] = ((f32)colors[0].rgba[0]) / 255.0f;
-            out.m[1] = ((f32)colors[0].rgba[1]) / 255.0f;
+            out.m[0] = ((f32)colors[0].r) / 255.0f;
+            out.m[1] = ((f32)colors[0].g) / 255.0f;
             out.m[2] = 1.0f;
             break;
         case 3:
-            out.m[0] = ((f32)colors[1].rgba[0]) / 255.0f;
-            out.m[1] = ((f32)colors[1].rgba[1]) / 255.0f;
+            out.m[0] = ((f32)colors[1].r) / 255.0f;
+            out.m[1] = ((f32)colors[1].g) / 255.0f;
             out.m[2] = 1.0f;
 
             break;

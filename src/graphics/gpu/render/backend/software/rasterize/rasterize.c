@@ -2,6 +2,7 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gpu/render/backend/software/tev/tev.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
@@ -186,20 +187,6 @@ static f32 interp_at(const XFOutput v[3], s32 ax, s32 by, s32 bx, s32 ay, f32 f0
     return f0 + dx * 16.0f * ((f32)x - v[0].pos.m[0]) + dy * 16.0f * ((f32)y - v[0].pos.m[1]);
 }
 
-typedef struct {
-    s32 x;
-    s32 y;
-    u32 z;
-
-    u8 colors[2][4];
-    s32 tex[8][2];
-
-    f32 lod[8];
-
-    XFOutput *edges;
-    Vertex *vert;
-} PixelAttributes;
-
 static bool interpolate_pixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by,
                               s32 bx, s32 ay, PixelAttributes *out)
 {
@@ -231,8 +218,9 @@ static bool interpolate_pixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *ver
     for (int c = 0; c < 2; c++)
         for (int k = 0; k < 4; k++)
             out->colors[c][k] =
-                (u8)fminf(fmaxf(interp_at(v, ax, by, bx, ay, v[0].colors[c].rgba[k],
-                                          v[1].colors[c].rgba[k], v[2].colors[c].rgba[k], x, y),
+                (u8)fminf(fmaxf(interp_at(v, ax, by, bx, ay, ((const u8 *)&v[0].colors[c])[k],
+                                          ((const u8 *)&v[1].colors[c])[k],
+                                          ((const u8 *)&v[2].colors[c])[k], x, y),
                                 0.0f),
                           255.0f);
 
@@ -381,6 +369,7 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
                 // DrawPixel(x + ox - 342, y + oy - 342, YELLOW);
 
                 for (int i = 0; i < ((gen_mode >> 16) & 0x7); i++) {
+                    assert(!"indirect used");
                     u8 tex_unit = (get_bp_register_pointer()[0x27] >> (i * 6)) & 0x7;
                     u8 tex_cord = (get_bp_register_pointer()[0x27] >> (i * 6 + 3)) & 0x7;
 
@@ -399,6 +388,8 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
 
                     RGBA color = sample_texture(cpu, u, tex_coords, p.lod[tex_unit]);
                 }
+
+                draw_pixel(cpu, &p, x, y, ox, oy);
             }
         }
     }

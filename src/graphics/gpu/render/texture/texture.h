@@ -6,6 +6,8 @@
 
 #define TEV_ORDER_ENABLE_TEX(is_even) (is_even ? 6 : 18)
 #define TEV_ORDER_TEX_MAP(is_even) (is_even ? 0 : 12)
+#define TEV_TEX_CORD(is_even) (is_even ? 3 : 15)
+#define TEV_COLOR_CHANNEL(is_even) (is_even ? 7 : 19)
 
 typedef enum {
     TEXTURE_FORMAT_I4 = 0x0,

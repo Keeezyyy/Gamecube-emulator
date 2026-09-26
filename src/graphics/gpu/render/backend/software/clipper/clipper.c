@@ -104,9 +104,9 @@ static XFOutput lerp_output(const XFOutput *a, const XFOutput *b, const f32 t)
 
     for (int c = 0; c < 2; c++) {
         for (int k = 0; k < 4; k++) {
-            const f32 ca = (f32)a->colors[c].rgba[k];
-            const f32 cb = (f32)b->colors[c].rgba[k];
-            out.colors[c].rgba[k] = (u8)(ca + (cb - ca) * t + 0.5f);
+            const f32 ca = (f32)((const u8 *)&a->colors[c])[k];
+            const f32 cb = (f32)((const u8 *)&b->colors[c])[k];
+            ((u8 *)&out.colors[c])[k] = (u8)(ca + (cb - ca) * t + 0.5f);
         }
     }
 

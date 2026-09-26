@@ -1,6 +1,7 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "cp.h"
+#include "graphics/gpu/render/backend/software/tev/tev.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/pipeline.h"
 #include "graphics/gpu/vertex/primitive.h"
@@ -56,6 +57,10 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         bp_mask = value;
 
     GPU_PRINT("BP LOAD [0x%02x] = 0x%06x\n", reg, new_val);
+
+    if (reg >= 0xE0 && reg <= 0xe7) {
+        tev_write_color_reg(reg, new_val);
+    }
 
     if (reg == 0x45 || reg == 0x47 || reg == 0x48 || reg == 0x52 || reg == 0x55 || reg == 0x56 ||
         reg == 0x57 || reg == 0x63 || reg == 0x64 || reg == 0x65 || reg == 0x66) {
