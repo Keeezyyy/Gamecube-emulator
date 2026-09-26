@@ -187,6 +187,8 @@ u32 get_size_of_vertex(u32 VCD_HI, u32 VCD_LO, u32 VAT_A, u32 VAT_B, u32 VAT_C)
     return size;
 }
 
+static Vertex buffer[U16_MAX];
+
 static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
                            u8 primitive_info_byte, const u16 vertex_count, u8 **stream)
 {
@@ -199,7 +201,6 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
     init_vertex_loader(cpu, command_processor_registers);
 
     // TODO: find better alternative maybe gloabl dynamic array
-    Vertex buffer[U16_MAX];
     for (u16 i = 0; i < vertex_count; i++) {
         Vertex v = parse_vertex_from_stream(
             cpu, cp_regs[0x60], cp_regs[0x50], cp_regs[0x70 + vat_index], cp_regs[0x80 + vat_index],

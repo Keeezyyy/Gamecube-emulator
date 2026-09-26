@@ -132,7 +132,6 @@ void di_start_dma(CPU *cpu)
     case 0xA8: {
         if ((op & 0xFF) == 0x00) {
             // DVD_READSECTOR
-
             assert(!"dvd read sector\n");
         } else {
             // DVD_READDISKID
@@ -144,10 +143,14 @@ void di_start_dma(CPU *cpu)
             pi_update_interrupts(cpu);
             printf("DVD DMA read disk id\n");
         }
+        break;
     }
     case 0xE3: {
 
         printf("DVD STOP MOTOR\n");
+        disc_register |= BIT(4);
+        pi_update_interrupts(cpu);
+        break;
     }
     }
     di_dma_regs.DILENGTH = 0;

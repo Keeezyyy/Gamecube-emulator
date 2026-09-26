@@ -1,6 +1,7 @@
 #include "tev.h"
 #include "../rasterize/rasterize.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/texture/texture.h"
 #include <_string.h>
@@ -418,9 +419,27 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
         if (i == num_of_steps - 1) {
 
             DrawPixel(x + ox - 342, y + oy - 342,
-                      (Color){(u8)(c.r < 0 ? 0 : c.r > 255 ? 255 : c.r),
-                              (u8)(c.g < 0 ? 0 : c.g > 255 ? 255 : c.g),
-                              (u8)(c.b < 0 ? 0 : c.b > 255 ? 255 : c.b), 255});
+                      (Color){(u8)(c.r < 0     ? 0
+                                   : c.r > 255 ? 255
+                                               : c.r),
+                              (u8)(c.g < 0     ? 0
+                                   : c.g > 255 ? 255
+                                               : c.g),
+                              (u8)(c.b < 0     ? 0
+                                   : c.b > 255 ? 255
+                                               : c.b),
+                              255});
+            write_to_fb(cpu, x, y,
+                        (u8)(c.r < 0     ? 0
+                             : c.r > 255 ? 255
+                                         : c.r),
+                        (u8)(c.g < 0     ? 0
+                             : c.g > 255 ? 255
+                                         : c.g),
+                        (u8)(c.b < 0     ? 0
+                             : c.b > 255 ? 255
+                                         : c.b),
+                        p->z);
         }
     }
 }
