@@ -49,3 +49,5 @@ GXTexture i4_decode(const u8 *src, u32 width, u32 height);
 GXTexture rgba8_decode(const u8 *src, u32 width, u32 height);
 
 RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod);
+
+void init_texture_hash_map(void);

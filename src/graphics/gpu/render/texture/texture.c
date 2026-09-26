@@ -129,7 +129,6 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
             t_coord = apply_wrap(wrap_t, height, t_coord);
 
             RGBA texel = colors[(t_coord * width + s_coord)];
-            free(texture.buffer);
             return texel;
         }
 

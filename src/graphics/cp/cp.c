@@ -2,6 +2,7 @@
 #include "bus/bus.h"
 #include "bus/interfaces/pi.h"
 #include "graphics/gpu/render/pipeline.h"
+#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include "graphics/gpu/render/backend/opengl/render.h"
 #include <assert.h>
@@ -133,6 +134,8 @@ void cp_init(CPU *cpu)
     pthread_mutex_init(&fifo_ctr.fifo_mutex, NULL);
     init_vertex_loader(cpu, &cp_regs);
     init_raylib_renderer_test();
+
+    init_texture_hash_map();
 }
 
 void cp_thread(CPU *cpu)

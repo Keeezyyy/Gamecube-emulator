@@ -3,9 +3,11 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "core/config/config.h"
 #include "texture.h"
 
-#define OUTPUT_TEXTURE
+#include <zhash/zhash.h>
+// #define OUTPUT_TEXTURE
 
 #ifdef OUTPUT_TEXTURE
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -13,8 +15,27 @@
 
 #endif
 
+static struct ZHashTable *t;
+void init_texture_hash_map(void)
+{
+
+    t = zcreate_hash_table();
+}
+
 GXTexture i8_decode(const u8 *src, u32 width, u32 height)
 {
+    char buffer[128];
+    sprintf(buffer, "texture-output/i8-output-%p.png", src);
+
+    void *p = zhash_get(t, buffer);
+
+    if (p != NULL_PTR) {
+        GXTexture out = {0};
+        out.buffer = p;
+        out.height = height;
+        out.width = width;
+        return out;
+    }
 
     const int channels = 4;
 
@@ -38,8 +59,6 @@ GXTexture i8_decode(const u8 *src, u32 width, u32 height)
     }
 
 #ifdef OUTPUT_TEXTURE
-    char buffer[128];
-    sprintf(buffer, "texture-output/i8-output-%p.png", src);
 
     if (!access(buffer, F_OK) == 0)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);
@@ -49,10 +68,24 @@ GXTexture i8_decode(const u8 *src, u32 width, u32 height)
     out.buffer = pixels;
     out.height = height;
     out.width = width;
+
+    zhash_set(t, buffer, pixels);
     return out;
 }
 GXTexture i4_decode(const u8 *src, u32 width, u32 height)
 {
+    char buffer[128];
+    sprintf(buffer, "texture-output/i4-output-%p.png", src);
+
+    void *p = zhash_get(t, buffer);
+
+    if (p != NULL_PTR) {
+        GXTexture out = {0};
+        out.buffer = p;
+        out.height = height;
+        out.width = width;
+        return out;
+    }
 
     const int channels = 4;
 
@@ -74,8 +107,6 @@ GXTexture i4_decode(const u8 *src, u32 width, u32 height)
     }
 
 #ifdef OUTPUT_TEXTURE
-    char buffer[1024];
-    sprintf(buffer, "texture-output/i4-output-%p.png", src);
 
     if (access(buffer, F_OK) != 0)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);
@@ -86,10 +117,24 @@ GXTexture i4_decode(const u8 *src, u32 width, u32 height)
     out.buffer = pixels;
     out.height = height;
     out.width = width;
+
+    zhash_set(t, buffer, pixels);
     return out;
 }
 GXTexture rgba8_decode(const u8 *src, u32 width, u32 height)
 {
+    char buffer[128];
+    sprintf(buffer, "texture-output/rgba8-output-%p.png", src);
+
+    void *p = zhash_get(t, buffer);
+
+    if (p != NULL_PTR) {
+        GXTexture out = {0};
+        out.buffer = p;
+        out.height = height;
+        out.width = width;
+        return out;
+    }
 
     const int channels = 4;
 
@@ -110,8 +155,6 @@ GXTexture rgba8_decode(const u8 *src, u32 width, u32 height)
     }
 
 #ifdef OUTPUT_TEXTURE
-    char buffer[1024];
-    sprintf(buffer, "texture-output/rgba8-output-%p.png", src);
 
     if (!access(buffer, F_OK) == 0)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);
@@ -121,5 +164,7 @@ GXTexture rgba8_decode(const u8 *src, u32 width, u32 height)
     out.buffer = pixels;
     out.height = height;
     out.width = width;
+
+    zhash_set(t, buffer, pixels);
     return out;
 }
