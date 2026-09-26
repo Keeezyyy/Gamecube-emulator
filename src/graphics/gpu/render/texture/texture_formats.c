@@ -13,7 +13,7 @@
 
 #endif
 
-Texture i8_decode(const u8 *src, u32 width, u32 height)
+GXTexture i8_decode(const u8 *src, u32 width, u32 height)
 {
 
     const int channels = 4;
@@ -45,13 +45,13 @@ Texture i8_decode(const u8 *src, u32 width, u32 height)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);
 #endif
 
-    Texture out = {0};
+    GXTexture out = {0};
     out.buffer = pixels;
     out.height = height;
     out.width = width;
     return out;
 }
-Texture i4_decode(const u8 *src, u32 width, u32 height)
+GXTexture i4_decode(const u8 *src, u32 width, u32 height)
 {
 
     const int channels = 4;
@@ -77,18 +77,18 @@ Texture i4_decode(const u8 *src, u32 width, u32 height)
     char buffer[1024];
     sprintf(buffer, "texture-output/i4-output-%p.png", src);
 
-    if (!access(buffer, F_OK) == 0)
+    if (access(buffer, F_OK) != 0)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);
 
 #endif
 
-    Texture out = {0};
+    GXTexture out = {0};
     out.buffer = pixels;
     out.height = height;
     out.width = width;
     return out;
 }
-Texture rgba8_decode(const u8 *src, u32 width, u32 height)
+GXTexture rgba8_decode(const u8 *src, u32 width, u32 height)
 {
 
     const int channels = 4;
@@ -117,7 +117,7 @@ Texture rgba8_decode(const u8 *src, u32 width, u32 height)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);
 #endif
 
-    Texture out = {0};
+    GXTexture out = {0};
     out.buffer = pixels;
     out.height = height;
     out.width = width;

@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <raylib.h>
+
 typedef struct {
     s32 x0, y0, x1, y1;
     bool empty;
@@ -192,14 +194,14 @@ typedef struct {
     u8 colors[2][4];
     s32 tex[8][2];
 
-    u32 lod[8];
+    f32 lod[8];
 
     XFOutput *edges;
     Vertex *vert;
 } PixelAttributes;
 
-static bool DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by, s32 bx,
-                      s32 ay, PixelAttributes *out)
+static bool interpolate_pixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by,
+                              s32 bx, s32 ay, PixelAttributes *out)
 {
     static f32 dfdx, dfdy, z0, x0, y0;
     if (!((bp(0x00) >> 19) & 1)) {
@@ -272,7 +274,7 @@ static bool DrawPixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 a
 
         s32 maxAdd = sAdd > tAdd ? sAdd : tAdd;
 
-        out->lod[i] = (u32)log2((double)maxAdd);
+        out->lod[i] = (float)log2((double)maxAdd);
     }
 
     return true;
@@ -351,6 +353,8 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
         bias[i] = topLeft ? 1 : 0;
     }
 
+    const u32 gen_mode = get_bp_register_pointer()[0];
+
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
             s64 Px = (s64)x << 4;
@@ -369,7 +373,33 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
             if (!isIn)
                 continue;
 
-            DrawPixel(cpu, x, y, v, vert, X[1] - X[0], Y[2] - Y[0], X[2] - X[0], Y[1] - Y[0]);
+            PixelAttributes p = {0};
+            if (interpolate_pixel(cpu, x, y, v, vert, X[1] - X[0], Y[2] - Y[0], X[2] - X[0],
+                                  Y[1] - Y[0], &p)) {
+                // passed z test
+
+                // DrawPixel(x + ox - 342, y + oy - 342, YELLOW);
+
+                for (int i = 0; i < ((gen_mode >> 16) & 0x7); i++) {
+                    u8 tex_unit = (get_bp_register_pointer()[0x27] >> (i * 6)) & 0x7;
+                    u8 tex_cord = (get_bp_register_pointer()[0x27] >> (i * 6 + 3)) & 0x7;
+
+                    if (tex_cord >= (gen_mode & 0xF))
+                        tex_cord = 0;
+
+                    u8 scale_s = (get_bp_register_pointer()[0x25] >> (i * 8)) & 0xF;
+                    u8 scale_t = (get_bp_register_pointer()[0x25] >> (i * 8 + 4)) & 0xF;
+
+                    s32 s = (s32)p.tex[tex_cord][0] >> scale_s;
+                    s32 t = (s32)p.tex[tex_cord][1] >> scale_t;
+                    TextureUnit u;
+                    get_texture_unit_regs(&u, tex_unit, get_bp_register_pointer());
+
+                    s32 tex_coords[] = {s, t};
+
+                    RGBA color = sample_texture(cpu, u, tex_coords, p.lod[tex_unit]);
+                }
+            }
         }
     }
 }

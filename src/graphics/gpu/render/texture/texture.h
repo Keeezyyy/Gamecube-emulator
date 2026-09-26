@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bus/bus.h"
+#include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 
 #define TEV_ORDER_ENABLE_TEX(is_even) (is_even ? 6 : 18)
@@ -29,9 +30,9 @@ typedef struct {
     u32 width;
     u32 height;
     u8 *buffer;
-} Texture;
+} GXTexture;
 
-void decode_texture(CPU *cpu, void *dest, const void *src, const u32 *bp, u8 tex_num);
+GXTexture decode_texture(CPU *cpu, const u32 *bp, TextureUnit u, u32 *width_o, u32 *height_o);
 
 void get_hash_from_bp_stat(const u32 *bp, char *dest);
 
@@ -41,6 +42,8 @@ void load_texture_for_primitive(CPU *cpu, Vertex *v);
 
 void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp);
 
-Texture i8_decode(const u8 *src, u32 width, u32 height);
-Texture i4_decode(const u8 *src, u32 width, u32 height);
-Texture rgba8_decode(const u8 *src, u32 width, u32 height);
+GXTexture i8_decode(const u8 *src, u32 width, u32 height);
+GXTexture i4_decode(const u8 *src, u32 width, u32 height);
+GXTexture rgba8_decode(const u8 *src, u32 width, u32 height);
+
+RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod);

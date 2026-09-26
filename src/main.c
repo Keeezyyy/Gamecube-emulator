@@ -12,6 +12,7 @@
 #include "cpu/translation/translation.h"
 #include "graphics/cp/cp.h"
 #include "graphics/vi.h"
+#include "utils/vector.h"
 
 static Bus b;
 static Disc disc;
@@ -37,6 +38,8 @@ static void print_clock(int sig)
 
     printf("translation mem usage : %.2lf mB\n",
            (double)get_global_translation_mem_usage() / (double)MB(1));
+
+    printf("vector mem usage : %.2lf mB\n", (double)get_vec_mem_usage() / (double)MB(1));
 
     fflush(stdout);
     _exit(128 + sig);

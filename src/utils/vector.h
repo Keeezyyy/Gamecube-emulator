@@ -13,3 +13,5 @@ struct Vector {
 };
 
 void init_Vector(Vector *self, u32 initial_cap);
+
+u64 get_vec_mem_usage(void);

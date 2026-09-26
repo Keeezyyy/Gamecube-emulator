@@ -39,10 +39,6 @@ static Vector2 to_raylib(const XFOutput *o)
 
 static void draw_polygon(CPU *cpu, const XFOutput *out, const u16 polygon_count, Vertex *v)
 {
-#ifdef RENDER_TEST_RAYLIB
-    for (int i = 0; i < polygon_count; i++)
-        DrawTriangle(to_raylib(&out[0]), to_raylib(&out[i + 1]), to_raylib(&out[i + 2]), VIOLET);
-#endif
 
     rasterize_polygon(cpu, out, v);
 }

@@ -79,7 +79,8 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
 
             GPU_PRINT("BP reg 0x52 write\n");
 #ifdef RENDER_TEST_RAYLIB
-            if ((new_val >> 14) & 1) {
+            if (((new_val >> 14) & 1) &&
+                ((bp_regs[0x43] & 7) != 2 || ((bp_regs[0x49] >> 10) & 0x3FF) != 0)) {
                 EndDrawing();
                 BeginDrawing();
                 ClearBackground(BLACK);
