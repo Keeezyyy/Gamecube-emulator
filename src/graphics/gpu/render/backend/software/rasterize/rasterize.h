@@ -16,3 +16,5 @@ typedef struct {
     Vertex *vert;
 } PixelAttributes;
 void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *v);
+void rasterize_update_zslope(const XFOutput in[3]);
+bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y);

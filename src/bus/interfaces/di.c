@@ -32,7 +32,8 @@ u64 di_read(CPU *cpu, u32 adr, u32 size)
     case 0xCC006000:
         return disc_register;
     case 0xCC006004:
-        return disc_cover_register;
+        // return disc_cover_register | 1;
+        return disc_cover_register | 1;
     case 0xCC006018:
         return di_dma_regs.DILENGTH;
     case 0xCC006024:

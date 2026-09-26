@@ -7,7 +7,7 @@
 #include "texture.h"
 
 #include <zhash/zhash.h>
-// #define OUTPUT_TEXTURE
+#define OUTPUT_TEXTURE
 
 #ifdef OUTPUT_TEXTURE
 #define STB_IMAGE_WRITE_IMPLEMENTATION

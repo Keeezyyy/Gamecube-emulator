@@ -147,7 +147,57 @@ static void interpolate_f32(s32 ax, s32 by, s32 bx, s32 ay, f32 f1, f32 f2, f32 
     *dfdy = (F3 * (f32)ax - F2 * (f32)bx) / (f32)A;
 }
 
-static bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y)
+typedef struct {
+    f32 f0;
+    f32 dfdx;
+    f32 dfdy;
+    f32 x0;
+    f32 y0;
+} Slope;
+
+static Slope z_slope;
+
+static Slope make_slope(const XFOutput v[3], s32 ax, s32 by, s32 bx, s32 ay, f32 f0, f32 f1,
+                        f32 f2)
+{
+    Slope s = {f0, 0.0f, 0.0f, v[0].pos.m[0], v[0].pos.m[1]};
+    interpolate_f32(ax, by, bx, ay, f0, f1, f2, &s.dfdx, &s.dfdy);
+    s.dfdx *= 16.0f;
+    s.dfdy *= 16.0f;
+    return s;
+}
+
+static f32 slope_at(const Slope *s, f32 x, f32 y)
+{
+    return s->f0 + s->dfdx * (x - s->x0) + s->dfdy * (y - s->y0);
+}
+
+void rasterize_update_zslope(const XFOutput in[3])
+{
+    if ((bp(0x00) >> 19) & 1)
+        return;
+
+    s32 ox, oy;
+    get_scissor_offset(&ox, &oy);
+
+    XFOutput v[3];
+    s32 X[3], Y[3];
+    for (int i = 0; i < 3; i++) {
+        v[i] = in[i];
+        v[i].pos.m[0] -= (f32)ox;
+        v[i].pos.m[1] -= (f32)oy;
+        X[i] = (s32)lroundf(v[i].pos.m[0] * 16.0f) - 9;
+        Y[i] = (s32)lroundf(v[i].pos.m[1] * 16.0f) - 9;
+    }
+
+    if ((X[1] - X[0]) * (Y[2] - Y[0]) - (Y[1] - Y[0]) * (X[2] - X[0]) == 0)
+        return;
+
+    z_slope = make_slope(v, X[1] - X[0], Y[2] - Y[0], X[2] - X[0], Y[1] - Y[0], v[0].pos.m[2],
+                         v[1].pos.m[2], v[2].pos.m[2]);
+}
+
+bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y)
 {
     const u32 ctrl = get_bp_register_pointer()[0x40];
 
@@ -179,33 +229,25 @@ static bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y)
     return false;
 }
 
-static f32 interp_at(const XFOutput v[3], s32 ax, s32 by, s32 bx, s32 ay, f32 f0, f32 f1, f32 f2,
-                     s32 x, s32 y)
+static void st_at(const Slope s[3], f32 x, f32 y, s32 *st)
 {
-    f32 dx, dy;
-    interpolate_f32(ax, by, bx, ay, f0, f1, f2, &dx, &dy);
-    return f0 + dx * 16.0f * ((f32)x - v[0].pos.m[0]) + dy * 16.0f * ((f32)y - v[0].pos.m[1]);
+    f32 q = slope_at(&s[2], x, y);
+    if (q == 0.0f)
+        q = 1.0f;
+
+    st[0] = (s32)(slope_at(&s[0], x, y) / q * 128.0f);
+    st[1] = (s32)(slope_at(&s[1], x, y) / q * 128.0f);
 }
 
-static bool interpolate_pixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert, s32 ax, s32 by,
-                              s32 bx, s32 ay, PixelAttributes *out)
+static bool interpolate_pixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *vert,
+                              Slope color_slopes[2][4], Slope tex_slopes[8][3],
+                              PixelAttributes *out)
 {
-    static f32 dfdx, dfdy, z0, x0, y0;
-    if (!((bp(0x00) >> 19) & 1)) {
-        interpolate_f32(ax, by, bx, ay, v[0].pos.m[2], v[1].pos.m[2], v[2].pos.m[2], &dfdx, &dfdy);
-        dfdx *= 16.0f;
-        dfdy *= 16.0f;
-        z0 = v[0].pos.m[2];
-        x0 = v[0].pos.m[0];
-        y0 = v[0].pos.m[1];
-    }
-
-    f32 zInterpolated =
-        fminf(fmaxf(z0 + dfdx * ((f32)x - x0) + dfdy * ((f32)y - y0), 0.0f), 16777215.0f);
+    f32 zInterpolated = fminf(fmaxf(slope_at(&z_slope, (f32)x, (f32)y), 0.0f), 16777215.0f);
 
     u32 zDec = (u32)zInterpolated;
 
-    if (test_if_z_test_fails(cpu, zDec, x, y))
+    if (((bp(0x43) >> 6) & 1) && test_if_z_test_fails(cpu, zDec, x, y))
         return false;
 
     out->x = x;
@@ -218,51 +260,18 @@ static bool interpolate_pixel(CPU *cpu, s32 x, s32 y, XFOutput v[3], Vertex *ver
     for (int c = 0; c < 2; c++)
         for (int k = 0; k < 4; k++)
             out->colors[c][k] =
-                (u8)fminf(fmaxf(interp_at(v, ax, by, bx, ay, ((const u8 *)&v[0].colors[c])[k],
-                                          ((const u8 *)&v[1].colors[c])[k],
-                                          ((const u8 *)&v[2].colors[c])[k], x, y),
-                                0.0f),
-                          255.0f);
+                (u8)fminf(fmaxf(slope_at(&color_slopes[c][k], (f32)x, (f32)y), 0.0f), 255.0f);
 
     for (u32 i = 0; i < num_texgens(); i++) {
-        f32 stq[3];
-        for (int k = 0; k < 3; k++)
-            stq[k] =
-                interp_at(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
-                          v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3], x, y);
+        s32 right[2], down[2];
+        st_at(tex_slopes[i], (f32)x, (f32)y, out->tex[i]);
+        st_at(tex_slopes[i], (f32)(x + 1), (f32)y, right);
+        st_at(tex_slopes[i], (f32)x, (f32)(y + 1), down);
 
-        out->tex[i][0] = (s32)(stq[0] / stq[2] * 128.0f);
-        out->tex[i][1] = (s32)(stq[1] / stq[2] * 128.0f);
+        const s32 ds = max3(abs(right[0] - out->tex[i][0]), abs(down[0] - out->tex[i][0]), 0);
+        const s32 dt = max3(abs(right[1] - out->tex[i][1]), abs(down[1] - out->tex[i][1]), 0);
 
-        for (int k = 0; k < 3; k++)
-            stq[k] = interp_at(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
-                               v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3],
-                               x + 1, y);
-        s32 sb = (s32)(stq[0] / stq[2] * 128.0f);
-        s32 tb = (s32)(stq[1] / stq[2] * 128.0f);
-
-        for (int k = 0; k < 3; k++)
-            stq[k] = interp_at(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
-                               v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3],
-                               x, y + 1);
-        s32 sc = (s32)(stq[0] / stq[2] * 128.0f);
-        s32 tc = (s32)(stq[1] / stq[2] * 128.0f);
-
-        s32 s_right = abs(sb - out->tex[i][0]);
-        s32 s_down = abs(sc - out->tex[i][0]);
-
-        s32 t_right = abs(tb - out->tex[i][1]);
-        s32 t_down = abs(tc - out->tex[i][1]);
-
-        TextureUnit u = {0};
-        get_texture_unit_regs(&u, i, get_bp_register_pointer());
-
-        s32 sAdd = s_right + s_down;
-        s32 tAdd = t_right + t_down;
-
-        s32 maxAdd = sAdd > tAdd ? sAdd : tAdd;
-
-        out->lod[i] = (float)log2((double)maxAdd);
+        out->lod[i] = log2f((f32)(ds > dt ? ds : dt) / 128.0f);
     }
 
     return true;
@@ -277,6 +286,8 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
 
     if (sc.empty)
         return;
+
+    rasterize_update_zslope(in);
 
     XFOutput v[3];
     s32 X[3], Y[3];
@@ -343,8 +354,27 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
 
     const u32 gen_mode = get_bp_register_pointer()[0];
 
+    const s32 ax = X[1] - X[0], ay = Y[1] - Y[0], bx = X[2] - X[0], by = Y[2] - Y[0];
+
+    Slope color_slopes[2][4];
+    for (int c = 0; c < 2; c++)
+        for (int k = 0; k < 4; k++)
+            color_slopes[c][k] = make_slope(v, ax, by, bx, ay, ((const u8 *)&v[0].colors[c])[k],
+                                            ((const u8 *)&v[1].colors[c])[k],
+                                            ((const u8 *)&v[2].colors[c])[k]);
+
+    Slope tex_slopes[8][3];
+    for (u32 i = 0; i < num_texgens(); i++)
+        for (int k = 0; k < 3; k++)
+            tex_slopes[i][k] = make_slope(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
+                                          v[1].tex[i].m[k] * v[1].pos.m[3],
+                                          v[2].tex[i].m[k] * v[2].pos.m[3]);
+
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
+            if (x < sc.x0 || x > sc.x1 || y < sc.y0 || y > sc.y1)
+                continue;
+
             s64 Px = (s64)x << 4;
             s64 Py = (s64)y << 4;
 
@@ -362,8 +392,7 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
                 continue;
 
             PixelAttributes p = {0};
-            if (interpolate_pixel(cpu, x, y, v, vert, X[1] - X[0], Y[2] - Y[0], X[2] - X[0],
-                                  Y[1] - Y[0], &p)) {
+            if (interpolate_pixel(cpu, x, y, v, vert, color_slopes, tex_slopes, &p)) {
                 // passed z test
 
                 // DrawPixel(x + ox - 342, y + oy - 342, YELLOW);
@@ -386,7 +415,7 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
 
                     s32 tex_coords[] = {s, t};
 
-                    RGBA color = sample_texture(cpu, u, tex_coords, p.lod[tex_unit]);
+                    RGBA color = sample_texture(cpu, u, tex_coords, p.lod[tex_cord]);
                 }
 
                 draw_pixel(cpu, &p, x, y, ox, oy);
