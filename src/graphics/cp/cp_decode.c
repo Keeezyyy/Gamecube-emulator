@@ -1,6 +1,7 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "cp.h"
+#include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/tev/tev.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/pipeline.h"
@@ -87,6 +88,10 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         }
         case 0x52: {
             // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
+            if (((new_val >> 14) & 1)) {
+                copy_efb_to_xfb(cpu);
+                clear_fb();
+            }
 
             GPU_PRINT("BP reg 0x52 write\n");
 #ifdef RENDER_TEST_RAYLIB
@@ -143,7 +148,7 @@ u64 read_stream(CPU *cpu, GXFifoRegs *command_processor_registers, u8 **stream, 
 
     for (u8 i = 0; i < size; i++) {
         if (command_processor_registers &&
-            *stream > &cpu->bus->ram[_get_fifo_end(command_processor_registers) + 3])
+            *stream == &cpu->bus->ram[_get_fifo_end(command_processor_registers) + 4])
             *stream = &cpu->bus->ram[_get_fifo_base(command_processor_registers)];
 
         val = (val << 8) | *(*stream)++;

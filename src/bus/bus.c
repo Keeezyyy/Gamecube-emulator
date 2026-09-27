@@ -20,7 +20,7 @@
 
 static u8 ram_buffer[RAM_SIZE];
 static u8 gpu_ram_buffer_mirror[RAM_SIZE];
-static u8 efb[0x1EF000];
+static u8 xfb[0x1EF000];
 
 static int dol_load_into_ram(Bus *self);
 
@@ -328,7 +328,7 @@ void init_bus(Bus *self, CPU *cpu)
 
     self->ram = ram_buffer;
     self->ram = gpu_ram_buffer_mirror;
-    self->efb = efb;
+    self->xfb = xfb;
 
     init_exi();
     vi_init();

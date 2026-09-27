@@ -1,11 +1,14 @@
 #include "post-processing.h"
 #include "bus/bus.h"
+#include "core/config/config.h"
 #include "graphics/cp/cp.h"
 #include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 
+#ifdef RENDER_TEST_RAYLIB
 #include <raylib.h>
+#endif
 
 typedef enum {
     U8 = 0,
@@ -182,6 +185,13 @@ static RGBA _blend(RGBA fb_color, RGBA new_color)
     return out;
 }
 
+static void _alpha_override(RGBA *color)
+{
+    if ((get_bp_register_pointer()[0x42] >> 8) & 1) {
+        color->a = get_bp_register_pointer()[0x42] & 0xFF;
+    }
+}
+
 void process_pixel(CPU *cpu, u32 x, u32 y, u32 z, RGBA color, RGBA texture_color, u32 ox, u32 oy)
 {
     u32 new_z = _z_texture(texture_color, z);
@@ -198,7 +208,11 @@ void process_pixel(CPU *cpu, u32 x, u32 y, u32 z, RGBA color, RGBA texture_color
 
     RGBA new_color = _blend(fb_color, color);
 
+    _alpha_override(&new_color);
+
+#ifdef RENDER_TEST_RAYLIB
     DrawPixel(x + ox - 342, y + oy - 342, (Color){new_color.r, new_color.g, new_color.b, 255});
+#endif
     write_to_fb(x, y, new_color.r, new_color.g, new_color.b,
                 (get_bp_register_pointer()[0x40] & 0x11) == 0x11
                     ? new_z

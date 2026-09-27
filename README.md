@@ -1,6 +1,10 @@
 Gamecube emulator with dynamic recompilation(qemu arch)
 
-![MIT License](media/progress-screenshot-03.gif)
+
+
+CPU is 80% done and runs at 75MHz (15.53% of original)
+For now rendering is purely on host cpu
+![MIT License](media/progress-screenshot-04.gif)
 
 
 TODO RENDER:

@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
+#include <SDL3/SDL.h>
 
 static DisplayRegisters dpr;
 

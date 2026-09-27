@@ -5,8 +5,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
-static u8 efb[0x1EF000];
+static u8 efb[FRAMEBUFFER_SIZE_IN_BYTES];
 
 static u32 get_fmt(void)
 {
@@ -231,4 +232,13 @@ RGBA read_from_fb(s32 x, s32 y)
     }
 
     return out;
+}
+
+void copy_efb_to_xfb(CPU *cpu)
+{
+    memcpy(cpu->bus->xfb, efb, FRAMEBUFFER_SIZE_IN_BYTES);
+}
+void clear_fb(void)
+{
+    memset(efb, 0, FRAMEBUFFER_SIZE_IN_BYTES);
 }

@@ -13,7 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef RENDER_TEST_RAYLIB
 #include <raylib.h>
+#endif
 
 typedef struct {
     s32 x0, y0, x1, y1;

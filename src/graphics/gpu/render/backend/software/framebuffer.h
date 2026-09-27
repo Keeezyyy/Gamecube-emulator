@@ -8,6 +8,8 @@
 #define EFB_HEIGHT_AA 264
 #define EFB_COLOR_BYTES (EFB_WIDTH * EFB_HEIGHT * 3)
 
+#define FRAMEBUFFER_SIZE_IN_BYTES 0x1eF000
+
 enum {
     PF_RGB8_Z24 = 0,
     PF_RGBA6_Z24 = 1,
@@ -23,5 +25,6 @@ enum { ZC_LINEAR = 0, ZC_NEAR = 1, ZC_MID = 2, ZC_FAR = 3 };
 
 u32 get_z_in_fb(CPU *cpu, s32 x, s32 y);
 void write_to_fb(s32 x, s32 y, u8 r, u8 g, u8 b, u32 z);
-
 RGBA read_from_fb(s32 x, s32 y);
+void clear_fb(void);
+void copy_efb_to_xfb(CPU *);

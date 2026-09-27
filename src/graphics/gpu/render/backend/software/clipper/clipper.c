@@ -57,7 +57,7 @@ static bool test_backface(const Vec4 *v0, const Vec4 *v1, const Vec4 *v2,
     f32 n = (v0->x * v2->w - v2->x * v0->w) * v1->y + (v2->x * v0->y - v0->x * v2->y) * v1->w +
             (v2->y * v0->w - v0->y * v2->w) * v1->x;
 
-    bool b = n <= 0;
+    bool b = n > 0;
 
     if ((xf_regs->viewport[1]) > 0) {
         return !b;
