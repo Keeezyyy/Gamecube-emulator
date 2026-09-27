@@ -155,3 +155,6 @@ u32 *get_bp_register_pointer(void);
 u32 *get_cp_register_pointer(void);
 
 u16 *get_bbox(void);
+
+// debug stats code
+u64 get_frames_of_runtime(void);

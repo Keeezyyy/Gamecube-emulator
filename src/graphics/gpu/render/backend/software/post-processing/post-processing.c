@@ -6,9 +6,6 @@
 #include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 
-#ifdef RENDER_TEST_RAYLIB
-#include <raylib.h>
-#endif
 
 typedef enum {
     U8 = 0,
@@ -210,9 +207,6 @@ void process_pixel(CPU *cpu, u32 x, u32 y, u32 z, RGBA color, RGBA texture_color
 
     _alpha_override(&new_color);
 
-#ifdef RENDER_TEST_RAYLIB
-    DrawPixel(x + ox - 342, y + oy - 342, (Color){new_color.r, new_color.g, new_color.b, 255});
-#endif
     write_to_fb(x, y, new_color.r, new_color.g, new_color.b,
                 (get_bp_register_pointer()[0x40] & 0x11) == 0x11
                     ? new_z

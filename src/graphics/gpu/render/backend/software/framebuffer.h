@@ -10,6 +10,9 @@
 
 #define FRAMEBUFFER_SIZE_IN_BYTES 0x1eF000
 
+#define XFB_WIDTH 640
+#define XFB_HEIGHT 480
+
 enum {
     PF_RGB8_Z24 = 0,
     PF_RGBA6_Z24 = 1,
@@ -28,3 +31,6 @@ void write_to_fb(s32 x, s32 y, u8 r, u8 g, u8 b, u32 z);
 RGBA read_from_fb(s32 x, s32 y);
 void clear_fb(void);
 void copy_efb_to_xfb(CPU *);
+void present_xfb(CPU *cpu);
+void lock_xfb(void);
+void unlock_xfb(void);

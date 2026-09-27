@@ -12,6 +12,7 @@
 #include "cpu/translation/translation.h"
 #include "graphics/cp/cp.h"
 #include "graphics/vi.h"
+#include "io/io.h"
 #include "utils/vector.h"
 
 static Bus b;
@@ -40,6 +41,8 @@ static void print_clock(int sig)
            (double)get_global_translation_mem_usage() / (double)MB(1));
 
     printf("vector mem usage : %.2lf mB\n", (double)get_vec_mem_usage() / (double)MB(1));
+
+    printf("avg fps: : %.2lf\n", (double)get_frames_of_runtime() / (double)s);
 
     fflush(stdout);
     _exit(128 + sig);
@@ -102,12 +105,11 @@ static void _threads(void)
     pthread_create(&main_thread, NULL, (void *)cpu.main, &cpu);
     pthread_detach(main_thread);
 
-    /*
-      pthread_t gpu_pipeline_cp_thread;
-      pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
-      pthread_detach(gpu_pipeline_cp_thread);
-    */
-    cp_thread(&cpu);
+    pthread_t gpu_pipeline_cp_thread;
+    pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
+    pthread_detach(gpu_pipeline_cp_thread);
+
+    io_thread(&cpu);
 }
 
 int main(int argc, char **argv)

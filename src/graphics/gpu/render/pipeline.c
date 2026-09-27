@@ -12,26 +12,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef RENDER_TEST_RAYLIB
-#include <raylib.h>
-#include <rlgl.h>
-#endif
 
 #define SOFTWARE_CLIPPER
 #define SOFTWARE_RATERIZER
-
-void init_raylib_renderer_test(void)
-{
-#ifdef RENDER_TEST_RAYLIB
-    const int screenWidth = 640;
-    const int screenHeight = 480;
-
-    InitWindow(screenWidth, screenHeight, "render test");
-    rlDisableBackfaceCulling();
-    BeginDrawing();
-    ClearBackground(BLACK);
-#endif
-}
 
 static void draw_polygon(CPU *cpu, const XFOutput *out, const u16 polygon_count, Vertex *v)
 {

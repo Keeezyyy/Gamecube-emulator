@@ -15,9 +15,6 @@
 #include <stdio.h>
 #include <GLFW/glfw3.h>
 
-#ifdef RENDER_TEST_RAYLIB
-#include <raylib.h>
-#endif
 
 static u32 bp_regs[256];
 static u32 cp_regs[256]; // ends with 0xBF
@@ -43,6 +40,13 @@ u32 *get_cp_register_pointer(void)
 u16 *get_bbox(void)
 {
     return bbox;
+}
+
+// debug stats code
+static u64 frame_counter = 0;
+u64 get_frames_of_runtime(void)
+{
+    return frame_counter;
 }
 
 static u32 bp_mask = 0xFFFFFF;
@@ -91,17 +95,15 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
             if (((new_val >> 14) & 1)) {
                 copy_efb_to_xfb(cpu);
                 clear_fb();
+
+                // AA rendert in zwei Haelften: erst nach der letzten Kopie ist das Bild komplett
+                if ((bp_regs[0x43] & 7) != PF_RGB565_Z16 || ((bp_regs[0x49] >> 10) & 0x3FF) != 0) {
+                    present_xfb(cpu);
+                }
             }
+            frame_counter++;
 
             GPU_PRINT("BP reg 0x52 write\n");
-#ifdef RENDER_TEST_RAYLIB
-            if (((new_val >> 14) & 1) &&
-                ((bp_regs[0x43] & 7) != 2 || ((bp_regs[0x49] >> 10) & 0x3FF) != 0)) {
-                EndDrawing();
-                BeginDrawing();
-                ClearBackground(BLACK);
-            }
-#endif
             break;
         }
         case 0x55:
@@ -221,7 +223,10 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
     }
 
     Primitive p = {buffer, vertex_count, primitive_type};
+
+#ifdef RENDER_PRIMITIVES
     load_vertex_into_pipeline(cpu, p);
+#endif /* ifdef RENDER_PRIMITIVES */
 }
 
 static void load_xf_reg(u16 adr, u16 n, const u32 *values)

@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define RENDER_TEST_RAYLIB
+#define RENDER_PRIMITIVES
 
 #define u8 uint8_t
 #define u16 uint16_t

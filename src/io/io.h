@@ -1,4 +1,7 @@
 #pragma once
 
 #include "bus/bus.h"
-void displa_thread(CPU *cpu);
+
+void io_thread(CPU *cpu);
+
+void trigger_frame(void);

@@ -18,3 +18,5 @@ typedef struct {
 void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *v);
 void rasterize_update_zslope(const XFOutput in[3]);
 bool test_if_z_test_fails(CPU *cpu, u32 z, s32 x, s32 y);
+
+void get_scissor_offset(s32 *ox, s32 *oy);

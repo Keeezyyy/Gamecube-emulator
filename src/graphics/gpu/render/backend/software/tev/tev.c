@@ -12,9 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef RENDER_TEST_RAYLIB
-#include <raylib.h>
-#endif
 
 enum { TEV_R = 0, TEV_G = 1, TEV_B = 2, TEV_A = 3 };
 

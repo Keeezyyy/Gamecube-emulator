@@ -5,9 +5,13 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <string.h>
 
 static u8 efb[FRAMEBUFFER_SIZE_IN_BYTES];
+
+static RGBA xfb_back[XFB_WIDTH * XFB_HEIGHT];
+static pthread_mutex_t xfb_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static u32 get_fmt(void)
 {
@@ -236,8 +240,52 @@ RGBA read_from_fb(s32 x, s32 y)
 
 void copy_efb_to_xfb(CPU *cpu)
 {
-    memcpy(cpu->bus->xfb, efb, FRAMEBUFFER_SIZE_IN_BYTES);
+    const u32 *bp = get_bp_register_pointer();
+    const u32 fmt = get_fmt();
+    const u32 left = bp[0x49] & 0x3FF;
+    const u32 top = (bp[0x49] >> 10) & 0x3FF;
+    const u32 width = (bp[0x4A] & 0x3FF) + 1;
+    const u32 height = ((bp[0x4A] >> 10) & 0x3FF) + 1;
+
+    const u32 so = bp[0x59];
+    const s32 ox = (s32)(so & 0x3FF) * 2;
+    const s32 oy = (s32)((so >> 10) & 0x3FF) * 2;
+
+    RGBA *dst = xfb_back;
+
+    for (u32 y = top; y < top + height; y++) {
+        for (u32 x = left; x < left + width; x++) {
+            if (!in_bounds(fmt, x, y)) {
+                continue;
+            }
+            const s32 sx = (s32)x + ox - 342;
+            const s32 sy = (s32)y + oy - 342;
+            if (sx < 0 || sy < 0 || sx >= XFB_WIDTH || sy >= XFB_HEIGHT) {
+                continue;
+            }
+            RGBA c = read_from_fb((s32)x, (s32)y);
+            c.a = 0xFF;
+            dst[sy * XFB_WIDTH + sx] = c;
+        }
+    }
 }
+void present_xfb(CPU *cpu)
+{
+    pthread_mutex_lock(&xfb_lock);
+    memcpy(cpu->bus->xfb, xfb_back, sizeof(xfb_back));
+    pthread_mutex_unlock(&xfb_lock);
+}
+
+void lock_xfb(void)
+{
+    pthread_mutex_lock(&xfb_lock);
+}
+
+void unlock_xfb(void)
+{
+    pthread_mutex_unlock(&xfb_lock);
+}
+
 void clear_fb(void)
 {
     memset(efb, 0, FRAMEBUFFER_SIZE_IN_BYTES);

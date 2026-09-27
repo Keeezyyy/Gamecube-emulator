@@ -13,9 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef RENDER_TEST_RAYLIB
-#include <raylib.h>
-#endif
 
 typedef struct {
     s32 x0, y0, x1, y1;
@@ -43,7 +40,7 @@ static void scale_texcoords(XFOutput *v)
     // TODO: point and line texture offsets BP[0x22]
 }
 
-static void get_scissor_offset(s32 *ox, s32 *oy)
+void get_scissor_offset(s32 *ox, s32 *oy)
 {
     u32 so = bp(0x59);
     *ox = (s32)(so & 0x3FF) * 2;
@@ -159,8 +156,7 @@ typedef struct {
 
 static Slope z_slope;
 
-static Slope make_slope(const XFOutput v[3], s32 ax, s32 by, s32 bx, s32 ay, f32 f0, f32 f1,
-                        f32 f2)
+static Slope make_slope(const XFOutput v[3], s32 ax, s32 by, s32 bx, s32 ay, f32 f0, f32 f1, f32 f2)
 {
     Slope s = {f0, 0.0f, 0.0f, v[0].pos.m[0], v[0].pos.m[1]};
     interpolate_f32(ax, by, bx, ay, f0, f1, f2, &s.dfdx, &s.dfdy);
@@ -361,16 +357,16 @@ void rasterize_polygon(CPU *cpu, const XFOutput in[3], Vertex *vert)
     Slope color_slopes[2][4];
     for (int c = 0; c < 2; c++)
         for (int k = 0; k < 4; k++)
-            color_slopes[c][k] = make_slope(v, ax, by, bx, ay, ((const u8 *)&v[0].colors[c])[k],
-                                            ((const u8 *)&v[1].colors[c])[k],
-                                            ((const u8 *)&v[2].colors[c])[k]);
+            color_slopes[c][k] =
+                make_slope(v, ax, by, bx, ay, ((const u8 *)&v[0].colors[c])[k],
+                           ((const u8 *)&v[1].colors[c])[k], ((const u8 *)&v[2].colors[c])[k]);
 
     Slope tex_slopes[8][3];
     for (u32 i = 0; i < num_texgens(); i++)
         for (int k = 0; k < 3; k++)
-            tex_slopes[i][k] = make_slope(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
-                                          v[1].tex[i].m[k] * v[1].pos.m[3],
-                                          v[2].tex[i].m[k] * v[2].pos.m[3]);
+            tex_slopes[i][k] =
+                make_slope(v, ax, by, bx, ay, v[0].tex[i].m[k] * v[0].pos.m[3],
+                           v[1].tex[i].m[k] * v[1].pos.m[3], v[2].tex[i].m[k] * v[2].pos.m[3]);
 
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
