@@ -47,6 +47,18 @@ typedef struct {
     enum CombineDest dest;
 } CombineConfig;
 
+typedef enum {
+    OP_NEVER = 0,
+    OP_LESS = 1,
+    OP_EQUAL = 2,
+    OP_LESS_EQUAL = 3,
+    OP_GREATER = 4,
+    OP_NOT_EQUAL = 5,
+    OP_GREATER_EQUAL = 6,
+    OP_ALWAYS = 7
+} AlphaTestOperator;
+
+typedef enum { LOGIC_AND = 0, LOGIC_OR = 1, LOGIC_XOR = 2, LOGIC_XNOR = 3 } AlphaTestLogicOperator;
 void tev_write_color_reg(u8 reg, u32 value);
 
 void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy);

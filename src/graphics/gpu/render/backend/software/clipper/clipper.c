@@ -1,6 +1,7 @@
 #include "clipper.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -218,10 +219,14 @@ bool clipping(XFOutput *clipping_in1, XFOutput *clipping_in2, XFOutput *clipping
     u8 cull_mode = (get_bp_register_pointer()[0] >> 14) & 0x3;
 
     if (cull_mode == 3 || (cull_mode == 1 && backface) || (cull_mode == 2 && !backface)) {
+        if (v1->m[3] > 0.0f && v2->m[3] > 0.0f && v3->m[3] > 0.0f) {
+            XFOutput culled[3] = {*clipping_in1, *clipping_in2, *clipping_in3};
+            for (int i = 0; i < 3; i++)
+                to_screen(&culled[i], xf_regs);
+            rasterize_update_zslope(culled);
+        }
         return false;
     }
-
-    // TODO: genmode bit 19 zfreeze
 
     XFOutput poly[MAX_CLIP_VERTS] = {*clipping_in1, *clipping_in2, *clipping_in3};
     const u32 count = clip_polygon(poly, 3, out);

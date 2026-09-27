@@ -50,10 +50,8 @@ u32 get_z_in_fb(CPU *cpu, s32 x, s32 y)
     case PF_Z24:
         return z;
 
-    case PF_RGB565_Z16: {
-        const u32 z16 = z >> 8;
-        return (z16 << 8) | (z16 >> 8);
-    }
+    case PF_RGB565_Z16:
+        return z & 0xFFFF00;
 
     case PF_Y8:
     case PF_U8:

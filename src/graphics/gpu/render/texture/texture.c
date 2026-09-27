@@ -5,6 +5,7 @@
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -98,10 +99,9 @@ static s32 apply_wrap(const u8 wrap, u32 tex_size, s32 coord)
 
 RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
 {
-    s8 lod_bias = (s8)(u.mode0 >> 9);
-    lod_bias /= 2;
-
-    lod += lod_bias;
+    lod += (f32)(s8)((u.mode0 >> 9) & 0xFF) / 32.0f;
+    lod = fminf(lod, (f32)((u.mode1 >> 8) & 0xFF) / 16.0f);
+    lod = fmaxf(lod, (f32)(u.mode1 & 0xFF) / 16.0f);
     // if (lod <= 0) {
     if (true) {
 

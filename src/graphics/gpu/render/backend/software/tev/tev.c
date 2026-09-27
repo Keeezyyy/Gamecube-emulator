@@ -352,6 +352,72 @@ static RGBAS16 tev_calc_core(CombineConfig *color_conf, CombineConfig *alpha_con
     return out;
 }
 
+static bool perform_alpha_test(const u8 alpha)
+{
+    bool results[2];
+    for (int i = 0; i < 2; i++) {
+        const AlphaTestOperator operation =
+            (get_bp_register_pointer()[0xF3] >> (16 + (i * 3))) & 0x7;
+        const u8 referene = (get_bp_register_pointer()[0xF3] >> ((i * 8))) & 0xFF;
+
+        switch (operation) {
+        case OP_NEVER:
+            results[i] = false;
+            break;
+        case OP_LESS:
+            results[i] = alpha < referene;
+            break;
+        case OP_EQUAL:
+            results[i] = alpha == referene;
+            break;
+        case OP_LESS_EQUAL:
+            results[i] = alpha <= referene;
+            break;
+        case OP_GREATER:
+            results[i] = alpha > referene;
+            break;
+        case OP_NOT_EQUAL:
+            results[i] = alpha != referene;
+            break;
+        case OP_GREATER_EQUAL:
+            results[i] = alpha >= referene;
+            break;
+        case OP_ALWAYS:
+            results[i] = true;
+            break;
+        }
+    }
+
+    const AlphaTestLogicOperator logic_operation = (get_bp_register_pointer()[0xF3] >> 22) & 0x3;
+
+    switch (logic_operation) {
+    case LOGIC_AND:
+        return results[0] && results[1];
+    case LOGIC_OR:
+        return results[0] || results[1];
+    case LOGIC_XOR:
+        return results[0] != results[1];
+    case LOGIC_XNOR:
+        return results[0] == results[1];
+    }
+}
+
+static RGBA _clamp_colors(RGBAS16 c)
+{
+    return (RGBA){(u8)(c.r < 0     ? 0
+                       : c.r > 255 ? 255
+                                   : c.r),
+                  (u8)(c.g < 0     ? 0
+                       : c.g > 255 ? 255
+                                   : c.g),
+                  (u8)(c.b < 0     ? 0
+                       : c.b > 255 ? 255
+                                   : c.b),
+                  (u8)(c.a < 0     ? 0
+                       : c.a > 255 ? 255
+                                   : c.a)};
+}
+
 void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy)
 {
     const u32 *bp = get_bp_register_pointer();
@@ -363,6 +429,7 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
     prev.g = tev_regs[0].rabg[TEV_G];
     prev.b = tev_regs[0].rabg[TEV_B];
     prev.a = tev_regs[0].rabg[TEV_A];
+    RGBAS16 c = {0};
 
     for (int i = 0; i < num_of_steps; i++) {
         const u32 tev_order = bp[0x28 + i / 2];
@@ -381,7 +448,7 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
             TextureUnit u;
             get_texture_unit_regs(&u, tex_unit, bp);
 
-            tex_color = sample_texture(cpu, u, p->tex[tex_cords], p->lod[tex_unit]);
+            tex_color = sample_texture(cpu, u, p->tex[tex_cords], p->lod[tex_cords]);
             tex_color = swap_color(swap_index_texture_color, tex_color);
         }
 
@@ -414,32 +481,20 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
         alpha_conf.scale = (alpha_reg >> 20) & 0x3;
         alpha_conf.dest = (alpha_reg >> 22) & 0x3;
 
-        RGBAS16 c = tev_calc_core(&conf, &alpha_conf, input);
-
-        if (i == num_of_steps - 1) {
-
-            DrawPixel(x + ox - 342, y + oy - 342,
-                      (Color){(u8)(c.r < 0     ? 0
-                                   : c.r > 255 ? 255
-                                               : c.r),
-                              (u8)(c.g < 0     ? 0
-                                   : c.g > 255 ? 255
-                                               : c.g),
-                              (u8)(c.b < 0     ? 0
-                                   : c.b > 255 ? 255
-                                               : c.b),
-                              255});
-            write_to_fb(cpu, x, y,
-                        (u8)(c.r < 0     ? 0
-                             : c.r > 255 ? 255
-                                         : c.r),
-                        (u8)(c.g < 0     ? 0
-                             : c.g > 255 ? 255
-                                         : c.g),
-                        (u8)(c.b < 0     ? 0
-                             : c.b > 255 ? 255
-                                         : c.b),
-                        p->z);
-        }
+        c = tev_calc_core(&conf, &alpha_conf, input);
     }
+
+    RGBA final_color = _clamp_colors(c);
+
+    if (!perform_alpha_test(final_color.a))
+        return;
+
+    if (!((bp[0x43] >> 6) & 1) && test_if_z_test_fails(cpu, p->z, x, y))
+        return;
+
+    const u32 z = (bp[0x40] & 0x11) == 0x11 ? p->z : get_z_in_fb(cpu, x, y);
+
+    DrawPixel(x + ox - 342, y + oy - 342,
+              (Color){final_color.r, final_color.g, final_color.b, 255});
+    write_to_fb(cpu, x, y, final_color.r, final_color.g, final_color.b, z);
 }
