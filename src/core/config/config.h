@@ -3,7 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define SI_DEBUG
 #define RENDER_PRIMITIVES
+// #define ISOLATE_CPU
 
 #define u8 uint8_t
 #define u16 uint16_t
@@ -115,6 +117,61 @@ _Static_assert(sizeof(Float3) == 3 * sizeof(float), "Float3 hat Padding");
 #define SI_PRINT(...) printf(__VA_ARGS__)
 #else
 #define SI_PRINT(...)                                                                              \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
+// #define AI_DEBUG
+#if defined(AI_DEBUG)
+#define AI_PRINT(...) printf(__VA_ARGS__)
+#else
+#define AI_PRINT(...)                                                                              \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
+// #define DI_DEBUG
+#if defined(DI_DEBUG)
+#define DI_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DI_PRINT(...)                                                                              \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
+// #define EXI_DEBUG
+#if defined(EXI_DEBUG)
+#define EXI_PRINT(...) printf(__VA_ARGS__)
+#else
+#define EXI_PRINT(...)                                                                             \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
+// #define MI_DEBUG
+#if defined(MI_DEBUG)
+#define MI_PRINT(...) printf(__VA_ARGS__)
+#else
+#define MI_PRINT(...)                                                                              \
+    do {                                                                                           \
+        if (0)                                                                                     \
+            printf(__VA_ARGS__);                                                                   \
+    } while (0)
+#endif
+
+// #define PI_DEBUG
+#if defined(PI_DEBUG)
+#define PI_PRINT(...) printf(__VA_ARGS__)
+#else
+#define PI_PRINT(...)                                                                              \
     do {                                                                                           \
         if (0)                                                                                     \
             printf(__VA_ARGS__);                                                                   \

@@ -4,6 +4,7 @@
 #include "core/config/config.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 static SIRegisters si_regs;
 static SIChannel channel_before_vblank[NUM_OF_CHANNELS];
@@ -15,18 +16,24 @@ static void start_transfer(CPU *cpu)
 
     const SIChannel chnl = si_regs.channel[transfer_target];
 
-    const u8 cmd = (chnl.OUTBUF & MASK(16, 23)) >> 16;
+    const u8 cmd = ((u8 *)si_regs.SIIOBUF)[3];
     const u8 out0 = (chnl.OUTBUF & MASK(8, 15)) >> 8;
     const u8 out1 = (chnl.OUTBUF & MASK(0, 7));
 
-    SI_PRINT("[SI] Transfer startet cmd : 0x%02x, chnl : %d, ut0 : 0x%02x, out1 : 0x%02x\n", cmd,
-             transfer_target, out0, out1);
+    SI_PRINT(
+        "[SI] Transfer startet cmd : 0x%x, chnl : %d, ut0 : 0x%02x, out1 : 0x%02x, inlen : %d\n",
+        cmd, transfer_target, out0, out1, (si_regs.SICOMCSR >> 8) & 0x7F);
 
     switch (cmd) {
     case SI_CMD_GET_STATUS_ID:
-        si_regs.channel[transfer_target].INBUFH = SI_TYPE_NOT_CONNECTED;
-        // si_regs.SIIOBUF[0] = SI_TYPE_GC_CONTROLLER;
+        si_regs.SIIOBUF[0] = SI_TYPE_GC_CONTROLLER;
         break;
+    case SI_CMD_RECALIBRATE: {
+        const u8 response[10] = {0, 0x80, 0x80, 0x80, 0x80, 0x80, 0x0, 0, 0, 0};
+        memcpy(si_regs.SIIOBUF, response, 10);
+        break;
+    }
+
     default:
         assert(!"transfer not implemented transfer\n");
     }
@@ -69,7 +76,7 @@ void si_write(CPU *cpu, u32 adr, u64 val, u32 size)
         return;
     }
     if (adr >= SI_BUFFER_START_ADR && adr <= SI_BUFFER_END_ADR) {
-        si_regs.SIIOBUF[rel_adr / 4] = (u32)val;
+        si_regs.SIIOBUF[(rel_adr - 0x80) / 4] = (u32)val;
         return;
     }
 

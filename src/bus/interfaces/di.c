@@ -26,7 +26,7 @@ u64 di_read(CPU *cpu, u32 adr, u32 size)
 {
 
     if (adr != 0xcc006004)
-        printf("[DI-READ] :  adr : 0x%08x, size : %d\n", adr, size);
+        DI_PRINT("[DI-READ] :  adr : 0x%08x, size : %d\n", adr, size);
 
     switch (adr) {
     case 0xCC006000:
@@ -44,7 +44,7 @@ u64 di_read(CPU *cpu, u32 adr, u32 size)
 
 void di_write(CPU *cpu, u32 adr, u32 val, u32 size)
 {
-    printf("[DI-WRITE] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
+    DI_PRINT("[DI-WRITE] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
     assert(size == 4);
     switch (adr) {
     case 0xCC006000: {
@@ -127,7 +127,7 @@ static const dvd_disk_id_t dvddiskid = {
 
 void di_start_dma(CPU *cpu)
 {
-    printf("DVD DMA : 0x%08x\n", di_dma_regs.DICMDBUF0);
+    DI_PRINT("[DI] DVD DMA : 0x%08x\n", di_dma_regs.DICMDBUF0);
     u8 op = (di_dma_regs.DICMDBUF0 >> 24) & 0xFF;
     switch (op) {
     case 0xA8: {
@@ -142,13 +142,13 @@ void di_start_dma(CPU *cpu)
 
             disc_register |= BIT(4);
             pi_update_interrupts(cpu);
-            printf("DVD DMA read disk id\n");
+            DI_PRINT("[DI] DVD DMA read disk id\n");
         }
         break;
     }
     case 0xE3: {
 
-        printf("DVD STOP MOTOR\n");
+        DI_PRINT("[DI] DVD STOP MOTOR\n");
         disc_register |= BIT(4);
         pi_update_interrupts(cpu);
         break;

@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <GLFW/glfw3.h>
 
-
 static u32 bp_regs[256];
 static u32 cp_regs[256]; // ends with 0xBF
 static u32 xf_regs[0x1057];
@@ -224,9 +223,10 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
 
     Primitive p = {buffer, vertex_count, primitive_type};
 
-#ifdef RENDER_PRIMITIVES
+#ifdef ISOLATE_CPU
+    return;
+#endif /* ifdef ISOLATE_CPU */
     load_vertex_into_pipeline(cpu, p);
-#endif /* ifdef RENDER_PRIMITIVES */
 }
 
 static void load_xf_reg(u16 adr, u16 n, const u32 *values)

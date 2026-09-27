@@ -12,7 +12,7 @@ static MemoryInterfaceRegisters mi_regs;
 void mi_write(CPU *cpu, u32 adr, u64 val, u32 size)
 {
 
-    printf("MI : adr : 0x%08x, val : 0x%08x\n", adr, val);
+    MI_PRINT("[MI] write : adr : 0x%08x, val : 0x%08x\n", adr, (u32)val);
 
     assert(size == 2);
 
@@ -31,7 +31,7 @@ void mi_write(CPU *cpu, u32 adr, u64 val, u32 size)
 u32 mi_read(CPU *cpu, u32 adr, u32 size)
 {
 
-    printf("MI read : adr : 0x%08x\n", adr);
+    MI_PRINT("[MI] read : adr : 0x%08x\n", adr);
 
     return 0;
 }

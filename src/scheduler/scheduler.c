@@ -14,8 +14,7 @@ void report_cycle_count(CPU *cpu, u32 cycle_count)
 
         u64 event_every_x_host_cycles = CPU_CLOCK_SPEED / event_buffer[j].clock_speed;
 
-        if ((floor((double)global_cycle_counter / (double)event_every_x_host_cycles) !=
-             floor((double)next / (double)event_every_x_host_cycles))) {
+        if ((next) <= global_cycle_counter + event_every_x_host_cycles) {
 
             event_buffer[j].callback(cpu);
         }

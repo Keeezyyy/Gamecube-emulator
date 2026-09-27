@@ -66,10 +66,13 @@ static void _output_info(void)
 }
 void io_thread(CPU *cpu)
 {
+#ifdef OUTPUT_ENABLE
+
     init_io();
 
     InitWindow(XFB_WIDTH, XFB_HEIGHT, "render test");
     rlDisableBackfaceCulling();
+    SetTraceLogLevel(LOG_NONE);
 
     Image img = {.data = cpu->bus->xfb,
                  .width = XFB_WIDTH,
@@ -79,6 +82,8 @@ void io_thread(CPU *cpu)
     Texture2D tex = LoadTextureFromImage(img);
 
     while (!WindowShouldClose()) {
+
+        SetTraceLogLevel(LOG_NONE);
         struct timespec ts;
 
         clock_gettime(CLOCK_REALTIME, &ts);
@@ -114,4 +119,6 @@ void io_thread(CPU *cpu)
     CloseWindow();
 
     abort();
+
+#endif /* ifdef OUTPUT_ENABLE */
 }

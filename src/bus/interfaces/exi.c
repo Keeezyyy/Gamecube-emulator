@@ -43,7 +43,7 @@ u64 exi_read(CPU *cpu, u32 adr, u32 size)
         return 0x0; // for console debugging
     }
 
-    // printf("exi read : adr : 0x%08x\n", adr);
+    EXI_PRINT("[EXI] read : adr : 0x%08x\n", adr);
 
     switch (offset) {
     case 0x00:
@@ -68,7 +68,7 @@ void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
     u32 offset = (adr - 0xCC006800) % 0x14;
     u8 current_chip_selected = (exi_registers.channels[ch_index].EXInCSR >> 4) & 0x5;
 
-    // printf("exi write : adr : 0x%08x, val : 0x%08x\n", adr, val);
+    EXI_PRINT("[EXI] write : adr : 0x%08x, val : 0x%08x\n", adr, (u32)val);
 
     if (ch_index == 2) {
         return; // for console debugging
@@ -118,12 +118,12 @@ void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
             exi_registers.channels[0].EXInCR = val & 0x3E;
 
             if (((val >> 1) & 1) == 1) {
-                DEBUG_PRINT("[EXI] start IPL dma\n");
+                EXI_PRINT("[EXI] start IPL dma\n");
                 ipl_start_dma_transfer(cpu->bus);
                 exi_registers.channels[0].EXInCSR |= TCINT;
                 pi_update_interrupts(cpu);
             } else {
-                DEBUG_PRINT("[EXI] start IPL imma\n");
+                EXI_PRINT("[EXI] start IPL imma\n");
                 ipl_start_imm_data(cpu->bus);
             }
 
