@@ -1,10 +1,14 @@
 #include "io.h"
 #include "graphics/cp/cp.h"
+
+#include "scheduler/scheduler.h"
 #include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 
+#include <_abort.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <time.h>
 #include <stdbool.h>
 #include <sys/_pthread/_pthread_cond_t.h>
@@ -33,6 +37,33 @@ void trigger_frame(void)
     pthread_mutex_unlock(&cond_lock);
 }
 
+static struct timespec t0;
+
+static u64 counter = 0;
+static u64 fps = 0;
+static u64 cycle_counter_local = 0;
+
+static void _output_info(void)
+{
+    char buffer[128];
+    counter++;
+    if (counter == 1000) {
+        struct timespec t1;
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        double s = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
+        double hz = (double)(global_cycle_counter - cycle_counter_local) / s;
+
+        sprintf(buffer, "avg fps :  %.0f, clock speed : %.0f MHz",
+                (double)(get_frames_of_runtime() - fps) / (double)s, hz / 1e6);
+        SetWindowTitle(buffer);
+
+        t0 = t1;
+        fps = get_frames_of_runtime();
+        cycle_counter_local = global_cycle_counter;
+
+        counter = 0;
+    }
+}
 void io_thread(CPU *cpu)
 {
     init_io();
@@ -75,8 +106,12 @@ void io_thread(CPU *cpu)
         ClearBackground(BLACK);
         DrawTexture(tex, 0, 0, WHITE);
         EndDrawing();
+
+        _output_info();
     }
 
     UnloadTexture(tex);
     CloseWindow();
+
+    abort();
 }
