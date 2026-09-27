@@ -69,6 +69,8 @@ GXTexture decode_texture(CPU *cpu, const u32 *bp, TextureUnit u, u32 *width_o, u
         printf("texture format   0x%02x\n", (u.img0 >> 20) & 0xF);
         assert(!"texutre format isnt implemented\n");
     }
+
+    return (GXTexture){0};
 }
 
 static s32 apply_wrap(const u8 wrap, u32 tex_size, s32 coord)
@@ -105,16 +107,15 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
     // if (lod <= 0) {
     if (true) {
 
-        s32 s = texcoords[0] - 64;
-        s32 t = texcoords[1] - 64;
-
-        s32 s_coord = (s32)s / 128;
-        s32 t_coord = (s32)t / 128;
+        s32 s_coord = texcoords[0] >> 7;
+        s32 t_coord = texcoords[1] >> 7;
 
         u32 width, height;
         GXTexture texture = decode_texture(cpu, get_bp_register_pointer(), u, &width, &height);
 
         RGBA *colors = (RGBA *)texture.buffer;
+        if (!colors)
+            return (RGBA){0};
 
         u8 wrap_s = u.mode0 & 0x3;
         u8 wrap_t = (u.mode0 >> 2) & 0x3;
@@ -134,4 +135,6 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
 
     } else {
     }
+
+    return (RGBA){0};
 }

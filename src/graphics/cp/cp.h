@@ -153,3 +153,5 @@ void cp_thread(CPU *cpu);
 u32 *get_xf_register_pointer(void);
 u32 *get_bp_register_pointer(void);
 u32 *get_cp_register_pointer(void);
+
+u16 *get_bbox(void);

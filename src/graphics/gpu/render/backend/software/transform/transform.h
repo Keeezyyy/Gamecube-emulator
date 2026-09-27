@@ -68,7 +68,6 @@ typedef struct {
     Float3 tex[8];
 
     RGBA colors[2];
-    XF_Light lights[2];
 
 } XFOutput;
 

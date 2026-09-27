@@ -13,7 +13,7 @@
 
 static struct ZHashTable *t;
 
-#define TB_CACHE_ENTRIES 32
+#define TB_CACHE_ENTRIES 10
 
 static TranslationBlock *translation_block_cache[TB_CACHE_ENTRIES];
 static TranslationBlock *translation_block_cache_scratch[TB_CACHE_ENTRIES];

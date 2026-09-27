@@ -69,6 +69,8 @@ static RGBA _get_rast_color(const PixelAttributes *p, ColorType t)
     default:
         assert(!"indirect \n");
     }
+
+    return out;
 }
 
 static RGBA swap_color(u8 swap_index, RGBA source)
@@ -311,6 +313,7 @@ static void _write_dest(enum CombineDest dest, const u8 ch, const s16 v)
 
 static RGBAS16 tev_calc_core(CombineConfig *color_conf, CombineConfig *alpha_conf, RGBAS16 input[4])
 {
+
     RGBAS16 out = {0};
 
     for (int i = 0; i < 3; i++)
@@ -430,6 +433,7 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
     prev.b = tev_regs[0].rabg[TEV_B];
     prev.a = tev_regs[0].rabg[TEV_A];
     RGBAS16 c = {0};
+    RGBA tex_color = {0};
 
     for (int i = 0; i < num_of_steps; i++) {
         const u32 tev_order = bp[0x28 + i / 2];
@@ -442,9 +446,11 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
         const u8 swap_index_texture_color = (bp[0xC1 + (i * 2)] >> 2) & 0x3;
         u8 tex_unit = (tev_order >> TEV_ORDER_TEX_MAP(is_even)) & 0x7;
         u8 tex_cords = (tev_order >> TEV_TEX_CORD(is_even)) & 0x7;
+        if (tex_cords >= (gen_mode & 0xF))
+            tex_cords = 0;
 
-        RGBA tex_color = {0};
-        if ((tev_order >> TEV_ORDER_ENABLE_TEX(is_even)) & 1) {
+        tex_color = (RGBA){0, 0, 0, 0};
+        if (((tev_order >> TEV_ORDER_ENABLE_TEX(is_even)) & 1) && (gen_mode & 0xF)) {
             TextureUnit u;
             get_texture_unit_regs(&u, tex_unit, bp);
 
@@ -489,12 +495,9 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
     if (!perform_alpha_test(final_color.a))
         return;
 
-    if (!((bp[0x43] >> 6) & 1) && test_if_z_test_fails(cpu, p->z, x, y))
-        return;
-
     const u32 z = (bp[0x40] & 0x11) == 0x11 ? p->z : get_z_in_fb(cpu, x, y);
 
     DrawPixel(x + ox - 342, y + oy - 342,
               (Color){final_color.r, final_color.g, final_color.b, 255});
-    write_to_fb(cpu, x, y, final_color.r, final_color.g, final_color.b, z);
+    write_to_fb(x, y, final_color.r, final_color.g, final_color.b, z);
 }

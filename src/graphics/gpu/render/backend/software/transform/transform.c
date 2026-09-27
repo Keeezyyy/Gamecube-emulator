@@ -328,9 +328,7 @@ static void add_lights(const u32 ctrl, const Float3 *eye, const Float3 *N, f32 l
     }
 }
 
-static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA out[2],
-                       XF_Light *lights)
-
+static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA out[2])
 {
     const u32 num_chans = xf_reg.num_channels & 3;
 
@@ -340,10 +338,6 @@ static void calc_light(const Vertex *v, const Float3 *eye, const Float3 *N, RGBA
         const u8 *vtx = v->color[i].rgba;
 
         const u32 ctrls[2] = {xf_reg.channel_color[i], xf_reg.channel_alpha[i]};
-
-        const u32 mask = ((ctrls[0] >> 2) & 0xF) | (((ctrls[0] >> 11) & 0xF) << 4);
-        if (mask)
-            lights[i] = xf_mem.lights[__builtin_ctz(mask)];
 
         for (int k = 0; k < 2; k++) {
             const u32 ctrl = ctrls[k];
@@ -408,6 +402,10 @@ static Float4 get_texcoord_input(const Vertex *v, const u32 ctrl, const u8 idx)
     if (!((ctrl >> 2) & 1))
         in.m[2] = 1.0f;
     in.m[3] = 1.0f;
+
+    for (int k = 0; k < 3; k++)
+        if (isnan(in.m[k]))
+            in.m[k] = 1.0f;
 
     return in;
 }
@@ -510,7 +508,7 @@ XFOutput transform_vertex(CPU *cpu, const Vertex *v)
 
     output.eye = calc_eye_pos(v);
 
-    calc_light(v, &output.eye, output.NBT, output.colors, output.lights);
+    calc_light(v, &output.eye, output.NBT, output.colors);
 
     calc_tex_gen(cpu, v, &output.eye, output.NBT, output.colors, output.tex);
 

@@ -25,7 +25,7 @@ void init_texture_hash_map(void)
 GXTexture i8_decode(const u8 *src, u32 width, u32 height)
 {
     char buffer[128];
-    sprintf(buffer, "texture-output/i8-output-%p.png", src);
+    sprintf(buffer, "texture-output/i8-output-%p-%ux%u.png", src, width, height);
 
     void *p = zhash_get(t, buffer);
 
@@ -75,7 +75,7 @@ GXTexture i8_decode(const u8 *src, u32 width, u32 height)
 GXTexture i4_decode(const u8 *src, u32 width, u32 height)
 {
     char buffer[128];
-    sprintf(buffer, "texture-output/i4-output-%p.png", src);
+    sprintf(buffer, "texture-output/i4-output-%p-%ux%u.png", src, width, height);
 
     void *p = zhash_get(t, buffer);
 
@@ -124,7 +124,7 @@ GXTexture i4_decode(const u8 *src, u32 width, u32 height)
 GXTexture rgba8_decode(const u8 *src, u32 width, u32 height)
 {
     char buffer[128];
-    sprintf(buffer, "texture-output/rgba8-output-%p.png", src);
+    sprintf(buffer, "texture-output/rgba8-output-%p-%ux%u.png", src, width, height);
 
     void *p = zhash_get(t, buffer);
 

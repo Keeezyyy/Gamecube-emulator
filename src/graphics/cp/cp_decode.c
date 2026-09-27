@@ -22,6 +22,7 @@ static u32 bp_regs[256];
 static u32 cp_regs[256]; // ends with 0xBF
 static u32 xf_regs[0x1057];
 
+static u16 bbox[4];
 u32 *get_xf_register_pointer(void)
 {
 
@@ -36,6 +37,11 @@ u32 *get_bp_register_pointer(void)
 u32 *get_cp_register_pointer(void)
 {
     return cp_regs;
+}
+
+u16 *get_bbox(void)
+{
+    return bbox;
 }
 
 static u32 bp_mask = 0xFFFFFF;
@@ -97,13 +103,10 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         case 0x56: {
             // activate bbox
             // TODO: if acutally rendering use these bbox values
-            /*
-                int off = (reg == 0x55) ? 0 : 2;
-                bbox[off + 0] = value & 0x3FF;
-                bbox[off + 1] = (value >> 10) & 0x3FF;
-                bbox_active = true;
-
-            */
+            int off = (reg == 0x55) ? 0 : 2;
+            bbox[off + 0] = value & 0x3FF;
+            bbox[off + 1] = (value >> 10) & 0x3FF;
+            // bbox_active = true;
 
             break;
         }
