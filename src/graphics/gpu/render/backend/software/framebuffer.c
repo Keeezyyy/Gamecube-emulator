@@ -204,6 +204,7 @@ RGBA read_from_fb(s32 x, s32 y)
         out.r = (u8)(c >> 16);
         out.g = (u8)(c >> 8);
         out.b = (u8)c;
+        out.a = 0xFF;
         break;
 
     case PF_RGBA6_Z24:
@@ -217,6 +218,7 @@ RGBA read_from_fb(s32 x, s32 y)
         out.r = expand((c >> 11) & 0x1F, 5);
         out.g = expand((c >> 5) & 0x3F, 6);
         out.b = expand(c & 0x1F, 5);
+        out.a = 0xFF;
         break;
 
     case PF_Y8:

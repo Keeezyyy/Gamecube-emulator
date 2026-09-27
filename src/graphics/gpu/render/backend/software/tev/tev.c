@@ -2,6 +2,7 @@
 #include "../rasterize/rasterize.h"
 #include "graphics/cp/cp.h"
 #include "graphics/gpu/render/backend/software/framebuffer.h"
+#include "graphics/gpu/render/backend/software/post-processing/post-processing.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/texture/texture.h"
 #include <_string.h>
@@ -495,9 +496,7 @@ void draw_pixel(CPU *cpu, const PixelAttributes *p, u32 x, u32 y, u32 ox, u32 oy
     if (!perform_alpha_test(final_color.a))
         return;
 
-    const u32 z = (bp[0x40] & 0x11) == 0x11 ? p->z : get_z_in_fb(cpu, x, y);
+    const u32 z = p->z;
 
-    DrawPixel(x + ox - 342, y + oy - 342,
-              (Color){final_color.r, final_color.g, final_color.b, 255});
-    write_to_fb(x, y, final_color.r, final_color.g, final_color.b, z);
+    process_pixel(cpu, x, y, z, final_color, tex_color, ox, oy);
 }
