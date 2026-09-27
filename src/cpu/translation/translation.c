@@ -9,50 +9,30 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <zhash/zhash.h>
+#include <khash/khash.h>
 
-static struct ZHashTable *t;
+KHASH_MAP_INIT_INT64(tb_map, TranslationBlock *)
+
+static khash_t(tb_map) * t;
 
 #define TB_CACHE_ENTRIES 10
 
 static TranslationBlock *translation_block_cache[TB_CACHE_ENTRIES];
 static TranslationBlock *translation_block_cache_scratch[TB_CACHE_ENTRIES];
 
-/*
-// create hash table
-struct ZHashTable *zcreate_hash_table(void);
-
-// free hash table (note that this only frees the table and the entry structs)
-void zfree_hash_table(struct ZHashTable *hash_table);
-
-// set key to val (if there is already a value, overwrite it)
-void zhash_set(struct ZHashTable *hash_table, char *key, void *val);
-
-// get the value stored at key (if no value, return NULL)
-void *zhash_get(struct ZHashTable *hash_table, char *key);
-
-// delete entry stored at key and return the value (if no value, return NULL)
-void *zhash_delete(struct ZHashTable *hash_table, char *key);
-
-// return true if there is a value stored at the key and false otherwise
-bool zhash_exists(struct ZHashTable *hash_table, char *key);
-*/
-
 void init_translation(Disc *disc)
 {
-    t = zcreate_hash_table();
+    t = kh_init(tb_map);
 }
 
 void deconstruct_translation(void)
 {
-    zfree_hash_table(t);
+    kh_destroy(tb_map, t);
 }
 
-static inline void get_hash_from_state(const u32 pc, const u32 msr, const u32 hid2, char *buffer)
+static inline u64 get_hash_from_state(const u32 pc, const u32 msr)
 {
-    const int written = snprintf(buffer, HASH_BUFFER_SIZE, "%08x-%08x-%08x", pc, msr, hid2);
-    assert(written > 0 && written < HASH_BUFFER_SIZE);
-    (void)written;
+    return (u64)pc << 32 | msr;
 }
 
 void _empty(u64 pc)
@@ -63,21 +43,16 @@ void _empty(u64 pc)
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
-
-    char buffer[HASH_BUFFER_SIZE] = {0};
-
     for (int i = 0; i < TB_CACHE_ENTRIES; i++) {
         if (translation_block_cache[i] == NULL_PTR)
             continue;
         if (translation_block_cache[i]->pc_at_start == cpu->state.pc &&
-            translation_block_cache[i]->msr_at_start == cpu->state.msr &&
-            translation_block_cache[i]->hid2_at_start == cpu->special_purpose_registers.hid2) {
+            translation_block_cache[i]->msr_at_start == cpu->state.msr) {
             return translation_block_cache[i];
         }
     }
-    get_hash_from_state(cpu->state.pc, cpu->state.msr, cpu->special_purpose_registers.hid2, buffer);
-
-    return zhash_get(t, buffer);
+    const khiter_t k = kh_get(tb_map, t, get_hash_from_state(cpu->state.pc, cpu->state.msr));
+    return k == kh_end(t) ? NULL : kh_value(t, k);
 }
 
 int tb_finilize(TranslationBlock *tb)
@@ -93,10 +68,15 @@ int tb_finilize(TranslationBlock *tb)
     }
     __builtin___clear_cache((char *)tb->core.code, (char *)tb->core.code + tb->core.size);
 
-    get_hash_from_state(tb->pc_at_start, tb->msr_at_start, tb->hid2_at_start, tb->hash);
+    tb->hash = get_hash_from_state(tb->pc_at_start, tb->msr_at_start);
 
     DEBUG_PRINT("added tb [0x%08x], with code adr : %p\n", tb->pc_at_start, tb->core.code);
-    zhash_set(t, tb->hash, tb);
+    int ret;
+    const khiter_t k = kh_put(tb_map, t, tb->hash, &ret);
+    if (ret < 0) {
+        assert(!"khash error ");
+    }
+    kh_value(t, k) = tb;
     return 0;
 }
 
