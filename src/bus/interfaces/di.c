@@ -3,13 +3,18 @@
 #include "bus/interfaces/interface_utils.h"
 #include "bus/interfaces/pi.h"
 #include "core/config/config.h"
+#include "disc/disc.h"
 #include <arm/types.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
+static Disc *disc_manager_ptr;
+
 static u32 disc_register;
 static u32 disc_cover_register;
+static bool audio_streaming_active = false;
 
 typedef struct {
     volatile uint32_t DICMDBUF0; // 0x00: Befehl (Byte 3 = Opcode, Byte 2 = Subkommando)
@@ -32,8 +37,8 @@ u64 di_read(CPU *cpu, u32 adr, u32 size)
     case 0xCC006000:
         return disc_register;
     case 0xCC006004:
-        return disc_cover_register | 1;
-        // return disc_cover_register;
+        return disc_cover_register;
+        return disc_cover_register;
     case 0xCC006018:
         return di_dma_regs.DILENGTH;
     case 0xCC006024:
@@ -103,16 +108,6 @@ u32 di_get_dicvr(void)
 {
     return disc_cover_register;
 }
-typedef struct {
-    char gamename[4];      // 0x00: "GALE"
-    char company[2];       // 0x04: "01"
-    uint8_t disknum;       // 0x06
-    uint8_t gamever;       // 0x07
-    uint8_t streaming;     // 0x08: 0 / 1
-    uint8_t streambufsize; // 0x09
-    uint8_t pad[22];       // 0x0A - 0x1F
-    uint32_t magic;        // 0x20: 0xC2339F3D
-} dvd_disk_id_t;
 
 static const dvd_disk_id_t dvddiskid = {
     .gamename = {'G', 'A', 'L', 'E'},
@@ -122,28 +117,61 @@ static const dvd_disk_id_t dvddiskid = {
     .streaming = 0,
     .streambufsize = 0,
     .pad = {0},
-    .magic = 0xC2339F3D,
+    .magic = __builtin_bswap32(0xC2339F3D),
 };
+
+static_assert(sizeof(dvd_disk_id_t) == 0x20);
+
+static void _read_dvd(CPU *cpu, u32 disk_offset, u32 len, u32 adr_virtual)
+{
+    disc_manager_ptr->read(disc_manager_ptr, &cpu->bus->ram[adr_virtual - 0x80000000],
+                           disk_offset << 2, len);
+}
 
 void di_start_dma(CPU *cpu)
 {
     DI_PRINT("[DI] DVD DMA : 0x%08x\n", di_dma_regs.DICMDBUF0);
-    u8 op = (di_dma_regs.DICMDBUF0 >> 24) & 0xFF;
+    u32 cmd = (di_dma_regs.DICMDBUF0);
+    u8 op = (cmd >> 24) & 0xFF;
+    printf("cmd : 0x%08x, op : 0x%02x\n", cmd, op);
     switch (op) {
     case 0xA8: {
-        if ((op & 0xFF) == 0x00) {
+        if ((cmd & 0xFF) == 0x0) {
             // DVD_READSECTOR
-            assert(!"dvd read sector\n");
+
+            const u32 disk_offset = di_dma_regs.DICMDBUF1;
+            const u32 len = di_dma_regs.DICMDBUF2;
+            const u32 adr_virtual = di_dma_regs.DIMAR;
+
+            printf("[DVD_READ] : disk adr : 0x%08x, len : 0x%08x, dest_adr_virtual : 0x%08x\n",
+                   disk_offset, len, adr_virtual);
+
+            _read_dvd(cpu, disk_offset, len, adr_virtual);
+
+            disc_register |= BIT(4);
+            pi_update_interrupts(cpu);
+
         } else {
             // DVD_READDISKID
 
-            memcpy(((u8 *)cpu->bus->ram) + (di_dma_regs.DIMAR - 0x80000000), &dvddiskid,
-                   sizeof(dvddiskid));
+            // memcpy(((u8 *)cpu->bus->ram) + (di_dma_regs.DIMAR - 0x80000000), &dvddiskid,
+            // sizeof(dvddiskid));
 
+            _read_dvd(cpu, 0, 0x20, di_dma_regs.DIMAR);
             disc_register |= BIT(4);
             pi_update_interrupts(cpu);
             DI_PRINT("[DI] DVD DMA read disk id\n");
         }
+        break;
+    }
+    case DI_CMD_DVD_AUDIOCONFIG: {
+        if (cmd == 0xE4000000)
+            audio_streaming_active = false;
+        else
+            audio_streaming_active = true;
+        disc_register |= BIT(4);
+        pi_update_interrupts(cpu);
+        DI_PRINT("[DI] DVD_LowAudioBufferConfig\n");
         break;
     }
     case 0xE3: {
@@ -155,4 +183,9 @@ void di_start_dma(CPU *cpu)
     }
     }
     di_dma_regs.DILENGTH = 0;
+}
+
+void di_init(Disc *d)
+{
+    disc_manager_ptr = d;
 }

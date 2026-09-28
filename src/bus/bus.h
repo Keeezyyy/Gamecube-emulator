@@ -1,5 +1,6 @@
 #pragma once
 #include "core/config/config.h"
+#include "disc/disc.h"
 #include <stddef.h>
 #define RAM_SIZE 0x01800000u
 #define IPL_BASE 0xfff00000u
@@ -12,7 +13,6 @@ typedef struct CPU CPU;
 struct Bus {
     // RAM 0x80000000 | 0xC0000000 ram is mirrored to these locations
     u8 *ram;
-    u8 *gpu_ram_mirror;
     u8 *xfb;
 
     void *ipl;
@@ -36,4 +36,4 @@ struct Bus {
     void (*write)(Bus *self, u32 adr, u64 val, u32 size);
 };
 
-void init_bus(Bus *self, CPU *cpu);
+void init_bus(Bus *self, CPU *cpu, Disc *d);

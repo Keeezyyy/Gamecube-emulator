@@ -42,3 +42,5 @@ u64 si_read(CPU *cpu, u32 adr, u32 size);
 u32 si_get_comcsr(void);
 
 void si_vblank_trigger(void);
+
+void recieve_input(const u8 dpad);

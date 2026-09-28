@@ -1,7 +1,9 @@
 #include "io.h"
+#include "core/config/config.h"
 #include "graphics/cp/cp.h"
 
 #include "scheduler/scheduler.h"
+#include "bus/interfaces/si.h"
 #include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
@@ -64,6 +66,26 @@ static void _output_info(void)
         counter = 0;
     }
 }
+
+static void test_input(void)
+{
+
+    u8 dpad = 0;
+    if (IsKeyPressed(KEY_W)) {
+        dpad |= BIT(3);
+    }
+    if (IsKeyPressed(KEY_S)) {
+        dpad |= BIT(2);
+    }
+    if (IsKeyPressed(KEY_D)) {
+        dpad |= BIT(1);
+    }
+    if (IsKeyPressed(KEY_A)) {
+        dpad |= BIT(0);
+    }
+    recieve_input(dpad);
+}
+
 void io_thread(CPU *cpu)
 {
 #ifdef OUTPUT_ENABLE
@@ -94,6 +116,7 @@ void io_thread(CPU *cpu)
             ts.tv_nsec -= 1000000000;
         }
 
+        test_input();
         pthread_mutex_lock(&cond_lock);
         while (!should_draw) {
             if (pthread_cond_timedwait(&cond, &cond_lock, &ts) != 0) {

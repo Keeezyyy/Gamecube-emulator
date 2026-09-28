@@ -46,6 +46,20 @@ static void start_transfer(CPU *cpu)
     pi_update_interrupts(cpu);
 }
 
+void recieve_input(const u8 dpad)
+{
+    if (dpad == 0)
+        return;
+
+    printf("key presed\n");
+    memset(si_regs.SIIOBUF, 0, 32);
+
+    si_regs.SIIOBUF[0] = dpad;
+
+    si_regs.SICOMCSR |= BIT(28);
+    si_regs.SISR |= BIT(5);
+}
+
 void si_vblank_trigger(void)
 {
     for (int i = 0; i < NUM_OF_CHANNELS; i++) {

@@ -3,9 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define SI_DEBUG
 #define RENDER_PRIMITIVES
 // #define ISOLATE_CPU
+#define DI_DEBUG
 
 #define u8 uint8_t
 #define u16 uint16_t

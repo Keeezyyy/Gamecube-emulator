@@ -52,14 +52,14 @@ static void print_clock(int sig)
 static int _init(void)
 {
 
-    init_bus(&b, &cpu);
+    init_bus(&b, &cpu, &disc);
 
     init_disc(&disc);
-    /*
-        if (disc.load_rom(&disc, "./roms/example.bin") != 0) {
-            return 1;
-        }
-        */
+
+    if (disc.load_rom(&disc, "./roms/rom.iso") != 0) {
+        return 1;
+    }
+
     // load the decrypted rom
     // NOTE: might implement encryption
 
@@ -82,8 +82,6 @@ static int _init(void)
     if (b.load_ipl_scrambled(&b, "./roms/ipl.bin") != 0) {
         return 1;
     }
-
-    disc.print_header(&disc);
 
     init_cpu(&cpu, &disc, &b);
 

@@ -4285,6 +4285,7 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
             if (g_print_debug == false)
                 tb_translate(cpu, cpu_mode, out_tb, true);
 
+            printf("guest instruction 0 at pc : 0x%08x", pc);
             assert(!"guest instruction 0 \n");
             return false;
         }

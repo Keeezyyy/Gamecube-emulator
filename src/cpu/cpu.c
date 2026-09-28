@@ -116,6 +116,8 @@ static void main_loop(CPU *self)
         if (self->awaiting_interrupt(self)) {
             handle_interrupt(self);
         }
+        assert(((self->state.msr >> 17) & 1) == 0 && ((self->state.msr >> 26) & 1) == 0 &&
+               ((self->state.msr >> 27) & 1) == 0);
 
         hle_check_panic(self);
 

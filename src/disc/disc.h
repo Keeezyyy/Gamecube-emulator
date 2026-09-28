@@ -30,13 +30,13 @@ typedef struct {
 typedef struct Disc Disc;
 
 struct Disc {
-    DiscHeader *header;
-    void *rom;
-    size_t rom_size;
+    u64 rom_size;
+    FILE *game_file;
 
     int (*load_rom)(Disc *self, char *path);
     void (*free)(Disc *self);
-    void (*print_header)(Disc *self);
+
+    void (*read)(Disc *self, void *dest, u32 disc_offset, u32 len);
 };
 
 /*

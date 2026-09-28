@@ -7,6 +7,7 @@
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "disc/disc.h"
 #include "graphics/gx_fifo.h"
 #include "graphics/cp/cp.h"
 #include "graphics/pe.h"
@@ -19,7 +20,6 @@
 #include <string.h>
 
 static u8 ram_buffer[RAM_SIZE];
-static u8 gpu_ram_buffer_mirror[RAM_SIZE];
 static u8 xfb[0x1EF000];
 
 static int dol_load_into_ram(Bus *self);
@@ -248,7 +248,6 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
     if (off != RAM_OFFSET_INVALID) {
         assert(off + size <= RAM_SIZE);
         be_store((u8 *)self->ram + off, val, size);
-        be_store((u8 *)self->gpu_ram_mirror + off, val, size);
 
         return;
     }
@@ -316,10 +315,9 @@ static const Bus BUS_TEMPLATE = {
     .read = &_read,
     .write = &_write,
     .set_cpu_ptr = _set_cpu_ptr,
-    .gpu_ram_mirror = &gpu_ram_buffer_mirror[0],
 };
 
-void init_bus(Bus *self, CPU *cpu)
+void init_bus(Bus *self, CPU *cpu, Disc *d)
 {
 
     *self = BUS_TEMPLATE;
@@ -327,12 +325,13 @@ void init_bus(Bus *self, CPU *cpu)
     DEBUG_PRINT("ram buffer : %p\n", (void *)ram_buffer);
 
     self->ram = ram_buffer;
-    self->ram = gpu_ram_buffer_mirror;
     self->xfb = xfb;
 
     init_exi();
     vi_init();
     ai_init();
+
+    di_init(d);
 
     cp_init(cpu);
 
