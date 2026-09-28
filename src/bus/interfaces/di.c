@@ -3,6 +3,7 @@
 #include "bus/interfaces/interface_utils.h"
 #include "bus/interfaces/pi.h"
 #include "core/config/config.h"
+#include "cpu/translation/translation.h"
 #include "disc/disc.h"
 #include <arm/types.h>
 #include <assert.h>
@@ -126,6 +127,8 @@ static void _read_dvd(CPU *cpu, u32 disk_offset, u32 len, u32 adr_virtual)
 {
     disc_manager_ptr->read(disc_manager_ptr, &cpu->bus->ram[adr_virtual - 0x80000000],
                            disk_offset << 2, len);
+
+    invalidate_tb(adr_virtual, adr_virtual + len);
 }
 
 void di_start_dma(CPU *cpu)
@@ -138,7 +141,6 @@ void di_start_dma(CPU *cpu)
     case 0xA8: {
         if ((cmd & 0xFF) == 0x0) {
             // DVD_READSECTOR
-
             const u32 disk_offset = di_dma_regs.DICMDBUF1;
             const u32 len = di_dma_regs.DICMDBUF2;
             const u32 adr_virtual = di_dma_regs.DIMAR;
@@ -181,6 +183,22 @@ void di_start_dma(CPU *cpu)
         pi_update_interrupts(cpu);
         break;
     }
+    case 0x12: {
+        DI_PRINT("[DI] DVD INQUIRY\n");
+
+        u8 buffer[32] = {0};
+        ((u16 *)buffer)[0] = __builtin_bswap16(0x0002);
+        ((u16 *)buffer)[1] = __builtin_bswap16(0x0002);
+        ((u32 *)buffer)[1] = __builtin_bswap32(0x20020823);
+
+        memcpy(((u8 *)cpu->bus->ram) + (di_dma_regs.DIMAR - 0x80000000), buffer, 32);
+
+        disc_register |= BIT(4);
+        pi_update_interrupts(cpu);
+        break;
+    }
+    default:
+        assert(!"di not implemented");
     }
     di_dma_regs.DILENGTH = 0;
 }

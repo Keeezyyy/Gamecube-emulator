@@ -28,6 +28,7 @@ static void start_transfer(CPU *cpu)
     case SI_CMD_GET_STATUS_ID:
         si_regs.SIIOBUF[0] = SI_TYPE_GC_CONTROLLER;
         break;
+    case SI_CMD_ORIGIN:
     case SI_CMD_RECALIBRATE: {
         const u8 response[10] = {0, 0x80, 0x80, 0x80, 0x80, 0x80, 0x0, 0, 0, 0};
         memcpy(si_regs.SIIOBUF, response, 10);

@@ -1684,6 +1684,42 @@ _emit_stwux:
         _emit_stwux_after:
 
 
+// w1 -> regA_num
+// w2 -> regB_num
+// zeroes the 32 byte cache line at ((rA|0) + rB) & ~31
+.globl _emit_dcbz_l
+_emit_dcbz_l:
+          adr x2, _emit_dcbz_l_start
+          adr x3, _emit_dcbz_l_after
+          str x2, [x0]
+          str x3, [x1]
+          ret
+        _emit_dcbz_l_start:
+        LOAD_REGISTER w2, w2
+        cbnz w1, _emit_dcbz_l_else
+        mov w4, 0
+        b _emit_dcbz_l_finaly
+        _emit_dcbz_l_else:
+        LOAD_REGISTER w1, w4
+        _emit_dcbz_l_finaly:
+        add w5, w4, w2
+        and w5, w5, #0xFFFFFFE0
+        mov w8, 0
+        _emit_dcbz_l_loop:
+        add w0, w5, w8
+        mov w1, 0
+        mov w7, 0
+        PUSH_32 w5
+        PUSH_32 w8
+        CALL_HELPER_FUNCTION w7
+        POP_32 w8
+        POP_32 w5
+        add w8, w8, 4
+        cmp w8, 32
+        b.lt _emit_dcbz_l_loop
+        _emit_dcbz_l_after:
+
+
 .globl _emit_lmw
 _emit_lmw:
           adr x2, _emit_lmw_start

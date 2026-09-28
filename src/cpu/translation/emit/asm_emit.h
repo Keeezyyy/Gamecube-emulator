@@ -87,6 +87,7 @@ extern void emit_lwzx(u32 **start, u32 **end);
 extern void emit_lwzux(u32 **start, u32 **end);
 extern void emit_stwx(u32 **start, u32 **end);
 extern void emit_stwux(u32 **start, u32 **end);
+extern void emit_dcbz_l(u32 **start, u32 **end);
 extern void emit_lmw(u32 **start, u32 **end);
 extern void emit_bcctr(u32 **start, u32 **end);
 extern void emit_mfsrin(u32 **start, u32 **end);

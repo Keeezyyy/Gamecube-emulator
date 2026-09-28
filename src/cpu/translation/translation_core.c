@@ -1135,6 +1135,15 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             return curr_instruction;
         }
+        if (_get_field(insn, 21, 30) == OPC_DCBT_EXT) {
+            if (g_print_debug)
+                printf("[0x%08x] : DCBT \n", pc_buffer[pc_buffer_counter]);
+            u32 *curr_instruction = code_buffer;
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
+        }
+
         if (_get_field(insn, 21, 30) == OPC_DCBZ_EXT) {
             if (g_print_debug)
                 printf("[0x%08x] : dcbz \n", pc_buffer[pc_buffer_counter]);
@@ -4141,6 +4150,26 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             return curr;
         }
 
+        if (_get_field(insn, 21, 30) == OPC_DCBZ_L_EXT) {
+            u32 *curr = code_buffer;
+            const u32 regA = _get_field(insn, 11, 15);
+            const u32 regB = _get_field(insn, 16, 20);
+            if (g_print_debug)
+                printf("[0x%08x] : dcbz_l [r%d, r%d]\n", pc_buffer[pc_buffer_counter], regA, regB);
+
+            // TODO: if HID2[LCE] == 0 this is an illegal instruction -> program exception
+            curr = emit_load_u32(curr, 1, regA);
+            curr = emit_load_u32(curr, 2, regB);
+
+            const u32 *main_block, *main_block_end;
+            emit_dcbz_l(&main_block, &main_block_end);
+            curr = write_to_buffer(curr, {main_block, main_block_end});
+
+            *pc_after_instruction += 4;
+
+            return curr;
+        }
+
         if (_get_field(insn, 21, 30) != OPC_PS_NEG_EXT) {
             assert(cpu->fpu.get_pse_bit(cpu) != 0);
             if (fpu_mnemonic(insn) == NULL) {
@@ -4344,10 +4373,12 @@ bool tb_translate(CPU *cpu, CpuMode cpu_mode, TranslationBlock *out_tb, bool pri
     *out_tb = (TranslationBlock){
         .core = core,
         .pc_at_start = pc_at_start,
+        .pc_at_end = pc,
         .msr_at_start = cpu->state.msr,
         .hid2_at_start = cpu->special_purpose_registers.hid2,
         .type = out_tb->type,
         .guest_instructions_count = instruction_counter,
+
     };
     return true;
 }

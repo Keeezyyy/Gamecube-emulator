@@ -301,6 +301,11 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
 
         ai_write(self->cpu, adr, val, size);
         return;
+    } else if (adr >= 0xe0000000 && adr < 0xe0003fff) {
+        // streming interface
+
+        // fprintf(stderr, "Warning: write to L2 Cache\n");
+        return;
     }
     printf("[write] :  adr : 0x%08x, val : 0x%08x,size : %d\n", adr, val, size);
 

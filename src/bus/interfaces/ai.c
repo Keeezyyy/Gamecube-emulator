@@ -22,6 +22,14 @@ static bool ucode_start_pending;
 static bool ucode_running;
 static u32 ucode_cmd;
 static u32 ucode_mails_left;
+static bool ucode_ipl;
+static bool ucode_light;
+static u32 last_mail;
+static u32 pending_mail;
+static bool init_ucode;
+
+#define IPL_UCODE_IRAM_LEN 0x1760
+#define LIGHT_UCODE_IRAM_LEN 0x1A00
 
 static u32 ucode_cmd_length(u32 cmd)
 {
@@ -44,6 +52,29 @@ static void dsp_send_mail(u32 mail)
     dsp.MAIL_FROM_DSP_LO = (u16)mail;
 }
 
+static void dsp_send_mails(CPU *cpu, u32 first, u32 second)
+{
+    dsp_send_mail(first);
+    pending_mail = second;
+    dsp.CSR |= 0x0080;
+    pi_update_interrupts(cpu);
+}
+
+static void dsp_jaudio_receive(CPU *cpu, u32 mail)
+{
+    if (ucode_mails_left == 0) {
+        ucode_mails_left = mail;
+        ucode_cmd = U32_MAX;
+        return;
+    }
+
+    if (ucode_cmd == U32_MAX)
+        ucode_cmd = mail >> 16;
+
+    if (--ucode_mails_left == 0)
+        dsp_send_mails(cpu, 0xDCD10004, 0xF3550000 | ucode_cmd);
+}
+
 static void dsp_ucode_receive(CPU *cpu, u32 mail)
 {
     if (ucode_mails_left == 0) {
@@ -52,7 +83,8 @@ static void dsp_ucode_receive(CPU *cpu, u32 mail)
     }
 
     if (--ucode_mails_left == 0) {
-        dsp_send_mail(0x88880000 | ucode_cmd);
+        dsp_send_mail(ucode_light ? 0x80000000 | (2 * (ucode_cmd & 0x7F) + 0x62)
+                                  : 0x88880000 | ucode_cmd);
         if (ucode_cmd == 0x00) {
             dsp.CSR |= 0x0080;
             pi_update_interrupts(cpu);
@@ -75,10 +107,11 @@ u16 dsp_get_csr(void)
 static void dsp_write_csr(CPU *cpu, u16 val)
 {
     if ((dsp.CSR & 0x0004) && !(val & 0x0004)) {
-        dsp.MAIL_FROM_DSP_HI = 0x8071;
-        dsp.MAIL_FROM_DSP_LO = 0xFEED;
+        dsp_send_mail(init_ucode ? 0x80544348 : 0x8071FEED);
+        init_ucode = false;
         ucode_running = false;
         ucode_start_pending = false;
+        pending_mail = 0;
     }
 
     if (val & 0x0001) {
@@ -98,6 +131,8 @@ static void dsp_aram_dma(CPU *cpu)
     u32 len = (u32)((dsp.AR_DMA_CNT_H) & 0x03FF) << 16 | (dsp.AR_DMA_CNT_L & 0xFFE0);
     int to_mram = dsp.AR_DMA_CNT_H & 0x8000; /* 1 = ARAM -> MRAM */
     u8 *ram = (u8 *)cpu->bus->ram;
+
+    init_ucode = !to_mram && mm == 0x01000000 && ar == 0;
 
     for (u32 i = 0; i < len; i += 32) {
         u32 a = (ar + i) & ARAM_MASK;
@@ -137,15 +172,25 @@ static void dsp_write16(CPU *cpu, u32 adr, u16 val)
         dsp.MAIL_TO_DSP_HI &= 0x7FFF;
 
         if (ucode_running) {
-            dsp_ucode_receive(cpu, mail);
+            if (ucode_ipl || ucode_light)
+                dsp_ucode_receive(cpu, mail);
+            else
+                dsp_jaudio_receive(cpu, mail);
         } else if (ucode_start_pending) {
             ucode_start_pending = false;
             ucode_running = true;
             ucode_mails_left = 0;
-            dsp_send_mail(0x88881111);
+            if (ucode_ipl || ucode_light)
+                dsp_send_mail(0x88881111);
+            else
+                dsp_send_mails(cpu, 0xDCD10000, 0xF3551111);
         } else if (mail == 0x80F3D001) {
             ucode_start_pending = true;
+        } else if (last_mail == 0x80F3A002) {
+            ucode_ipl = mail == IPL_UCODE_IRAM_LEN;
+            ucode_light = mail == LIGHT_UCODE_IRAM_LEN;
         }
+        last_mail = mail;
         return;
     }
     case DSP_CONTROL:
@@ -214,6 +259,10 @@ static u16 dsp_read16(u32 adr)
     u16 val = *dsp_reg(adr);
     if (adr == DSP_MAIL_FROM_DSP_LO) {
         dsp.MAIL_FROM_DSP_HI &= 0x7FFF;
+        if (pending_mail) {
+            dsp_send_mail(pending_mail);
+            pending_mail = 0;
+        }
     }
     return val;
 }

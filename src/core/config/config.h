@@ -5,7 +5,18 @@
 
 #define RENDER_PRIMITIVES
 // #define ISOLATE_CPU
+// #define DI_DEBUG
+// #define SI_DEBUG
+
+#define MI_DEBUG
+#ifdef DEBUG_ALL_INTERFACES
 #define DI_DEBUG
+#define SI_DEBUG
+#define MI_DEBUG
+#define EXI_DEBUG
+#define PI_DEBUG
+
+#endif // DEBUG_ALL_INTERFACES
 
 #define u8 uint8_t
 #define u16 uint16_t

@@ -142,6 +142,5 @@ void io_thread(CPU *cpu)
     CloseWindow();
 
     abort();
-
 #endif /* ifdef OUTPUT_ENABLE */
 }

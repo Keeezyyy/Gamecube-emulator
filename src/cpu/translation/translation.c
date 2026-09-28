@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <khash/khash.h>
@@ -82,6 +83,34 @@ int tb_finilize(TranslationBlock *tb)
 
 _Static_assert(offsetof(FPU, fpr) == 8, "FPU_FPR_OFFSET in run_tb_fpu.s");
 _Static_assert(offsetof(FPU, ps1) == 264, "FPU_PS1_OFFSET in run_tb_fpu.s");
+static void free_tb(TranslationBlock *tb)
+{
+    mprotect(tb->core.code, tb->core.size, PROT_READ | PROT_WRITE);
+    munmap(tb->core.code, tb->core.size);
+    free(tb);
+}
+
+void invalidate_tb(u32 adr_start, u32 adr_end)
+{
+    for (khiter_t k = kh_begin(t); k != kh_end(t); k++) {
+        if (!kh_exist(t, k))
+            continue;
+
+        TranslationBlock *tb = kh_value(t, k);
+        if (tb->pc_at_start > adr_end || tb->pc_at_end < adr_start)
+            continue;
+
+        if ((adr_start <= tb->pc_at_start && adr_end >= tb->pc_at_start) ||
+            (adr_start <= tb->pc_at_end && adr_end >= tb->pc_at_end)) {
+            for (int i = 0; i < TB_CACHE_ENTRIES; i++)
+                if (translation_block_cache[i] == tb)
+                    translation_block_cache[i] = NULL;
+
+            free_tb(tb);
+            kh_del(tb_map, t, k);
+        }
+    }
+}
 
 void run_tb(TranslationBlock *block, CPU *cpu)
 {

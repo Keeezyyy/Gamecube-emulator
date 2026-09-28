@@ -13,6 +13,7 @@
 
 static GXFifoRegs cp_regs;
 static FifoControlRegisters fifo_ctr;
+static u32 fifo_generation;
 
 void cp_write(CPU *cpu, u32 adr, u32 val, u32 size)
 {
@@ -125,6 +126,7 @@ void cp_recieve_gather_pipe(CPU *cpu)
     cp_check_state(cpu);
 
     pthread_mutex_lock(&fifo_ctr.fifo_mutex);
+    fifo_generation++;
     pthread_cond_signal(&fifo_ctr.fifo_cond);
     pthread_mutex_unlock(&fifo_ctr.fifo_mutex);
 }
@@ -150,19 +152,19 @@ void cp_thread(CPU *cpu)
     //  TODO:make fast thread save version
     //  TODO:make fast thread save version
     //  TODO:make fast thread save version
-    u32 last_rw_distance = 0;
+    u32 last_generation = 0;
     while (true) {
 
         pthread_mutex_lock(&fifo_ctr.fifo_mutex);
 
-        while (atomic_load(&cp_regs.fifo_markers.RW_DISTANCE) == last_rw_distance) {
+        while (fifo_generation == last_generation) {
             pthread_cond_wait(&fifo_ctr.fifo_cond, &fifo_ctr.fifo_mutex);
         }
+        last_generation = fifo_generation;
 
     pthread_unlock_mutex:
         pthread_mutex_unlock(&fifo_ctr.fifo_mutex);
 
         decode_data_stream(cpu, &cp_regs);
-        last_rw_distance = atomic_load(&cp_regs.fifo_markers.RW_DISTANCE);
     }
 }

@@ -41,6 +41,7 @@
 #define OPC_MFTB_EXT 371
 #define OPC_MTSPR_EXT 467
 #define OPC_SYNC_EXT 598
+#define OPC_DCBT_EXT 278
 #define OPC_DCBZ_EXT 1014
 #define OPC_DCBST_EXT 54
 #define OPC_ORX_EXT 444
@@ -176,6 +177,7 @@
 #define OPC_PSQ_STX_EXT 7
 #define OPC_PSQ_LUX_EXT 38
 #define OPC_PSQ_STUX_EXT 39
+#define OPC_DCBZ_L_EXT 1014
 
 #define _CAT(a, b) a##b
 #define CAT(a, b) _CAT(a, b)

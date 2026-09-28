@@ -53,6 +53,7 @@ typedef struct {
     u8 type;
 
     u32 pc_at_start;
+    u32 pc_at_end;
     u32 msr_at_start;
     u32 hid2_at_start;
 
@@ -98,3 +99,4 @@ bool code_buffer_reserve(CodeBuffer *cb, u32 extra);
 void code_buffer_destroy(CodeBuffer *cb);
 
 u64 get_global_translation_mem_usage(void);
+void invalidate_tb(u32 adr_start, u32 adr_end);
