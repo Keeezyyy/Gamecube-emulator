@@ -8,6 +8,16 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+static u8 tmem[0xFFFFF];
+
+void load_tlut_into_tmem(CPU *cpu, const u32 ram_adr, const u32 tmem_adr,
+                         const u32 num_of_32_byte_blocks)
+{
+    u32 corrected_adr = ((tmem_adr) << 9) + 0x80000;
+    memcpy(&tmem[corrected_adr], &cpu->bus->ram[ram_adr << 5], num_of_32_byte_blocks / 32);
+}
 
 void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp)
 {

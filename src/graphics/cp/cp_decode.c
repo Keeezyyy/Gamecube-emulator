@@ -5,6 +5,7 @@
 #include "graphics/gpu/render/backend/software/tev/tev.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/pipeline.h"
+#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
@@ -48,6 +49,7 @@ u64 get_frames_of_runtime(void)
     return frame_counter;
 }
 
+static u32 tlut_ram_adresse;
 static u32 bp_mask = 0xFFFFFF;
 static void load_bp_reg(CPU *cpu, u32 cmd)
 {
@@ -80,9 +82,6 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
             GPU_PRINT("[GPU] : GX_DawDone\n");
             GPU_PRINT("----------------------------------------------------------------------------"
                       "-----\n");
-            // trigger for render
-
-            // cpy_reg_state(bp_regs, cp_regs, xf_regs);
             break;
         }
         case BP_SET_PE_TOKEN: {
@@ -116,11 +115,28 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
 
             break;
         }
+        case 0x63: {
+            assert(!"tmem cache load\n");
+            break;
+        }
+        case 0x64: {
+            tlut_ram_adresse = new_val & 0xFFFFFF;
+            break;
+        }
+        case 0x65: {
+            printf("TLUT finilize : 0x%08x\n", tlut_ram_adresse);
+            load_tlut_into_tmem(cpu, tlut_ram_adresse, new_val & 0x3FF, (new_val >> 10) & 0x7FF);
+
+            break;
+        }
         case 0x66: {
             // cache invalidieren (ignore)
+
+            printf("cache invalidate : 0x%08x\n", new_val);
             break;
         }
         default:
+            printf("reg : 0x%08x\n", reg);
             assert(!"bp reg trigger\n");
         }
     } // trigger

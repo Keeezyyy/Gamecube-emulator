@@ -51,3 +51,6 @@ GXTexture rgba8_decode(const u8 *src, u32 width, u32 height);
 RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod);
 
 void init_texture_hash_map(void);
+
+void load_tlut_into_tmem(CPU *cpu, const u32 ram_adr, const u32 tmem_adr,
+                         const u32 num_of_32_byte_blocks);

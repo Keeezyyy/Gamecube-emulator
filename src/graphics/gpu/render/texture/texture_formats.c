@@ -8,7 +8,7 @@
 #include "texture.h"
 
 #include <khash/khash.h>
-// #define OUTPUT_TEXTURE
+#define OUTPUT_TEXTURE
 
 #ifdef OUTPUT_TEXTURE
 #define STB_IMAGE_WRITE_IMPLEMENTATION
