@@ -16,6 +16,8 @@ static DSPRegisters dsp = {.CSR = 0x0004, .AR_MODE = 1, .AR_REFRESH = 156};
 
 static u8 ARAM[ARAM_SIZE];
 
+static SchedulerEvent adma_event;
+
 static bool ucode_start_pending;
 static bool ucode_running;
 static u32 ucode_cmd;
@@ -42,7 +44,7 @@ static void dsp_send_mail(u32 mail)
     dsp.MAIL_FROM_DSP_LO = (u16)mail;
 }
 
-static void dsp_ucode_receive(u32 mail)
+static void dsp_ucode_receive(CPU *cpu, u32 mail)
 {
     if (ucode_mails_left == 0) {
         ucode_cmd = mail >> 24;
@@ -51,6 +53,10 @@ static void dsp_ucode_receive(u32 mail)
 
     if (--ucode_mails_left == 0) {
         dsp_send_mail(0x88880000 | ucode_cmd);
+        if (ucode_cmd == 0x00) {
+            dsp.CSR |= 0x0080;
+            pi_update_interrupts(cpu);
+        }
     }
 }
 
@@ -77,6 +83,8 @@ static void dsp_write_csr(CPU *cpu, u16 val)
 
     if (val & 0x0001) {
         dsp.AUDIO_DMA_CONTROL_LEN = 0;
+        adma_event.active = false;
+        scheduler_edit_event(SCHEDULER_EVENT_AI_DMA, adma_event);
     }
 
     dsp.CSR = (u16)((dsp.CSR & ~0x0956u & ~(val & 0x00A8u)) | (val & 0x0956u));
@@ -129,7 +137,7 @@ static void dsp_write16(CPU *cpu, u32 adr, u16 val)
         dsp.MAIL_TO_DSP_HI &= 0x7FFF;
 
         if (ucode_running) {
-            dsp_ucode_receive(mail);
+            dsp_ucode_receive(cpu, mail);
         } else if (ucode_start_pending) {
             ucode_start_pending = false;
             ucode_running = true;
@@ -180,9 +188,21 @@ static void dsp_write16(CPU *cpu, u32 adr, u16 val)
     case DSP_AUDIO_DMA_BLOCKS_LENGTH:
         dsp.AUDIO_DMA_BLOCKS_LENGTH = val;
         return;
-    case DSP_AUDIO_DMA_CONTROL_LEN:
+    case DSP_AUDIO_DMA_CONTROL_LEN: {
+        bool was_enabled = dsp.AUDIO_DMA_CONTROL_LEN & 0x8000;
         dsp.AUDIO_DMA_CONTROL_LEN = val;
+
+        adma_event.active = val & 0x8000;
+        adma_event.clock_speed = ai_get_aicr() & BIT(6) ? 4000 : 6000;
+        scheduler_edit_event(SCHEDULER_EVENT_AI_DMA, adma_event);
+
+        if (!was_enabled && (val & 0x8000)) {
+            dsp.AUDIO_DMA_BLOCKS_LEFT = val & 0x7FFF;
+            dsp.CSR |= 0x0008;
+            pi_update_interrupts(cpu);
+        }
         return;
+    }
     }
 
     printf("[DSP_WRITE] : adr : 0x%08x, val : 0x%04x\n", adr, val);
@@ -289,6 +309,24 @@ static void ai_clock(CPU *cpu)
     }
 }
 
+static void adma_clock(CPU *cpu)
+{
+    static u64 next_block_cycle;
+    if (global_cycle_counter < next_block_cycle) {
+        return;
+    }
+    next_block_cycle = global_cycle_counter + CPU_CLOCK_SPEED / adma_event.clock_speed;
+
+    if (dsp.AUDIO_DMA_BLOCKS_LEFT > 1) {
+        dsp.AUDIO_DMA_BLOCKS_LEFT--;
+        return;
+    }
+
+    dsp.AUDIO_DMA_BLOCKS_LEFT = dsp.AUDIO_DMA_CONTROL_LEN & 0x7FFF;
+    dsp.CSR |= 0x0008;
+    pi_update_interrupts(cpu);
+}
+
 void ai_init(void)
 {
     e.active = false;
@@ -296,4 +334,10 @@ void ai_init(void)
     e.clock_speed = 48000;
 
     scheduler_add_event_to_buffer(SCHEDULER_EVENT_AI, e);
+
+    adma_event.active = false;
+    adma_event.callback = &adma_clock;
+    adma_event.clock_speed = 6000;
+
+    scheduler_add_event_to_buffer(SCHEDULER_EVENT_AI_DMA, adma_event);
 }

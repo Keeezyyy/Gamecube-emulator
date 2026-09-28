@@ -17,6 +17,11 @@ u32 buffer_ptr;
 
 static void copy_fifo_buffer_to_ram(CPU *cpu) {};
 
+void gx_reset_gather_pipe(void)
+{
+    buffer_ptr = 0;
+}
+
 void gx_write_to_fifo(CPU *cpu, u64 val, u32 size)
 {
     for (u32 i = 0; i < size; i++)

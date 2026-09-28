@@ -99,6 +99,12 @@ u32 cp_get_sr_reg(void)
     // pthread_mutex_unlock(&cp_regs.gx_regs_mutex);
 }
 
+void cp_reset_fifo(void)
+{
+    cp_regs.CR &= 0x10;
+    cp_regs.SR = cp_regs.SR & ~0x3;
+}
+
 void cp_recieve_gather_pipe(CPU *cpu)
 {
     // read the data stream ...

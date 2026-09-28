@@ -9,6 +9,7 @@ extern u64 global_cycle_counter;
 enum SchedulerEventTypes {
     SCHEDULER_EVENT_VI,
     SCHEDULER_EVENT_AI,
+    SCHEDULER_EVENT_AI_DMA,
     SCHEDULER_EVENT_COUNT,
 
 };

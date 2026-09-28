@@ -6,6 +6,7 @@
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gx_fifo.h"
 #include "graphics/pe.h"
 #include "graphics/vi.h"
 #include <_abort.h>
@@ -63,6 +64,13 @@ void pi_write(CPU *cpu, u32 adr, u64 val, u32 size)
     }
     case 0xCC003024: {
         pi_regs.PI_RESET_CODE = val;
+        break;
+    }
+    case 0xCC003018: {
+        printf("pi reset fifo");
+        gx_reset_gather_pipe();
+        cp_reset_fifo();
+
         break;
     }
     default:
