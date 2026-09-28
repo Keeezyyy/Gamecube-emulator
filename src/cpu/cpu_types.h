@@ -62,7 +62,25 @@ typedef struct {
     // Upper 32 Bits are ignored
     u64 interrupt_mask_register; //
     u64 interrupt_source_register;
+    u32 interrupt_internal_source;
 } CpuExcpetion;
+
+enum CpuInternalInterruptType {
+    INTERNAL_INTERRUPT_TYPE_SYSTEM_RESET = 0x00,
+    INTERNAL_INTERRUPT_TYPE_MACHINE_CHECK = 0x01,
+    INTERNAL_INTERRUPT_TYPE_DSI = 0x02,
+    INTERNAL_INTERRUPT_TYPE_ISI = 0x03,
+    INTERNAL_INTERRUPT_TYPE_EXTERNAL = 0x04,
+    INTERNAL_INTERRUPT_TYPE_ALIGNMENT = 0x05,
+    INTERNAL_INTERRUPT_TYPE_PROGRAM = 0x06,
+    INTERNAL_INTERRUPT_TYPE_FP_UNAVAILABLE = 0x07,
+    INTERNAL_INTERRUPT_TYPE_DECREMENT = 0x08,
+    INTERNAL_INTERRUPT_TYPE_SYSTEM_CALL = 0x0C,
+    INTERNAL_INTERRUPT_TYPE_TRACE = 0x0D,
+    INTERNAL_INTERRUPT_TYPE_PERFORMANCE_MONITOR = 0x0F,
+    INTERNAL_INTERRUPT_TYPE_IABR = 0x13,
+    INTERNAL_INTERRUPT_TYPE_THERMAL = 0x17,
+};
 
 struct CPU {
     CpuState state;
@@ -85,6 +103,6 @@ struct CPU {
     void (*boot)(CPU *self);
     void (*free)(CPU *self);
     void (*print_state)(CPU *self);
-    bool (*awaiting_interrupt)(CPU *self);
+    void (*trigger_internal_interrupt)(CPU *self, enum CpuInternalInterruptType, bool set);
     CpuMode (*get_current_cpu_mode)(CPU *self);
 };

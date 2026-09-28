@@ -1,6 +1,7 @@
 #include "cpu/cpu.h"
 #include <alloca.h>
 #include <pthread.h>
+#include "bus/bus.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation.h"
@@ -43,66 +44,22 @@ static void print_guest_string(CPU *self, u32 adr)
     }
 }
 
-static void hle_check_panic(CPU *self)
+static s8 _is_interrupt_awaiting(CPU *self)
 {
-    if (self->state.pc != HLE_OSPANIC)
-        return;
+    if ((self->state.msr & 0x8000) == 0) // interrupt enable
+        return -1;
 
-    printf("[OSPanic] ");
-    print_guest_string(self, self->registers.gpio[3]);
-    printf(":%u: ", self->registers.gpio[4]);
-    print_guest_string(self, self->registers.gpio[5]);
-    printf("\n  (LR = 0x%08x)\n", self->special_purpose_registers.lr);
-    fflush(stdout);
-    assert(!"guest OSPanic");
+    if ((self->exception.interrupt_source_register & self->exception.interrupt_mask_register) != 0)
+        return INTERNAL_INTERRUPT_TYPE_EXTERNAL;
+
+    for (s8 i = 0; i < 14; i++) {
+        if (i == INTERNAL_INTERRUPT_TYPE_EXTERNAL)
+            continue;
+        if ((self->exception.interrupt_internal_source >> i) & 1)
+            return i;
+    }
+    return -1;
 }
-
-static u64 counter = 0;
-static void handle_interrupt(CPU *self)
-{
-    TranslationBlock *tb;
-    CpuMode m = self->get_current_cpu_mode(self);
-
-    _helper_write_switch_to_exception(self->state.pc - 4);
-    // printf("[INTERRUPT], source : 0x%08x, counter : %d\n",
-    // self->exception.interrupt_source_register, counter++);
-
-    // NOTE:FOR NOW
-    self->state.pc = 0x00000500;
-    do {
-
-        tb = tb_lookup(self, m);
-        if (tb == NULL_PTR) {
-            // TODO:
-            // code block is not present in hash table and has to be translated
-
-            // NOTE: if I add thread make sure to use locks here
-
-            TranslationBlock *new_tb = calloc(1, sizeof(TranslationBlock));
-
-            assert(new_tb != NULL_PTR);
-
-            if (!tb_translate(self, m, new_tb, false)) {
-                fprintf(stderr, "translation failed at pc 0x%08x\n", self->state.pc);
-                free(new_tb);
-                assert(!"tb_translate failed: guest code block could not be translated");
-            }
-
-            if (tb_finilize(new_tb) != 0) {
-                fprintf(stderr, "tb_finilize failed at pc 0x%08x\n", self->state.pc);
-                free(new_tb);
-                assert(!"tb_finilize failed: translated block could not be finalized");
-            }
-
-            tb = new_tb;
-        }
-
-        self->print_state(self);
-        run_tb(tb, self);
-        self->print_state(self);
-    } while ((tb->type & TRANSLATION_BLOCK_TYPE_RETURN_FROM_INTERRUPT) != 0);
-}
-
 static void main_loop(CPU *self)
 {
     TranslationBlock *tb;
@@ -113,13 +70,13 @@ static void main_loop(CPU *self)
 
     while (true) {
 
-        if (self->awaiting_interrupt(self)) {
-            handle_interrupt(self);
+        s8 int_reg = _is_interrupt_awaiting(self);
+        if (int_reg >= 0) {
+            handle_interrupt(self, (enum CpuInternalInterruptType)int_reg);
         }
+
         assert(((self->state.msr >> 17) & 1) == 0 && ((self->state.msr >> 26) & 1) == 0 &&
                ((self->state.msr >> 27) & 1) == 0);
-
-        hle_check_panic(self);
 
         tb = tb_lookup(self, m);
         if (tb == NULL_PTR) {
@@ -193,12 +150,12 @@ static const FPU FPU_TEMPLATE = {
     .get_pse_bit = _fpu_get_sep_bit,
 };
 
-static bool _is_interrupt_awaiting(CPU *self)
+static void _trigger_internal_interrupt(CPU *self, enum CpuInternalInterruptType type, bool set)
 {
-    if ((self->state.msr & 0x8000) == 0) // interrupt enable
-        return false;
-    return (self->exception.interrupt_source_register & self->exception.interrupt_mask_register) !=
-           0;
+    if (set)
+        self->exception.interrupt_internal_source |= BIT(type);
+    else
+        self->exception.interrupt_internal_source &= ~BIT(type);
 }
 
 static const CPU CPU_TEMPLATE = {
@@ -210,7 +167,7 @@ static const CPU CPU_TEMPLATE = {
     .boot = &_boot,
     .print_state = &print_cpu_state,
     .fpu = FPU_TEMPLATE,
-    .awaiting_interrupt = &_is_interrupt_awaiting,
+    .trigger_internal_interrupt = &_trigger_internal_interrupt,
     // NOTE: no libc functions !!!
     // NOTE if usage of lib functions in debug push and pop float regs
     //------------------------------------------------------------------------------------------

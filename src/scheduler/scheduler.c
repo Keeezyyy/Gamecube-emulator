@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "core/config/config.h"
+#include "cpu/cpu.h"
 #include <math.h>
 
 u64 global_cycle_counter;
@@ -19,6 +20,9 @@ void report_cycle_count(CPU *cpu, u32 cycle_count)
             event_buffer[j].callback(cpu);
         }
     }
+
+    update_decrementor(cpu, global_cycle_counter, next);
+
     u64 elapsed_ticks = next / 12 - global_cycle_counter / 12;
     global_cycle_counter = next;
 
