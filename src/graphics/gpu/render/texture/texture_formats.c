@@ -75,7 +75,8 @@ GXTexture ia4_decode(const u8 *src, u32 width, u32 height)
                         continue;
 
                     int i = (y * width + x) * 4;
-                    pixels[i + 0] = pixels[i + 1] = pixels[i + 2] = pixels[i + 3] = I;
+                    pixels[i + 0] = pixels[i + 1] = pixels[i + 2] = (I & 0xF) * 0x11;
+                    pixels[i + 3] = I >> 4;
                 }
             }
         }
@@ -83,7 +84,7 @@ GXTexture ia4_decode(const u8 *src, u32 width, u32 height)
 
 #ifdef OUTPUT_TEXTURE
     char buffer[128];
-    sprintf(buffer, "texture-output/i8-output-%p-%ux%u.png", src, width, height);
+    sprintf(buffer, "texture-output/ia4-output-%p-%ux%u.png", src, width, height);
 
     if (!access(buffer, F_OK) == 0)
         stbi_write_png(buffer, width, height, 4, pixels, width * 4);

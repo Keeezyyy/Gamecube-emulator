@@ -76,6 +76,7 @@ GXTexture decode_texture(CPU *cpu, const u32 *bp, TextureUnit u, u32 *width_o, u
     case TEXTURE_FORMAT_RGBA8:
         return rgba8_decode(&cpu->bus->ram[ram_adr << 5], width, height);
     case TEXTURE_FORMAT_IA4:
+        return ia4_decode(&cpu->bus->ram[ram_adr << 5], width, height);
     default: {
         if (tex_format == TEXTURE_FORMAT_C4 || tex_format == TEXTURE_FORMAT_C8 ||
             tex_format == TEXTURE_FORMAT_C14X2) {
