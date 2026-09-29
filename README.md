@@ -7,6 +7,10 @@ For now rendering is purely on host cpu
 ![MIT License](media/progress-screenshot-04.gif)
 
 
+
+//Animal crossing is loading and running at ~2fps with the software renderer
+![MIT License](media/progress-screenshot-05.png)
+
 TODO RENDER:
   - [ ] transformation
       - [ ] frac in pos

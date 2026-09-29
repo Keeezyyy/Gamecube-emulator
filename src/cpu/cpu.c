@@ -10,13 +10,16 @@
 #include <_abort.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/_pthread/_pthread_t.h>
 #include <sys/cdefs.h>
-static CPU *static_cpu_ptr;
+
+CPU *static_cpu_ptr;
+u32 offset_to_cpu = offsetof(CPU, host);
 
 static void deconstruct_cpu(CPU *self)
 {

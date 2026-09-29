@@ -82,6 +82,10 @@ enum CpuInternalInterruptType {
     INTERNAL_INTERRUPT_TYPE_THERMAL = 0x17,
 };
 
+typedef struct {
+    u32 regs[32];
+} HostCpu;
+
 struct CPU {
     CpuState state;
     CpuRegisters registers;
@@ -89,6 +93,8 @@ struct CPU {
     CpuSpecialPurposeRegisters special_purpose_registers;
     CpuState state_on_start_of_tb;
     CpuExcpetion exception;
+
+    HostCpu host;
 
     u32 reserve;
 

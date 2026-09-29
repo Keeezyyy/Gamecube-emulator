@@ -241,7 +241,8 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
         GXTexture texture = decode_texture(cpu, get_bp_register_pointer(), u, &width, &height);
 
         RGBA *colors = (RGBA *)texture.buffer;
-        if (!colors)
+
+        if (!colors && texture.format <= TEXTURE_FORMAT_RGBA8)
             return (RGBA){0};
 
         u8 wrap_s = u.mode0 & 0x3;

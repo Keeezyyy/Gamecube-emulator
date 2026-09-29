@@ -2,6 +2,7 @@
 #include "bus/interfaces/pi.h"
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
+#include "graphics/cp/cp.h"
 #include "io/io.h"
 #include "scheduler/scheduler.h"
 #include <_time.h>
@@ -49,6 +50,7 @@ static void vi_clock(CPU *cpu)
             vP = 1;
         si_vblank_trigger();
         trigger_frame();
+        cp_wait_idle();
     }
 }
 static SchedulerEvent e = {.active = false, .callback = &vi_clock, .clock_speed = 27000000};

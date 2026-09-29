@@ -29,6 +29,8 @@ u32 *backend_translate_guest_instructions(const u32 instruction, CPU *cpu,
 
     u32 *(*func)(TranslateFuncContext ctx);
 
+    u32 reg_usage = 0;
+
     switch (opcode) {
     case 63:
     case 59:
@@ -39,6 +41,7 @@ u32 *backend_translate_guest_instructions(const u32 instruction, CPU *cpu,
         func = no_extended_opcode_instruction_routines[opcode];
         return func((TranslateFuncContext){instruction, cpu, pc_after_instruction, pc_buffer,
                                            host_block_offsets, pc_buffer_counter, code_buffer,
-                                           code_buffer_end, termination_type, tb_type});
+                                           code_buffer_end, termination_type, tb_type,
+                                           .reg_usage_bit_map = &reg_usage});
     }
 }

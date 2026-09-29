@@ -7,6 +7,7 @@
 #include "graphics/gpu/render/backend/opengl/render.h"
 #include <assert.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
@@ -145,6 +146,14 @@ void cp_init(CPU *cpu)
     init_texture_hash_map();
 }
 
+static _Atomic u32 cp_done_generation;
+
+void cp_wait_idle(void)
+{
+    while (atomic_load(&cp_done_generation) != *(volatile u32 *)&fifo_generation)
+        sched_yield();
+}
+
 void cp_thread(CPU *cpu)
 {
 
@@ -166,5 +175,6 @@ void cp_thread(CPU *cpu)
         pthread_mutex_unlock(&fifo_ctr.fifo_mutex);
 
         decode_data_stream(cpu, &cp_regs);
+        atomic_store(&cp_done_generation, last_generation);
     }
 }

@@ -177,7 +177,7 @@ VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 # C-API wird uebersetzt; dafuer muss mit $(CXX) gelinkt werden, damit die
 # C++-Runtime mitkommt.
 OAKNUT_DIR      := $(INC_DIR)/oaknut/oaknut
-OAKNUT_SRCS     := $(OAKNUT_DIR)/c_api/src/oaknut_c.cpp
+OAKNUT_SRCS     := $(OAKNUT_DIR)/c_api/src/oaknut_c.cpp $(OAKNUT_DIR)/c_api/src/oaknut_enc.cpp
 OAKNUT_OBJS     := $(OAKNUT_SRCS:$(INC_DIR)/%.cpp=$(OBJ_DIR)/vendor/%.o)
 OAKNUT_CPPFLAGS := -I$(OAKNUT_DIR)/include -I$(OAKNUT_DIR)/c_api/include -MMD -MP
 OAKNUT_CXXFLAGS := -std=c++20 -w $(OPTFLAGS)
