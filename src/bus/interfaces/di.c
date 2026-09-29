@@ -5,6 +5,7 @@
 #include "core/config/config.h"
 #include "cpu/translation/translation.h"
 #include "disc/disc.h"
+#include "scheduler/scheduler.h"
 #include <arm/types.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -16,6 +17,8 @@ static Disc *disc_manager_ptr;
 static u32 disc_register;
 static u32 disc_cover_register;
 static bool audio_streaming_active = false;
+
+static SchedulerOneTimeEvent e;
 
 typedef struct {
     volatile uint32_t DICMDBUF0; // 0x00: Befehl (Byte 3 = Opcode, Byte 2 = Subkommando)
@@ -149,9 +152,10 @@ void di_start_dma(CPU *cpu)
                    disk_offset, len, adr_virtual);
 
             _read_dvd(cpu, disk_offset, len, adr_virtual);
+            di_dma_regs.DICR |= BIT(0);
 
-            disc_register |= BIT(4);
-            pi_update_interrupts(cpu);
+            // TODO: calc the actual timing fo read amount , ...
+            scheduler_activate_one_time_event(SCHEDULER_ONE_TIME_EVENT_DVD_READ, 260000);
 
         } else {
             // DVD_READDISKID
@@ -202,8 +206,19 @@ void di_start_dma(CPU *cpu)
     }
     di_dma_regs.DILENGTH = 0;
 }
+static void _di_scheduler_event_callback_di_read(CPU *cpu)
+{
+    di_dma_regs.DICR &= ~BIT(0);
+    disc_register |= BIT(4);
+    pi_update_interrupts(cpu);
+}
 
 void di_init(Disc *d)
 {
     disc_manager_ptr = d;
+    e.active = false;
+    e.activate_on_cycle = 0;
+    e.callback = &_di_scheduler_event_callback_di_read;
+
+    scheduler_add_one_time_event(SCHEDULER_ONE_TIME_EVENT_DVD_READ, e);
 }
