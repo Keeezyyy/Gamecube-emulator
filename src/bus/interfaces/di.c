@@ -155,7 +155,7 @@ void di_start_dma(CPU *cpu)
             di_dma_regs.DICR |= BIT(0);
 
             // TODO: calc the actual timing fo read amount , ...
-            scheduler_activate_one_time_event(SCHEDULER_ONE_TIME_EVENT_DVD_READ, 2600);
+            scheduler_activate_one_time_event(SCHEDULER_ONE_TIME_EVENT_DVD_READ, 26);
 
         } else {
             // DVD_READDISKID

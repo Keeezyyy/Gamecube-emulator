@@ -20,5 +20,7 @@ typedef u32 *(*translate_fn)(TranslateFuncContext ctx);
 extern CPU *static_cpu_ptr;
 extern u32 offset_to_cpu;
 
+extern u32 _helper_read_word_from_bus(u32 adr);
+
 u32 *translate_addi_func(TranslateFuncContext ctx);
 u32 *translate_lwz_func(TranslateFuncContext ctx);

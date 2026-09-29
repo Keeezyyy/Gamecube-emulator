@@ -167,8 +167,16 @@ ASM_OBJS := $(patsubst $(SRC_DIR)/%.s,$(OBJ_DIR)/%.o, \
 # Fremdbibliotheken liegen als Quellen unter include/<lib>/ und werden mit
 # entschaerften Warnungen und ohne die globale config.h uebersetzt.
 # Testprogramme der Fremdbibliotheken (eigene main()) bleiben draussen.
+#
+# Die Objekte liegen ausserhalb von $(OUT_DIR) unter build/vendor/<typ>/, damit
+# "make clean" sie stehen laesst - der Fremdcode aendert sich praktisch nie und
+# oaknut (C++20) ist teuer zu uebersetzen. Getrennt wird nur nach den Flags,
+# die hier tatsaechlich eingehen (BUILD_TYPE, NATIVE); SANITIZE und
+# CLOCK_STATS teilen sich die Objekte. Weg damit: "make vendorclean" oder
+# "make distclean".
+VENDOR_DIR  := $(BUILD)/vendor/$(BUILD_TYPE)$(NATIVE_SUFFIX)
 VENDOR_SRCS := $(shell find $(INC_DIR) -type f -name '*.c' -not -path '*/tests/*')
-VENDOR_OBJS := $(VENDOR_SRCS:$(INC_DIR)/%.c=$(OBJ_DIR)/vendor/%.o)
+VENDOR_OBJS := $(VENDOR_SRCS:$(INC_DIR)/%.c=$(VENDOR_DIR)/%.o)
 
 VENDOR_CPPFLAGS := -I$(INC_DIR) -MMD -MP
 VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
@@ -178,7 +186,7 @@ VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 # C++-Runtime mitkommt.
 OAKNUT_DIR      := $(INC_DIR)/oaknut/oaknut
 OAKNUT_SRCS     := $(OAKNUT_DIR)/c_api/src/oaknut_c.cpp $(OAKNUT_DIR)/c_api/src/oaknut_enc.cpp
-OAKNUT_OBJS     := $(OAKNUT_SRCS:$(INC_DIR)/%.cpp=$(OBJ_DIR)/vendor/%.o)
+OAKNUT_OBJS     := $(OAKNUT_SRCS:$(INC_DIR)/%.cpp=$(VENDOR_DIR)/%.o)
 OAKNUT_CPPFLAGS := -I$(OAKNUT_DIR)/include -I$(OAKNUT_DIR)/c_api/include -MMD -MP
 OAKNUT_CXXFLAGS := -std=c++20 -w $(OPTFLAGS)
 
@@ -208,7 +216,7 @@ SHADER_OUTS := $(addprefix $(SHADER_DIR)/,$(notdir $(SHADER_SRCS)))
 vpath %.glsl $(sort $(dir $(SHADER_SRCS)))
 
 # ==== Regeln =================================================================
-.PHONY: all shaders asm run debug release lsp clean distclean format compdb help test test-build test-vertex test-software
+.PHONY: all shaders asm run debug release lsp clean vendorclean distclean format compdb help test test-build test-vertex test-software
 
 # Baut nur den Assembler-Teil - praktisch beim Debuggen der .s-Dateien.
 asm: $(ASM_OBJS)
@@ -249,11 +257,11 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.S
 	@mkdir -p $(dir $@)
 	$(AS) $(CPPFLAGS) $(ASFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/vendor/%.o: $(INC_DIR)/%.c
+$(VENDOR_DIR)/%.o: $(INC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(VENDOR_CPPFLAGS) $(VENDOR_CFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/vendor/%.o: $(INC_DIR)/%.cpp
+$(VENDOR_DIR)/%.o: $(INC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(OAKNUT_CPPFLAGS) $(OAKNUT_CXXFLAGS) -c $< -o $@
 
@@ -318,9 +326,13 @@ debug:
 
 # ==== Clean ==================================================================
 
-# Raeumt beide Build-Typen ab, nicht nur den gerade eingestellten.
+# Raeumt beide Build-Typen ab, nicht nur den gerade eingestellten. Die
+# Vendor-Objekte unter build/vendor/ bleiben stehen (siehe oben).
 clean:
 	$(RM) -r $(BUILD)/debug* $(BUILD)/release* $(SHADER_DIR)
+
+vendorclean:
+	$(RM) -r $(BUILD)/vendor
 
 distclean: clean
 	$(RM) -r $(BUILD) compile_commands.json compile_flags.txt
@@ -383,7 +395,8 @@ help:
 	@echo "make run BUILD_TYPE=release - Release-Binary starten"
 	@echo "make debug ARGS=rom.iso    - Debug-Build unter gdb starten"
 	@echo "make debug DEBUGGER=lldb   - stattdessen lldb verwenden"
-	@echo "make clean                 - Build-Dateien entfernen"
+	@echo "make clean                 - Build-Dateien entfernen (ohne Vendor-Objekte)"
+	@echo "make vendorclean           - Vendor-Objekte (include/) entfernen"
 	@echo "make distclean             - kompletten Build entfernen"
 	@echo "make format                - C-Code formatieren"
 	@echo "make asm                   - nur die Assembler-Objekte bauen"

@@ -8,7 +8,7 @@ typedef struct {
     u64 ps0;
     u64 ps1;
 } PairedSingleValue;
-static u64 _double_to_bits(double v)
+u64 _double_to_bits(double v)
 {
     union {
         double d;
@@ -17,7 +17,7 @@ static u64 _double_to_bits(double v)
     return c.u;
 }
 
-static double _bits_to_double(u64 b)
+double _bits_to_double(u64 b)
 {
     union {
         u64 u;
@@ -26,7 +26,7 @@ static double _bits_to_double(u64 b)
     return c.d;
 }
 
-static u64 _single_bits_to_double_bits(u32 w)
+u64 _single_bits_to_double_bits(u32 w)
 {
     const u64 sign = (u64)(w >> 31) << 63;
     const u32 exp = (w >> 23) & 0xffu;
@@ -47,7 +47,7 @@ static u64 _single_bits_to_double_bits(u32 w)
     return sign | ((u64)(k + 874u) << 52) | ((u64)(frac - (1u << k)) << (52u - k));
 }
 
-static u32 _double_bits_to_single_bits(u64 b)
+u32 _double_bits_to_single_bits(u64 b)
 {
     const u32 sign = (u32)(b >> 63);
     const u32 exp = (u32)((b >> 52) & 0x7ffu);
@@ -66,12 +66,12 @@ static u32 _double_bits_to_single_bits(u64 b)
     return sign << 31;
 }
 
-static i32 _quantize_scale(u32 scale_field)
+i32 _quantize_scale(u32 scale_field)
 {
     return (i32)((scale_field ^ 0x20u) - 0x20u);
 }
 
-static u32 _quantized_size(u32 type)
+u32 _quantized_size(u32 type)
 {
     if (type == 4u || type == 6u)
         return 1u;
@@ -80,7 +80,7 @@ static u32 _quantized_size(u32 type)
     return 4u;
 }
 
-static u64 _dequantize(u32 raw, u32 type, u32 scale_field)
+u64 _dequantize(u32 raw, u32 type, u32 scale_field)
 {
     if (type < 4u)
         return _single_bits_to_double_bits(raw);
@@ -105,7 +105,7 @@ static u64 _dequantize(u32 raw, u32 type, u32 scale_field)
     return _double_to_bits((double)v * factor);
 }
 
-static u32 _quantize(u64 bits, u32 type, u32 scale_field)
+u32 _quantize(u64 bits, u32 type, u32 scale_field)
 {
     if (type < 4u)
         return _double_bits_to_single_bits(bits);
@@ -146,23 +146,23 @@ static u32 _quantize(u64 bits, u32 type, u32 scale_field)
 
     return (u32)r;
 }
-static void _helper_write_word_to_bus(u32 adr, u32 val)
+void _helper_write_word_to_bus(u32 adr, u32 val)
 {
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 4);
 }
-static void _helper_write_byte_to_bus(u32 adr, u32 val)
+void _helper_write_byte_to_bus(u32 adr, u32 val)
 {
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xff, 1);
 }
-static void _helper_write_half_to_bus(u32 adr, u32 val)
+void _helper_write_half_to_bus(u32 adr, u32 val)
 {
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xffff, 2);
 }
-static void _helper_write_double_word_to_bus(u32 adr, u64 val)
+void _helper_write_double_word_to_bus(u32 adr, u64 val)
 {
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 8);
 }
-static u32 _helper_read_word_from_bus(u32 adr)
+u32 _helper_read_word_from_bus(u32 adr)
 {
     u32 val = (u32)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 4);
     /*
@@ -172,7 +172,7 @@ static u32 _helper_read_word_from_bus(u32 adr)
 
     return val;
 }
-static u32 _helper_read_half_word_from_bus(u32 adr)
+u32 _helper_read_half_word_from_bus(u32 adr)
 {
     u32 val = (u16)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 2);
     /*
@@ -182,7 +182,7 @@ static u32 _helper_read_half_word_from_bus(u32 adr)
 
     return val;
 }
-static u64 _helper_read_double_word_from_bus(u32 adr)
+u64 _helper_read_double_word_from_bus(u32 adr)
 {
     u64 val = static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 8);
     /*
@@ -191,7 +191,7 @@ static u64 _helper_read_double_word_from_bus(u32 adr)
     */
     return val;
 }
-static u32 _helper_read_byte(u32 adr)
+u32 _helper_read_byte(u32 adr)
 {
     u32 val = (u8)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 1);
     /*
@@ -201,7 +201,7 @@ static u32 _helper_read_byte(u32 adr)
     return val & 0xff;
 }
 
-static PairedSingleValue _helper_quantized_load(u32 adr, u32 gqr, u32 w)
+PairedSingleValue _helper_quantized_load(u32 adr, u32 gqr, u32 w)
 {
     const u32 type = (gqr >> 16) & 7u;
     const u32 scale = (gqr >> 24) & 0x3fu;
@@ -220,7 +220,7 @@ static PairedSingleValue _helper_quantized_load(u32 adr, u32 gqr, u32 w)
     return out;
 }
 
-static void _helper_quantized_store(u32 adr, u32 gqr, u32 w, u64 ps0, u64 ps1)
+void _helper_quantized_store(u32 adr, u32 gqr, u32 w, u64 ps0, u64 ps1)
 {
     const u32 type = gqr & 7u;
     const u32 scale = (gqr >> 8) & 0x3fu;
@@ -261,7 +261,7 @@ void _helper_write_switch_from_exception(void)
 
     return;
 }
-static void _helper_fpu(u32 insn, u32 pse)
+void _helper_fpu(u32 insn, u32 pse)
 {
     fpu_execute(static_cpu_ptr, insn, pse != 0);
 }

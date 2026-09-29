@@ -55,6 +55,10 @@ static void vi_clock(CPU *cpu)
 }
 static SchedulerEvent e = {.active = false, .callback = &vi_clock, .clock_speed = 27000000};
 
+static void update_scheduler_events(void)
+{
+}
+
 void vi_write(CPU *cpu, u32 adr, u32 val, u32 size)
 {
 
