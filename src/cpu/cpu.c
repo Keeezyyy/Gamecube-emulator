@@ -51,6 +51,8 @@ static s8 _is_interrupt_awaiting(CPU *self)
 
     if ((self->exception.interrupt_source_register & self->exception.interrupt_mask_register) != 0)
         return INTERNAL_INTERRUPT_TYPE_EXTERNAL;
+    if (self->exception.interrupt_internal_source == 0)
+        return -1;
 
     for (s8 i = 0; i < 14; i++) {
         if (i == INTERNAL_INTERRUPT_TYPE_EXTERNAL)

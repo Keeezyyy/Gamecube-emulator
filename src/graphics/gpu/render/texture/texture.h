@@ -32,6 +32,7 @@ typedef struct {
     u32 width;
     u32 height;
     u8 *buffer;
+    TextureFormat format;
 } GXTexture;
 
 GXTexture decode_texture(CPU *cpu, const u32 *bp, TextureUnit u, u32 *width_o, u32 *height_o);
@@ -47,6 +48,7 @@ void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp);
 GXTexture i8_decode(const u8 *src, u32 width, u32 height);
 GXTexture i4_decode(const u8 *src, u32 width, u32 height);
 GXTexture rgba8_decode(const u8 *src, u32 width, u32 height);
+GXTexture ia4_decode(const u8 *src, u32 width, u32 height);
 
 RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod);
 

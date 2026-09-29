@@ -46,6 +46,57 @@ static inline void texture_insert(const u64 hash, u8 *pixels)
     kh_value(t, k) = pixels;
 }
 
+GXTexture ia4_decode(const u8 *src, u32 width, u32 height)
+{
+    const u64 hash = get_texture_hash(src, width, height);
+    u8 *p = texture_lookup(hash);
+
+    if (p != NULL_PTR) {
+        GXTexture out = {0};
+        out.format = TEXTURE_FORMAT_IA4;
+        out.buffer = p;
+        out.height = height;
+        out.width = width;
+        return out;
+    }
+
+    const int channels = 4;
+
+    unsigned char *pixels = malloc(width * height * channels);
+
+    int counter = 0;
+    for (int by = 0; by < height; by += 4) {
+        for (int bx = 0; bx < width; bx += 8) {
+            for (int ty = 0; ty < 4; ty++) {
+                for (int tx = 0; tx < 8; tx++) {
+                    u8 I = src[counter++];
+                    int x = bx + tx, y = by + ty;
+                    if (x >= width || y >= height)
+                        continue;
+
+                    int i = (y * width + x) * 4;
+                    pixels[i + 0] = pixels[i + 1] = pixels[i + 2] = pixels[i + 3] = I;
+                }
+            }
+        }
+    }
+
+#ifdef OUTPUT_TEXTURE
+    char buffer[128];
+    sprintf(buffer, "texture-output/i8-output-%p-%ux%u.png", src, width, height);
+
+    if (!access(buffer, F_OK) == 0)
+        stbi_write_png(buffer, width, height, 4, pixels, width * 4);
+#endif
+
+    GXTexture out = {0};
+    out.buffer = pixels;
+    out.height = height;
+    out.width = width;
+
+    texture_insert(hash, pixels);
+    return out;
+}
 GXTexture i8_decode(const u8 *src, u32 width, u32 height)
 {
     const u64 hash = get_texture_hash(src, width, height);
@@ -53,6 +104,7 @@ GXTexture i8_decode(const u8 *src, u32 width, u32 height)
 
     if (p != NULL_PTR) {
         GXTexture out = {0};
+        out.format = TEXTURE_FORMAT_I8;
         out.buffer = p;
         out.height = height;
         out.width = width;
@@ -103,6 +155,8 @@ GXTexture i4_decode(const u8 *src, u32 width, u32 height)
 
     if (p != NULL_PTR) {
         GXTexture out = {0};
+
+        out.format = TEXTURE_FORMAT_I4;
         out.buffer = p;
         out.height = height;
         out.width = width;
@@ -152,6 +206,7 @@ GXTexture rgba8_decode(const u8 *src, u32 width, u32 height)
 
     if (p != NULL_PTR) {
         GXTexture out = {0};
+        out.format = TEXTURE_FORMAT_RGBA8;
         out.buffer = p;
         out.height = height;
         out.width = width;

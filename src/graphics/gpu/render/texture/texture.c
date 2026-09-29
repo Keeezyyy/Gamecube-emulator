@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static u8 tmem[0xFFFFF];
 
@@ -67,17 +68,22 @@ GXTexture decode_texture(CPU *cpu, const u32 *bp, TextureUnit u, u32 *width_o, u
 
     const u8 tex_format = ((u.img0 >> 20) & 0xF);
 
-    if (tex_format == TEXTURE_FORMAT_I8) {
+    switch (tex_format) {
+    case TEXTURE_FORMAT_I8:
         return i8_decode(&cpu->bus->ram[ram_adr << 5], width, height);
-    } else if (tex_format == TEXTURE_FORMAT_I4) {
+    case TEXTURE_FORMAT_I4:
         return i4_decode(&cpu->bus->ram[ram_adr << 5], width, height);
-    } else if (tex_format == TEXTURE_FORMAT_RGBA8) {
+    case TEXTURE_FORMAT_RGBA8:
         return rgba8_decode(&cpu->bus->ram[ram_adr << 5], width, height);
-
-    } else {
-
+    case TEXTURE_FORMAT_IA4:
+    default: {
+        if (tex_format == TEXTURE_FORMAT_C4 || tex_format == TEXTURE_FORMAT_C8 ||
+            tex_format == TEXTURE_FORMAT_C14X2) {
+            return (GXTexture){width, height, NULL_PTR, tex_format};
+        }
         printf("texture format   0x%02x\n", (u.img0 >> 20) & 0xF);
         assert(!"texutre format isnt implemented\n");
+    }
     }
 
     return (GXTexture){0};
@@ -107,6 +113,116 @@ static s32 apply_wrap(const u8 wrap, u32 tex_size, s32 coord)
         assert(!"wrong texture wrap");
         return 0;
     }
+}
+
+static u16 get_index_texture_index(s32 s, s32 t, u32 base_ram_adr, GXTexture *texture,
+                                   const u8 *const ram)
+{
+
+    u32 bW, bH;
+    switch (texture->format) {
+    case TEXTURE_FORMAT_C4: {
+        bW = 8;
+        bH = 8;
+        break;
+    }
+    case TEXTURE_FORMAT_C8: {
+        bW = 4;
+        bH = 8;
+        break;
+    }
+    case TEXTURE_FORMAT_C14X2: {
+        bW = 4;
+        bH = 4;
+        break;
+    }
+    default:
+        assert(!"texture fnaklsd ");
+    }
+    u32 width_block = (texture->width + bW - 1) / bW;
+    u32 blk = (t / bH) * width_block + (s / bW);
+    u32 off = (t % bH) * bW + (s % bW);
+
+    if (texture->format == TEXTURE_FORMAT_C4) {
+        return ram[base_ram_adr + blk * 32 + off / 2] & 1
+                   ? ram[base_ram_adr + blk * 32 + off / 2] & 0xF
+                   : ram[base_ram_adr + blk * 32 + off / 2] >> 4;
+    } else if (texture->format == TEXTURE_FORMAT_C8) {
+        return ram[base_ram_adr + blk * 32 + off / 2];
+    } else {
+        return *((u16 *)&ram[base_ram_adr + blk * 32 + off / 2]);
+    }
+}
+
+static inline u8 expand(u32 v, u32 bits)
+{
+    v &= (1u << bits) - 1;
+    switch (bits) {
+    case 3:
+        return (u8)((v << 5) | (v << 2) | (v >> 1));
+    case 4:
+        return (u8)(v * 0x11);
+    case 5:
+        return (u8)((v << 3) | (v >> 2));
+    case 6:
+        return (u8)((v << 2) | (v >> 4));
+    default:
+        return (u8)v;
+    }
+}
+static RGBA decode_tlut_color(const u16 color, const u8 format)
+{
+    switch (format) {
+    case 0: {
+        return (RGBA){.r = color & 0xff, .g = color & 0xff, .b = color & 0xff, .a = color >> 8};
+        break;
+    } // I8
+    case 1: {
+        return (RGBA){.r = expand(color >> 11, 5),
+                      .g = expand(color >> 5, 6),
+                      .b = expand(color, 5),
+                      .a = 0xFF};
+        break;
+    } // RGBA565
+    case 2: {
+        if (color >> 15) {
+            return (RGBA){.r = expand(color >> 10, 5),
+                          .g = expand(color >> 5, 5),
+                          .b = expand(color, 5),
+                          .a = 0xFF};
+        } else {
+            return (RGBA){.r = expand(color >> 8, 4),
+                          .g = expand(color >> 4, 4),
+                          .b = expand(color, 4),
+                          .a = expand(color >> 12, 3)};
+        }
+
+        break;
+    } // RGBA565
+    default:
+        assert(!"decode tlut clolor\n");
+    }
+}
+
+static RGBA get_texel_from_texture(CPU *cpu, const TextureUnit *const u, s32 s, s32 t,
+                                   GXTexture *texture)
+{
+    if (texture->format <= TEXTURE_FORMAT_RGBA8) {
+        if (texture->buffer == NULL_PTR)
+            return (RGBA){0};
+
+        RGBA texel = ((RGBA *)texture->buffer)[(t * texture->width + s)];
+        return texel;
+    }
+
+    const u32 ram_adr = (u->img3 & 0xFFFFFF) << 5;
+    const u16 idx = get_index_texture_index(s, t, ram_adr, texture, cpu->bus->ram);
+
+    const u32 tmem_adr = (u->lut & 0x3FF) + 0x80000;
+
+    const u16 color = ((u16 *)&tmem[tmem_adr])[idx];
+
+    return decode_tlut_color(color, (u->lut >> 10) & 0x3);
 }
 
 RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
@@ -139,8 +255,7 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
             s_coord = apply_wrap(wrap_s, width, s_coord);
             t_coord = apply_wrap(wrap_t, height, t_coord);
 
-            RGBA texel = colors[(t_coord * width + s_coord)];
-            return texel;
+            return get_texel_from_texture(cpu, &u, s_coord, t_coord, &texture);
         }
 
     } else {

@@ -132,7 +132,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         case 0x66: {
             // cache invalidieren (ignore)
 
-            printf("cache invalidate : 0x%08x\n", new_val);
+            // printf("cache invalidate : 0x%08x\n", new_val);
             break;
         }
         default:
@@ -375,6 +375,7 @@ void decode_data_stream(CPU *cpu, GXFifoRegs *command_processor_registers)
         const u8 op = stream[0];
         u8 *before = stream;
         execute_command(cpu, command_processor_registers, op, &stream, true);
+        cp_check_state(cpu);
 
         if (stream == before)
             return;

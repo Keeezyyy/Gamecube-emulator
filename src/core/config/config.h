@@ -113,8 +113,7 @@ _Static_assert(sizeof(Float3) == 3 * sizeof(float), "Float3 hat Padding");
     } while (0)
 #endif
 
-// #if defined(GPU_DEBUG)
-#if 0
+#if defined(GPU_DEBUG)
 #define GPU_PRINT(...) printf(__VA_ARGS__)
 #else
 #define GPU_PRINT(...)                                                                             \
