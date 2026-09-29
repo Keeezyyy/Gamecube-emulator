@@ -17,7 +17,7 @@ void load_tlut_into_tmem(CPU *cpu, const u32 ram_adr, const u32 tmem_adr,
                          const u32 num_of_32_byte_blocks)
 {
     u32 corrected_adr = ((tmem_adr) << 9) + 0x80000;
-    memcpy(&tmem[corrected_adr], &cpu->bus->ram[ram_adr << 5], num_of_32_byte_blocks / 32);
+    memcpy(&tmem[corrected_adr], &cpu->bus->ram[ram_adr << 5], num_of_32_byte_blocks * 32);
 }
 
 void get_texture_unit_regs(TextureUnit *u, u8 tex_unit_num, const u32 *bp)
@@ -145,13 +145,13 @@ static u16 get_index_texture_index(s32 s, s32 t, u32 base_ram_adr, GXTexture *te
     u32 off = (t % bH) * bW + (s % bW);
 
     if (texture->format == TEXTURE_FORMAT_C4) {
-        return ram[base_ram_adr + blk * 32 + off / 2] & 1
-                   ? ram[base_ram_adr + blk * 32 + off / 2] & 0xF
-                   : ram[base_ram_adr + blk * 32 + off / 2] >> 4;
+        const u8 byte = ram[base_ram_adr + blk * 32 + off / 2];
+        return (off & 1) ? (byte & 0xF) : (byte >> 4);
     } else if (texture->format == TEXTURE_FORMAT_C8) {
-        return ram[base_ram_adr + blk * 32 + off / 2];
+        return ram[base_ram_adr + blk * 32 + off];
     } else {
-        return *((u16 *)&ram[base_ram_adr + blk * 32 + off / 2]);
+        const u8 *p = &ram[base_ram_adr + blk * 32 + off * 2];
+        return (u16)((p[0] << 8 | p[1]) & 0x3FFF);
     }
 }
 
@@ -219,9 +219,9 @@ static RGBA get_texel_from_texture(CPU *cpu, const TextureUnit *const u, s32 s, 
     const u32 ram_adr = (u->img3 & 0xFFFFFF) << 5;
     const u16 idx = get_index_texture_index(s, t, ram_adr, texture, cpu->bus->ram);
 
-    const u32 tmem_adr = (u->lut & 0x3FF) + 0x80000;
+    const u32 tmem_adr = ((u->lut & 0x3FF) << 9) + 0x80000;
 
-    const u16 color = ((u16 *)&tmem[tmem_adr])[idx];
+    const u16 color = (u16)(tmem[tmem_adr + idx * 2] << 8 | tmem[tmem_adr + idx * 2 + 1]);
 
     return decode_tlut_color(color, (u->lut >> 10) & 0x3);
 }

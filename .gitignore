@@ -12,6 +12,8 @@ build/
 /include/glad
 /include/KHR
 /include/stb
+/include/oaknut
+
 
 # Tools / IDE
 compile_commands.json

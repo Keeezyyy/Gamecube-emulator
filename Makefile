@@ -12,6 +12,7 @@ CONFIG_H := $(SRC_DIR)/core/config/config.h
 
 # ==== Toolchain ==============================================================
 CC       := cc
+CXX      := c++
 
 CSTD     := -std=c11
 
@@ -165,13 +166,25 @@ ASM_OBJS := $(patsubst $(SRC_DIR)/%.s,$(OBJ_DIR)/%.o, \
 # ==== Vendor (Fremdcode in include/) =========================================
 # Fremdbibliotheken liegen als Quellen unter include/<lib>/ und werden mit
 # entschaerften Warnungen und ohne die globale config.h uebersetzt.
-VENDOR_SRCS := $(shell find $(INC_DIR) -type f -name '*.c')
+# Testprogramme der Fremdbibliotheken (eigene main()) bleiben draussen.
+VENDOR_SRCS := $(shell find $(INC_DIR) -type f -name '*.c' -not -path '*/tests/*')
 VENDOR_OBJS := $(VENDOR_SRCS:$(INC_DIR)/%.c=$(OBJ_DIR)/vendor/%.o)
 
 VENDOR_CPPFLAGS := -I$(INC_DIR) -MMD -MP
 VENDOR_CFLAGS   := $(CSTD) -w $(OPTFLAGS)
 
-DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d)
+# oaknut (AArch64-Assembler, header-only C++20) mit seiner C-API. Nur die
+# C-API wird uebersetzt; dafuer muss mit $(CXX) gelinkt werden, damit die
+# C++-Runtime mitkommt.
+OAKNUT_DIR      := $(INC_DIR)/oaknut/oaknut
+OAKNUT_SRCS     := $(OAKNUT_DIR)/c_api/src/oaknut_c.cpp
+OAKNUT_OBJS     := $(OAKNUT_SRCS:$(INC_DIR)/%.cpp=$(OBJ_DIR)/vendor/%.o)
+OAKNUT_CPPFLAGS := -I$(OAKNUT_DIR)/include -I$(OAKNUT_DIR)/c_api/include -MMD -MP
+OAKNUT_CXXFLAGS := -std=c++20 -w $(OPTFLAGS)
+
+CPPFLAGS += -I$(OAKNUT_DIR)/c_api/include
+
+DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d) $(OAKNUT_OBJS:.o=.d)
 
 # ==== Shader =================================================================
 # GLSL-Quellen fuer OpenGL. Der Treiber uebersetzt sie erst zur Laufzeit
@@ -217,9 +230,9 @@ $(SHADER_OUTS): $(SHADER_DIR)/%.glsl: %.glsl
 	$(GLSLC) -S $(call shader_stage,$<) $<
 	cp $< $@
 
-$(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS)
+$(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS) $(OAKNUT_OBJS)
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
@@ -239,6 +252,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.S
 $(OBJ_DIR)/vendor/%.o: $(INC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(VENDOR_CPPFLAGS) $(VENDOR_CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/vendor/%.o: $(INC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(OAKNUT_CPPFLAGS) $(OAKNUT_CXXFLAGS) -c $< -o $@
 
 # ==== clangd (LSP) ===========================================================
 # compile_flags.txt gibt clangd exakt die Flags des echten Builds - inklusive
