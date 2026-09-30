@@ -104,7 +104,7 @@ static void main_loop(CPU *self)
             tb = new_tb;
         }
 
-        report_cycle_count(self, tb->guest_instructions_count);
+        report_cycle_count(tb->guest_instructions_count);
 
         run_tb(tb, self);
     }

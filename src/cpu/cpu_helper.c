@@ -148,56 +148,60 @@ u32 _quantize(u64 bits, u32 type, u32 scale_field)
 }
 void _helper_write_word_to_bus(u32 adr, u32 val)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        *(u32 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]) = __builtin_bswap32(val);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 4);
 }
 void _helper_write_byte_to_bus(u32 adr, u32 val)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        *(u8 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]) = val & 0xFF;
+
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xff, 1);
 }
 void _helper_write_half_to_bus(u32 adr, u32 val)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        *(u16 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]) = __builtin_bswap16((u16)val);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val & 0xffff, 2);
 }
 void _helper_write_double_word_to_bus(u32 adr, u64 val)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        *(u64 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]) = __builtin_bswap64((u64)val);
     static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 8);
 }
 u32 _helper_read_word_from_bus(u32 adr)
 {
-    u32 val = (u32)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 4);
-    /*
-      if (adr > 0x817fffff + 1)
-          printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
-    */
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        return __builtin_bswap32(*(u32 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]));
 
+    u32 val = (u32)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 4);
     return val;
 }
 u32 _helper_read_half_word_from_bus(u32 adr)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        return __builtin_bswap16(*(u16 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]));
+
     u32 val = (u16)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 2);
-    /*
-      if (adr > 0x817fffff + 1)
-          printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
-    */
 
     return val;
 }
 u64 _helper_read_double_word_from_bus(u32 adr)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        return __builtin_bswap64(*(u64 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]));
     u64 val = static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 8);
-    /*
-      if (adr > 0x817fffff + 1)
-          printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
-    */
+
     return val;
 }
 u32 _helper_read_byte(u32 adr)
 {
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+        return *(u8 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]);
     u32 val = (u8)static_cpu_ptr->bus->read(static_cpu_ptr->bus, adr, 1);
-    /*
-      if (adr > 0x817fffff + 1)
-          printf("[read] :  adr : 0x%08x, val : 0x%08x\n", adr, val);
-    */
+
     return val & 0xff;
 }
 

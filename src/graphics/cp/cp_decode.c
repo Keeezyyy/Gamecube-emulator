@@ -124,7 +124,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
             break;
         }
         case 0x65: {
-            printf("TLUT finilize : 0x%08x\n", tlut_ram_adresse);
+            // printf("TLUT finilize : 0x%08x\n", tlut_ram_adresse);
             load_tlut_into_tmem(cpu, tlut_ram_adresse, new_val & 0x3FF, (new_val >> 10) & 0x7FF);
 
             break;

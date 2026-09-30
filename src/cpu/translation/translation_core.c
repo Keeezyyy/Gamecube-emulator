@@ -3,6 +3,7 @@
 #include "cpu/fpu.h"
 #include "cpu/translation/emit/asm_emit.h"
 #include "cpu/translation/emit/emit.h"
+#include "scheduler/scheduler.h"
 #include "translation.h"
 #include "translation_core_defines.h"
 #include <_abort.h>
@@ -605,6 +606,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
         if (false) {
             // pc deistination is in current tb
             //  optimize to jump inside the tb
+
             if (g_print_debug)
                 printf("[0x%08x] : bcx   %d\n", pc_buffer[pc_buffer_counter], bi);
 
@@ -624,8 +626,12 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 emit_load_u64(curr_instruction, 15, (u64)&cpu->special_purpose_registers.ctr);
             const u32 adr_offset = host_block_offsets[pc_buffer_counter] +
                                    (u32)((u8 *)curr_instruction - (u8 *)code_buffer);
+            curr_instruction = emit_load_u64(curr_instruction, 16,
+                                             (s32)host_block_offsets[pc_index] - (s32)adr_offset);
             curr_instruction =
-                emit_adr(curr_instruction, 16, (s32)host_block_offsets[pc_index] - (s32)adr_offset);
+                emit_load_u64(curr_instruction, 17, (u64)&cpu->exception.interrupt_internal_source);
+            curr_instruction = emit_load_u64(curr_instruction, 18, (u64)&report_cycle_count);
+            curr_instruction = emit_load_u64(curr_instruction, 19, pc_buffer_counter);
 
             const u32 *main_block;
             const u32 *main_block_end;

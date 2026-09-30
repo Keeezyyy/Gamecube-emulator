@@ -491,6 +491,7 @@ _emit_bcx:
 _emit_bcx_after:
 
 
+
 .globl _emit_bcx_jump_in_tb
 _emit_bcx_jump_in_tb:
           adr x2, _emit_bcx_jump_in_tb_start
@@ -529,13 +530,32 @@ _emit_bcx_jump_in_tb:
         cmp  w2, #1
         b.ne 4f
         str  w4, [x13]              // AA=1: NIA = EXTS(BD||00)
-        br x16
+        ldr w0, [x17]
+        cbz w0, after_3
+        ret
+after_3:
+        mov w0, w19
+        blr x18
+        br x16 // jump to actual address
 4:      add  w9, w4, w12            // AA=0: NIA = CIA + EXTS(BD||00)
         str  w9, [x13]
-        br x16
+        ldr w0, [x17]
+        cbz w0, after_4
+        ret
+after_4:
+        mov w0, w19
+        blr x18
+        br x16// jump to actual address
 3:      add  w9, w12, #4            // nicht genommen
         str  w9, [x13]
+        ldr w0, [x17]
+        cbz w0, after_5
+        ret
+after_5:
+        mov w0, w19
+        blr x18
 _emit_bcx_jump_in_tb_after:
+
 
 
 

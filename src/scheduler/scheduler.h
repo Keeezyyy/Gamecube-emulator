@@ -35,7 +35,7 @@ typedef struct {
     bool active;
 } SchedulerOneTimeEvent;
 
-void report_cycle_count(CPU *cpu, u32 cycle_count);
+void report_cycle_count(u32 cycle_count);
 void init_scheduler(CPU *cpu);
 
 void scheduler_add_event_to_buffer(enum SchedulerEventTypes, SchedulerEvent);

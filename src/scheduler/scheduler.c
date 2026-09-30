@@ -58,23 +58,23 @@ static void run_event(CPU *cpu)
     }
 }
 
-void report_cycle_count(CPU *cpu, u32 cycle_count)
+void report_cycle_count(u32 cycle_count)
 {
-    u64 next = cpu->cpu_cycles + cycle_count;
+    u64 next = cpu_ptr->cpu_cycles + cycle_count;
 
-    update_decrementor(cpu, cpu->cpu_cycles, next);
+    update_decrementor(cpu_ptr, cpu_ptr->cpu_cycles, next);
 
-    u64 elapsed_ticks = next / 12 - cpu->cpu_cycles / 12;
-    cpu->cpu_cycles = next;
+    u64 elapsed_ticks = next / 12 - cpu_ptr->cpu_cycles / 12;
+    cpu_ptr->cpu_cycles = next;
 
-    u64 time_base = ((u64)cpu->special_purpose_registers.buf[269] << 32 |
-                     cpu->special_purpose_registers.buf[268]) +
+    u64 time_base = ((u64)cpu_ptr->special_purpose_registers.buf[269] << 32 |
+                     cpu_ptr->special_purpose_registers.buf[268]) +
                     elapsed_ticks;
-    cpu->special_purpose_registers.buf[268] = time_base & U32_MAX;
-    cpu->special_purpose_registers.buf[269] = time_base >> 32;
+    cpu_ptr->special_purpose_registers.buf[268] = time_base & U32_MAX;
+    cpu_ptr->special_purpose_registers.buf[269] = time_base >> 32;
 
     if (next >= next_deadline)
-        run_event(cpu);
+        run_event(cpu_ptr);
 }
 
 void init_scheduler(CPU *cpu)
