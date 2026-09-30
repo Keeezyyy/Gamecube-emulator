@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bus/bus.h"
+#include "core/config/config.h"
 #include "graphics/gpu/vertex/primitive.h"
 
 enum {
@@ -24,6 +25,7 @@ typedef struct {
     Float4 pos_mat[3];
     u32 flags;
     u32 tex_mat_idx[2];
+    Float3 norm_mat[3];
 } GpuVertex;
 
 _Static_assert(offsetof(GpuVertex, color) % 4 == 0, "align");

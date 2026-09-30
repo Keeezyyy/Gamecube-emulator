@@ -58,6 +58,7 @@ static int _init(void)
     init_disc(&disc);
 
     if (disc.load_rom(&disc, "./roms/test1.iso") != 0) {
+
         return 1;
     }
 

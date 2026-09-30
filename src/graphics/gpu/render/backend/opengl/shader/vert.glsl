@@ -19,6 +19,9 @@ layout(location = 11) in vec4  aPosMat1;
 layout(location = 12) in vec4  aPosMat2;
 layout(location = 13) in uint  aFlags;
 layout(location = 14) in uvec2 aTexMatIdx;
+layout(location = 15) in vec3  aNormMat0;
+layout(location = 16) in vec3  aNormMat1;
+layout(location = 17) in vec3  aNormMat2;
 
 out vec4 vColor;
 
@@ -27,7 +30,14 @@ void main()
 {
 
     vec4 p = vec4(aPos, 1.0);
-    vec3 view = vec3(dot(aPosMat0, p), dot(aPosMat1, p), dot(aPosMat2, p));
+    vec3 pos = vec3(dot(aPosMat0, p), dot(aPosMat1, p), dot(aPosMat2, p));
+      
+    mat3x3 normMat = mat3x3(aNormMat0, aNormMat1, aNormMat2);
 
-    gl_Position = proj * vec4(view, 1.0);
+    vec3 n = aNormal * normMat;
+    vec3 b = aBinormal * normMat;
+    vec3 t = aTangent * normMat;
+    
+
+    gl_Position = proj * vec4(pos, 1.0);
 }

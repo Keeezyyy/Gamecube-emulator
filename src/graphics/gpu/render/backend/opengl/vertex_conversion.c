@@ -1,4 +1,5 @@
 #include "vertex_conversion.h"
+#include "core/config/config.h"
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <string.h>
@@ -97,6 +98,7 @@ GpuVertex vertex_to_gpu(const Vertex *v)
     }
 
     memcpy(g.pos_mat, v->pm.mat, sizeof g.pos_mat);
+    memcpy(g.norm_mat, v->norm.normal_matrix.m, sizeof(Float3) * 3);
     flags |= (u32)v->pm.posMatId << GPUV_POSMAT_SHIFT;
 
     g.flags = flags;
@@ -127,6 +129,9 @@ void gpu_vertex_setup_attribs(void)
 
     glVertexAttribIPointer(13, 1, GL_UNSIGNED_INT, stride, OFS(flags));
     glVertexAttribIPointer(14, 2, GL_UNSIGNED_INT, stride, OFS(tex_mat_idx));
+    for (int i = 0; i < 3; i++)
+        glVertexAttribPointer(15 + i, 4, GL_FLOAT, GL_FALSE, stride,
+                              (void *)(offsetof(GpuVertex, norm_mat) + i * sizeof(Float3)));
 
     for (int i = 0; i <= 14; i++)
         glEnableVertexAttribArray(i);
