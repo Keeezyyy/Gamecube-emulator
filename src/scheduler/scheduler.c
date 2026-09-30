@@ -4,7 +4,8 @@
 #include <math.h>
 #include <stdbool.h>
 
-u64 global_cycle_counter;
+static CPU *cpu_ptr;
+
 static SchedulerEvent event_buffer[SCHEDULER_EVENT_COUNT];
 static SchedulerOneTimeEvent one_time_event_buffer[SCHEDULER_ONE_TIME_EVENT_COUNT];
 static u64 event_cycle_acc[SCHEDULER_EVENT_COUNT];
@@ -33,8 +34,8 @@ static void run_event(CPU *cpu)
 
         u64 event_every_x_host_cycles = CPU_CLOCK_SPEED / event_buffer[j].clock_speed;
 
-        event_cycle_acc[j] += global_cycle_counter - event_last_cycle[j];
-        event_last_cycle[j] = global_cycle_counter;
+        event_cycle_acc[j] += cpu->cpu_cycles - event_last_cycle[j];
+        event_last_cycle[j] = cpu->cpu_cycles;
         while (event_cycle_acc[j] >= event_every_x_host_cycles) {
             event_cycle_acc[j] -= event_every_x_host_cycles;
             event_buffer[j].callback(cpu);
@@ -47,7 +48,7 @@ static void run_event(CPU *cpu)
     for (int j = 0; j < SCHEDULER_ONE_TIME_EVENT_COUNT; j++) {
         if (!one_time_event_buffer[j].active || one_time_event_buffer[j].callback == NULL_PTR)
             continue;
-        if (global_cycle_counter >= one_time_event_buffer[j].activate_on_cycle) {
+        if (cpu->cpu_cycles >= one_time_event_buffer[j].activate_on_cycle) {
             one_time_event_buffer[j].active = false;
             one_time_event_buffer[j].callback(cpu);
         }
@@ -59,12 +60,12 @@ static void run_event(CPU *cpu)
 
 void report_cycle_count(CPU *cpu, u32 cycle_count)
 {
-    u64 next = global_cycle_counter + cycle_count;
+    u64 next = cpu->cpu_cycles + cycle_count;
 
-    update_decrementor(cpu, global_cycle_counter, next);
+    update_decrementor(cpu, cpu->cpu_cycles, next);
 
-    u64 elapsed_ticks = next / 12 - global_cycle_counter / 12;
-    global_cycle_counter = next;
+    u64 elapsed_ticks = next / 12 - cpu->cpu_cycles / 12;
+    cpu->cpu_cycles = next;
 
     u64 time_base = ((u64)cpu->special_purpose_registers.buf[269] << 32 |
                      cpu->special_purpose_registers.buf[268]) +
@@ -76,6 +77,11 @@ void report_cycle_count(CPU *cpu, u32 cycle_count)
         run_event(cpu);
 }
 
+void init_scheduler(CPU *cpu)
+{
+    cpu_ptr = cpu;
+}
+
 void scheduler_add_event_to_buffer(enum SchedulerEventTypes t, SchedulerEvent e)
 {
     scheduler_edit_event(t, e);
@@ -84,7 +90,7 @@ void scheduler_edit_event(enum SchedulerEventTypes t, SchedulerEvent e)
 {
     if (e.active && !event_buffer[t].active) {
         event_cycle_acc[t] = 0;
-        event_last_cycle[t] = global_cycle_counter;
+        event_last_cycle[t] = cpu_ptr->cpu_cycles;
     }
 
     event_buffer[t] = e;
@@ -105,7 +111,7 @@ void scheduler_activate_one_time_event(enum SchedulerOneTimeEventTypes t, u64 cy
 {
 
     one_time_event_buffer[t].active = true;
-    one_time_event_buffer[t].activate_on_cycle = global_cycle_counter + cycles_from_now;
+    one_time_event_buffer[t].activate_on_cycle = cpu_ptr->cpu_cycles + cycles_from_now;
 
     next_deadline_add(one_time_event_buffer[t].activate_on_cycle);
 }

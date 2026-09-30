@@ -361,10 +361,10 @@ static void ai_clock(CPU *cpu)
 static void adma_clock(CPU *cpu)
 {
     static u64 next_block_cycle;
-    if (global_cycle_counter < next_block_cycle) {
+    if (cpu->cpu_cycles < next_block_cycle) {
         return;
     }
-    next_block_cycle = global_cycle_counter + CPU_CLOCK_SPEED / adma_event.clock_speed;
+    next_block_cycle = cpu->cpu_cycles + CPU_CLOCK_SPEED / adma_event.clock_speed;
 
     if (dsp.AUDIO_DMA_BLOCKS_LEFT > 1) {
         dsp.AUDIO_DMA_BLOCKS_LEFT--;

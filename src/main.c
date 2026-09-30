@@ -33,7 +33,7 @@ static void print_clock(int sig)
     struct timespec t1;
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double s = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
-    double hz = (double)global_cycle_counter / s;
+    double hz = (double)cpu.cpu_cycles / s;
     printf("\n[CLOCK] %.2f MHz avg ueber %.2f s (%.2f%% von %u MHz)\n", hz / 1e6, s,
            hz / CPU_CLOCK_SPEED * 100.0, CPU_CLOCK_SPEED / 1000000u);
 
@@ -52,6 +52,7 @@ static void print_clock(int sig)
 static int _init(void)
 {
 
+    init_scheduler(&cpu);
     init_bus(&b, &cpu, &disc);
 
     init_disc(&disc);

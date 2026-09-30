@@ -15,6 +15,11 @@ enum SchedulerEventTypes {
 
 enum SchedulerOneTimeEventTypes {
     SCHEDULER_ONE_TIME_EVENT_DVD_READ,
+    SCHEDULER_ONE_TIME_EVENT_VI_DI0,
+    SCHEDULER_ONE_TIME_EVENT_VI_DI1,
+    SCHEDULER_ONE_TIME_EVENT_VI_DI2,
+    SCHEDULER_ONE_TIME_EVENT_VI_DI3,
+    SCHEDULER_ONE_TIME_EVENT_VI_V_BLANK,
     SCHEDULER_ONE_TIME_EVENT_COUNT,
 };
 
@@ -31,6 +36,7 @@ typedef struct {
 } SchedulerOneTimeEvent;
 
 void report_cycle_count(CPU *cpu, u32 cycle_count);
+void init_scheduler(CPU *cpu);
 
 void scheduler_add_event_to_buffer(enum SchedulerEventTypes, SchedulerEvent);
 void scheduler_edit_event(enum SchedulerEventTypes t, SchedulerEvent e);

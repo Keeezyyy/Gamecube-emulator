@@ -97,8 +97,8 @@ struct CPU {
     HostCpu host;
 
     u32 reserve;
-
     u64 helper_functions[64];
+    u64 cpu_cycles;
 
     Bus *bus;
     FPU fpu;

@@ -24,10 +24,13 @@ static pthread_cond_t cond;
 
 static bool should_draw = false;
 
+static struct timespec t0;
+
 static void init_io(void)
 {
     pthread_cond_init(&cond, NULL);
     pthread_mutex_init(&cond_lock, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &t0);
 }
 
 void trigger_frame(void)
@@ -39,32 +42,29 @@ void trigger_frame(void)
     pthread_mutex_unlock(&cond_lock);
 }
 
-static struct timespec t0;
-
-static u64 counter = 0;
 static u64 fps = 0;
 static u64 cycle_counter_local = 0;
 
-static void _output_info(void)
+static void _output_info(CPU *cpu)
 {
+    struct timespec t1;
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    double s = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
+    if (s < 1.0)
+        return;
+
+    const u64 cycles = cpu->cpu_cycles;
+    const u64 frames = get_frames_of_runtime();
+    double hz = (double)(cycles - cycle_counter_local) / s;
+
     char buffer[128];
-    counter++;
-    if (counter == 1000) {
-        struct timespec t1;
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        double s = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
-        double hz = (double)(global_cycle_counter - cycle_counter_local) / s;
+    snprintf(buffer, sizeof(buffer), "avg fps :  %.0f, clock speed : %.0f MHz",
+             (double)(frames - fps) / s, hz / 1e6);
+    SetWindowTitle(buffer);
 
-        sprintf(buffer, "avg fps :  %.0f, clock speed : %.0f MHz",
-                (double)(get_frames_of_runtime() - fps) / (double)s, hz / 1e6);
-        SetWindowTitle(buffer);
-
-        t0 = t1;
-        fps = get_frames_of_runtime();
-        cycle_counter_local = global_cycle_counter;
-
-        counter = 0;
-    }
+    t0 = t1;
+    fps = frames;
+    cycle_counter_local = cycles;
 }
 
 static void test_input(void)
@@ -86,6 +86,7 @@ static void test_input(void)
     recieve_input(dpad);
 }
 
+#define OUTPUT_ENABLE
 void io_thread(CPU *cpu)
 {
 #ifdef OUTPUT_ENABLE
@@ -135,7 +136,7 @@ void io_thread(CPU *cpu)
         DrawTexture(tex, 0, 0, WHITE);
         EndDrawing();
 
-        _output_info();
+        _output_info(cpu);
     }
 
     UnloadTexture(tex);
