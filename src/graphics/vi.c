@@ -103,7 +103,7 @@ static void update_scheduler_events(CPU *cpu)
         if (!((di >> 28) & 1)) {
             scheduler_edit_one_time_event(SCHEDULER_ONE_TIME_EVENT_VI_DI0 + i,
                                           (SchedulerOneTimeEvent){.active = false});
-            return;
+            continue;
         }
 
         const u16 hct = di & 0x7FF;

@@ -1,10 +1,11 @@
 #include "cp.h"
 #include "bus/bus.h"
 #include "bus/interfaces/pi.h"
-#include "graphics/gpu/render/pipeline.h"
 #include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
+#ifdef OPENGL_RENDERER
 #include "graphics/gpu/render/backend/opengl/render.h"
+#endif
 #include <assert.h>
 #include <pthread.h>
 #include <sched.h>
@@ -21,7 +22,7 @@ void cp_write(CPU *cpu, u32 adr, u32 val, u32 size)
 
     // pthread_mutex_lock(&cp_regs.gx_regs_mutex);
 
-    //printf("cp write : adr : 0x%08x, val : 0x%08x\n", adr, val);
+    // printf("cp write : adr : 0x%08x, val : 0x%08x\n", adr, val);
 
     if (adr == 0xCC000004) {
         if (val & 1) {
@@ -60,7 +61,7 @@ u64 cp_read(CPU *cpu, u32 adr, u32 size)
 {
 
     // pthread_mutex_lock(&cp_regs.gx_regs_mutex);
-    printf("read : 0x%08x\n", adr);
+    // printf("read : 0x%08x\n", adr);
     volatile u8 *p = (volatile u8 *)&cp_regs;
     if (size == 2) {
         return *(volatile u16 *)(p + (adr - 0xCC000000));
@@ -156,11 +157,9 @@ void cp_wait_idle(void)
 
 void cp_thread(CPU *cpu)
 {
-
-    // init_renderer();
-    //  TODO:make fast thread save version
-    //  TODO:make fast thread save version
-    //  TODO:make fast thread save version
+#ifdef OPENGL_RENDERER
+    init_opengl_renderer();
+#endif /* ifdef OPENGL_RENDERER */
     u32 last_generation = 0;
     while (true) {
 

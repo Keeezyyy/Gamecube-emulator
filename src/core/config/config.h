@@ -4,9 +4,12 @@
 #include <stdint.h>
 
 #define RENDER_PRIMITIVES
-// #define ISOLATE_CPU
-// #define DI_DEBUG
-// #define SI_DEBUG
+
+#define OPENGL_RENDERER
+
+#if defined(OPENGL_RENDERER) && defined(SOFTWARE_RENDERER)
+#error "nur eine renderer darf aktiv sein "
+#endif
 
 #define MI_DEBUG
 #ifdef DEBUG_ALL_INTERFACES

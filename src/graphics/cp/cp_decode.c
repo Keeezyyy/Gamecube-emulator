@@ -1,10 +1,15 @@
 #include "bus/bus.h"
 #include "core/config/config.h"
 #include "cp.h"
+#if defined(OPENGL_RENDERER)
+#include "graphics/gpu/render/backend/opengl/registers.h"
+#include "graphics/gpu/render/backend/opengl/render.h"
+#elif defined(SOFTWARE_RENDERER)
 #include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/tev/tev.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
-#include "graphics/gpu/render/pipeline.h"
+#include "graphics/gpu/render/backend/software/pipeline.h"
+#endif
 #include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include "graphics/pe.h"
@@ -26,6 +31,9 @@ u32 *get_xf_register_pointer(void)
 
 #ifdef SOFTWARE_TRANSFORM
     return software_backend_get_xf_buffer();
+#endif
+#ifdef OPENGL_RENDERER
+    return opengl_get_xf_buffer();
 #endif
 }
 u32 *get_bp_register_pointer(void)
@@ -70,9 +78,13 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
 
     GPU_PRINT("BP LOAD [0x%02x] = 0x%06x\n", reg, new_val);
 
+#if defined(OPENGL_RENDERER)
+    opengl_write_to_bp(bp_regs, reg);
+#elif defined(SOFTWARE_RENDERER)
     if (reg >= 0xE0 && reg <= 0xe7) {
         tev_write_color_reg(reg, new_val);
     }
+#endif
 
     if (reg == 0x45 || reg == 0x47 || reg == 0x48 || reg == 0x52 || reg == 0x55 || reg == 0x56 ||
         reg == 0x57 || reg == 0x63 || reg == 0x64 || reg == 0x65 || reg == 0x66) {
@@ -90,6 +102,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         }
         case 0x52: {
             // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
+#ifdef SOFTWARE_RENDERER
             if (((new_val >> 14) & 1)) {
                 copy_efb_to_xfb(cpu);
                 clear_fb();
@@ -99,8 +112,12 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
                     present_xfb(cpu);
                 }
             }
+#endif /* ifdef SOFTWARE_RENDERER */
             frame_counter++;
 
+#ifdef OPENGL_RENDERER
+            opengl_finish_frame();
+#endif /* ifdef OPENGL_RENDERER */
             GPU_PRINT("BP reg 0x52 write\n");
             break;
         }
@@ -155,6 +172,10 @@ static void load_cp_reg(u8 reg_num, u32 val)
 {
     assert(reg_num <= 0xBF);
     cp_regs[reg_num] = val;
+
+#ifdef OPENGL_RENDERER
+    opengl_write_to_cp(cp_regs, reg_num);
+#endif
 
     GPU_PRINT("CP LOAD [0x%02x] = 0x%06x\n", reg_num, val);
 }
@@ -242,7 +263,12 @@ static void load_primitive(CPU *cpu, GXFifoRegs *command_processor_registers,
 #ifdef ISOLATE_CPU
     return;
 #endif /* ifdef ISOLATE_CPU */
+
+#if defined(SOFTWARE_RENDERER)
     load_vertex_into_pipeline(cpu, p);
+#elif defined(OPENGL_RENDERER)
+    opengl_render_primitive(cpu, &p);
+#endif
 }
 
 static void load_xf_reg(u16 adr, u16 n, const u32 *values)
@@ -257,6 +283,9 @@ static void load_xf_reg(u16 adr, u16 n, const u32 *values)
         // xf_regs[adr + i] = values[i];
 #ifdef SOFTWARE_TRANSFORM
         software_backend_write_to_xf_reg(adr + i, values[i]);
+#endif
+#ifdef OPENGL_RENDERER
+        opengl_write_to_xf_reg(adr + i, values[i]);
 #endif
     }
 }

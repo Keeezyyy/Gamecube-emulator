@@ -47,6 +47,7 @@ void software_backend_write_to_xf_reg(const u32 reg_num, const u32 val)
 
 static Mat4 build_projection(void)
 {
+
     Mat4 out = {0};
 
     float p0 = xf_reg.projection[0];
@@ -410,8 +411,8 @@ static Float4 get_texcoord_input(const Vertex *v, const u32 ctrl, const u8 idx)
     return in;
 }
 
-static void calc_tex_gen(CPU *cpu, const Vertex *v, const Float3 *eye,
-                         const Float3 *NBT, const RGBA *colors, Float3 *tex_out)
+static void calc_tex_gen(CPU *cpu, const Vertex *v, const Float3 *eye, const Float3 *NBT,
+                         const RGBA *colors, Float3 *tex_out)
 {
     const u8 num_of_tex_gens = xf_reg.num_tex_gens;
 

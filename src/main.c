@@ -104,11 +104,17 @@ static void _threads(void)
     pthread_create(&main_thread, NULL, (void *)cpu.main, &cpu);
     pthread_detach(main_thread);
 
-    pthread_t gpu_pipeline_cp_thread;
-    pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
-    pthread_detach(gpu_pipeline_cp_thread);
+    // NOTE: chnage back later for framebuffer window drawing
+    /*
+      pthread_t gpu_pipeline_cp_thread;
+      pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
+      pthread_detach(gpu_pipeline_cp_thread);
 
-    io_thread(&cpu);
+      io_thread(&cpu);
+    */
+
+    // for now to draw opengl window
+    cp_thread(&cpu);
 }
 
 int main(int argc, char **argv)

@@ -156,7 +156,11 @@ BIN      := $(OUT_DIR)/$(TARGET)
 #
 # Nicht eingebunden: *.asm (NASM-Syntax). Der Treiber "cc" kennt dieses
 # Format nicht; solche Dateien muessten erst nach *.s portiert werden.
-SRCS     := $(shell find $(SRC_DIR) -type f -name '*.c')
+# Das abgeloeste OpenGL-Backend liegt nur noch als Referenz im Baum und
+# definiert dieselben Symbole wie das neue (load_shader, ...).
+SRC_EXCLUDE := */opengl-depreciated/*
+
+SRCS     := $(shell find $(SRC_DIR) -type f -name '*.c' -not -path '$(SRC_EXCLUDE)')
 ASM_SRCS := $(shell find $(SRC_DIR) -type f \( -name '*.s' -o -name '*.S' \))
 
 OBJS     := $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
@@ -209,7 +213,13 @@ DEPS := $(OBJS:.o=.d) $(VENDOR_OBJS:.o=.d) $(OAKNUT_OBJS:.o=.d)
 GLSLC      := glslangValidator
 SHADER_DIR := $(BUILD)/shader
 
-SHADER_SRCS := $(shell find $(SRC_DIR) -type f \( -name 'vert.glsl' -o -name '*.vert.glsl' \
+# Das alte Backend liegt noch als Referenz im Baum. Seine Shader heissen
+# genauso wie die neuen (vert.glsl/frag.glsl) und wuerden sie in build/shader/
+# ueberdecken, deshalb bleiben sie hier draussen.
+SHADER_EXCLUDE := */opengl-depreciated/*
+
+SHADER_SRCS := $(shell find $(SRC_DIR) -type f -not -path '$(SHADER_EXCLUDE)' \
+                                               \( -name 'vert.glsl' -o -name '*.vert.glsl' \
                                                 -o -name 'frag.glsl' -o -name '*.frag.glsl' \))
 SHADER_OUTS := $(addprefix $(SHADER_DIR)/,$(notdir $(SHADER_SRCS)))
 

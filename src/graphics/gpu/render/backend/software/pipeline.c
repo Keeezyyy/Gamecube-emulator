@@ -13,9 +13,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define SOFTWARE_CLIPPER
-#define SOFTWARE_RATERIZER
-
 static void draw_polygon(CPU *cpu, const XFOutput *out, const u16 polygon_count, Vertex *v)
 {
 
@@ -39,8 +36,7 @@ static void draw_quad(CPU *cpu, const XFOutput q[4], Vertex *v)
 static void draw_line(CPU *cpu, const XFOutput *a, const XFOutput *b, Vertex *v)
 {
     const f32 w = (f32)(get_bp_register_pointer()[0x22] & 0xFF) / 12.0f;
-    const int axis =
-        fabsf(b->pos.m[0] - a->pos.m[0]) >= fabsf(b->pos.m[1] - a->pos.m[1]) ? 1 : 0;
+    const int axis = fabsf(b->pos.m[0] - a->pos.m[0]) >= fabsf(b->pos.m[1] - a->pos.m[1]) ? 1 : 0;
 
     XFOutput q[4] = {*a, *b, *b, *a};
     q[0].pos.m[axis] -= w;

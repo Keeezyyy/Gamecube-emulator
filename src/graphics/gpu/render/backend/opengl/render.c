@@ -1,280 +1,78 @@
 #include "render.h"
 #include "core/config/config.h"
+#include "graphics/gpu/render/backend/opengl/shader/utils/shader.h"
+#include "graphics/gpu/render/backend/opengl/vertex_conversion.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
-#include "utils/vector.h"
-#include "./shader/shader.h"
-
+#include <_abort.h>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
-#include <_abort.h>
-#include <assert.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
-
-static Vector vertex_vector;
-static Vector gpu_vertex_vector;
-
-static BPRegisters bp;
-static CPRegisters cp;
-static XFRegisters xf;
-
 static GLFWwindow *window;
-
-static u32 frag_shader;
-static u32 vert_shader;
-static u32 shader_program;
+static GLuint frag_shader;
+static GLuint vert_shader;
+static GLuint shader_program;
 
 static GLuint VAO;
 static GLuint vertex_buffer;
-static GLuint matrixBuffer;
-static GLint projection_loc;
 static GLint viewport_loc;
+GLint projection_loc;
 
-static u8 _get_vertices_count_for_primitive_type(PrimitiveType t)
+#define VERTEX_BUFFER_SIZE (U16_MAX * sizeof(Vertex))
+static GLint vertex_offset;
+void opengl_render_primitive(CPU *cpu, Primitive *p)
 {
-    switch (t) {
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+
+    if ((vertex_offset + p->vert_count) * sizeof(GpuVertex) > VERTEX_BUFFER_SIZE) {
+        glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
+        vertex_offset = 0;
+    }
+
+    GpuVertex *dst = glMapBufferRange(
+        GL_ARRAY_BUFFER, (GLintptr)((size_t)vertex_offset * sizeof(GpuVertex)),
+        (GLsizeiptr)(p->vert_count * sizeof(GpuVertex)),
+        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+
+    for (int i = 0; i < p->vert_count; i++) {
+        dst[i] = vertex_to_gpu(&p->vertecies[i]);
+    }
+
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+
+    switch (p->t) {
     case GX_QUADS:
     case GX_QUADS_2:
-        return 4;
-
+        for (int i = 0; i < p->vert_count / 4; i++) {
+            glDrawArrays(GL_TRIANGLE_FAN, vertex_offset + i * 4, 4);
+        }
+        break;
     case GX_TRIANGLES:
-        return 3;
-
+        glDrawArrays(GL_TRIANGLES, vertex_offset, p->vert_count);
+        break;
     case GX_TRIANGLESTRIP:
+        glDrawArrays(GL_TRIANGLE_STRIP, vertex_offset, p->vert_count);
+        break;
     case GX_TRIANGLEFAN:
-        return 3;
-
+        glDrawArrays(GL_TRIANGLE_FAN, vertex_offset, p->vert_count);
+        break;
     case GX_LINES:
-        return 2;
-
+        glDrawArrays(GL_LINES, vertex_offset, p->vert_count);
+        break;
     case GX_LINESTRIP:
-        return 2;
-
+        glDrawArrays(GL_LINE_STRIP, vertex_offset, p->vert_count);
+        break;
     case GX_POINTS:
-        return 1;
+        glDrawArrays(GL_POINTS, vertex_offset, p->vert_count);
+        break;
 
     default:
-        assert(!"type unknown \n");
-    }
-}
-
-static GpuVertex prepare_vertex(Vertex *v)
-{
-    GpuVertex out_v = {0};
-
-    for (int i = 0; i < (2 + (u8)v->pos.position_elements); i++) {
-        switch (v->pos.position_data_type) {
-        case DATA_TYPE_U8: {
-            u8 val = (u8)((u32 *)&v->pos.vec)[i];
-            ((f32 *)&out_v.pos.pos)[i] = (f32)val;
-            break;
-        }
-        case DATA_TYPE_S8: {
-            s8 val = (s8)((u32 *)&v->pos.vec)[i];
-            ((f32 *)&out_v.pos.pos)[i] = (f32)val;
-            break;
-        }
-        case DATA_TYPE_U16: {
-            u16 val = (u16)((u32 *)&v->pos.vec)[i];
-            ((f32 *)&out_v.pos.pos)[i] = (f32)val;
-            break;
-        }
-        case DATA_TYPE_S16: {
-            s16 val = (s16)((u32 *)&v->pos.vec)[i];
-            ((f32 *)&out_v.pos.pos)[i] = (f32)val;
-            break;
-        }
-        case DATA_TYPE_F32: {
-            f32 val = ((f32 *)&v->pos.vec)[i];
-            ((f32 *)&out_v.pos.pos)[i] = val;
-            break;
-        }
-        }
     }
 
-    if (v->pos.frac != 0 && v->pos.position_data_type != DATA_TYPE_F32) {
-        for (int i = 0; i < (2 + (u8)v->pos.position_elements); i++) {
-            f32 *cord = &out_v.pos.pos.m;
-
-            cord[i] /= powf(2.0f, (f32)v->pos.frac);
-        }
-    }
-
-    memcpy(&out_v.color.r, v->color->rgba, 4 * sizeof(u8));
-    memcpy(out_v.pos_mat, v->pm.mat, sizeof(Float4) * 3);
-
-    return out_v;
+    vertex_offset += p->vert_count;
 }
 
-static void prepare_vertex_buffer_for_frame(void)
+void opengl_finish_frame(void)
 {
-    for (int i = 0; i < (gpu_vertex_vector.num_of_bytes / sizeof(GpuVertex)); i++) {
-        GpuVertex *g = &((GpuVertex *)gpu_vertex_vector.buffer)[i];
-
-        if (!g->pos.has_pos_mat_idx) {
-            g->pos.has_pos_mat_idx = true;
-            g->pos.pos_mat_idx = cp.cp_registers[0x30] & 0b111111;
-        }
-    }
-}
-
-static void _bind_buffers(void)
-{
-
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, gpu_vertex_vector.num_of_bytes, gpu_vertex_vector.buffer);
-
-    glBindBuffer(GL_UNIFORM_BUFFER, matrixBuffer);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64 * sizeof(Float4), xf.xf_registers);
-}
-
-static Mat4 build_projection(void)
-{
-    Mat4 out = {0};
-
-    float p0 = ((f32 *)xf.xf_registers)[0x1020];
-    float p1 = ((f32 *)xf.xf_registers)[0x1021];
-    float p2 = ((f32 *)xf.xf_registers)[0x1022];
-    float p3 = ((f32 *)xf.xf_registers)[0x1023];
-    float p4 = ((f32 *)xf.xf_registers)[0x1024];
-    float p5 = ((f32 *)xf.xf_registers)[0x1025];
-
-    if (xf.xf_registers[0x1026] == 0) {
-        // perspektivisch
-        out.m[0][0] = p0;
-        out.m[0][2] = p1;
-        out.m[1][1] = p2;
-        out.m[1][2] = p3;
-        out.m[2][2] = p4;
-        out.m[2][3] = p5;
-        out.m[3][2] = -1.0f;
-        out.m[3][3] = 0.0f;
-    } else {
-        // orthografisch
-        out.m[0][0] = p0;
-        out.m[0][3] = p1;
-        out.m[1][1] = p2;
-        out.m[1][3] = p3;
-        out.m[2][2] = p4;
-        out.m[2][3] = p5;
-        out.m[3][3] = 1.0f;
-    }
-    return out;
-}
-static Mat4 build_viewport(void)
-{
-    float sx = ((f32 *)xf.xf_registers)[0x101A];
-    float sy = ((f32 *)xf.xf_registers)[0x101B];
-    float sz = ((f32 *)xf.xf_registers)[0x101C];
-
-    float cx = ((f32 *)xf.xf_registers)[0x101D];
-    float cy = ((f32 *)xf.xf_registers)[0x101E];
-    float farZ = ((f32 *)xf.xf_registers)[0x101F];
-
-    Mat4 m = {0};
-
-    m.m[0][0] = sx;
-    m.m[0][3] = cx;
-
-    m.m[1][1] = sy;
-    m.m[1][3] = cy;
-
-    m.m[2][2] = sz;
-    m.m[2][3] = farZ;
-
-    m.m[3][3] = 1.0f;
-
-    return m;
-}
-
-static void _draw_primitives(void)
-{
-
-    RENDER_PRINT("-----\n");
-    for (int i = 0; i < (vertex_vector.num_of_bytes / sizeof(Vertex));) {
-        Vertex v = ((Vertex *)vertex_vector.buffer)[i];
-
-        RENDER_PRINT("type : %d, first : %d\n", v.type, i);
-
-        switch (v.type) {
-        case GX_QUADS:
-        case GX_QUADS_2:
-            for (u16 q = 0; q < v.count / 4; q++) {
-                glDrawArrays(GL_TRIANGLE_FAN, i + q * 4, 4);
-            }
-            break;
-
-        case GX_TRIANGLES:
-            glDrawArrays(GL_TRIANGLES, i, v.count);
-            break;
-
-        case GX_TRIANGLESTRIP:
-
-            glDrawArrays(GL_TRIANGLE_STRIP, i, v.count);
-            break;
-        case GX_TRIANGLEFAN:
-
-            glDrawArrays(GL_TRIANGLE_FAN, i, v.count);
-            break;
-
-        case GX_LINES:
-            glDrawArrays(GL_LINES, i, v.count);
-            break;
-
-        case GX_LINESTRIP:
-            glDrawArrays(GL_LINE_STRIP, i, v.count);
-            break;
-
-        case GX_POINTS:
-            glDrawArrays(GL_POINTS, i, v.count);
-            break;
-
-        default:
-            assert(!"type unknown \n");
-        }
-        i += v.count;
-    }
-
-    RENDER_PRINT("-----\n");
-}
-
-static void _set_render_settings(void)
-{
-    u8 line_size = ((u32 *)bp.bp_registers)[0x22] & 0xFF;
-    glLineWidth((float)line_size / 6.0f);
-
-    u8 point_size = (((u32 *)bp.bp_registers)[0x22] >> 8) & 0xFF;
-    glPointSize((float)point_size / 6.0f);
-}
-
-static void swap_buffers(void)
-{
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glfwPollEvents();
-
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    _bind_buffers();
-    _set_render_settings();
-
-    // load projection
-
-    glUseProgram(shader_program);
-
-    Mat4 proj = build_projection();
-    Mat4 view = build_viewport();
-
-    glUniformMatrix4fv(projection_loc, 1, GL_TRUE, &proj.m[0][0]);
-    glViewport(0, 0, 640, 480);
-
-    glBindVertexArray(VAO);
-
-    _draw_primitives();
-
     glfwSwapBuffers(window);
 
     if (glfwWindowShouldClose(window)) {
@@ -283,24 +81,19 @@ static void swap_buffers(void)
         glfwTerminate();
         abort();
     }
+
+    glUseProgram(shader_program);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glfwPollEvents();
+
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
+    vertex_offset = 0;
 }
 
-static void render_current_state(void)
+void init_opengl_renderer(void)
 {
-    RENDER_PRINT("[Render] : num of Vertexes : %d\n", vertex_vector.num_of_bytes / sizeof(Vertex));
-
-    prepare_vertex_buffer_for_frame();
-
-    //
-    swap_buffers();
-}
-
-void init_renderer(void)
-{
-
-    init_Vector(&vertex_vector, INITIAL_VERTEX_BUFFER_CAP);
-    init_Vector(&gpu_vertex_vector, INITIAL_VERTEX_BUFFER_CAP);
-
     if (!glfwInit()) {
         RENDER_PRINT("[ERRPR]: glfw init failed\n");
         abort();
@@ -340,13 +133,10 @@ void init_renderer(void)
     glAttachShader(shader_program, vert_shader);
     glAttachShader(shader_program, frag_shader);
     glLinkProgram(shader_program);
+    glUseProgram(shader_program);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    /*
-      glDeleteShader(vert_shader);
-      glDeleteShader(frag_shader);
-    */
     //------------------------------------------------------------------------
-
     // Vertex Buffers
     //------------------------------------------------------------------------
     glGenVertexArrays(1, &VAO);
@@ -354,71 +144,9 @@ void init_renderer(void)
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, MAX_RENDER_VERTICES * sizeof(GpuVertex), NULL_PTR,
-                 GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GpuVertex),
-                          (void *)offsetof(GpuVertex, pos));
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GpuVertex),
-                           (void *)offsetof(GpuPos, is_3d));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(GpuVertex),
-                          (void *)offsetof(GpuVertex, color));
-    glEnableVertexAttribArray(2);
-
-    for (int i = 0; i < 3; i++) {
-        glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(GpuVertex),
-                              (void *)(offsetof(GpuVertex, pos_mat) + i * sizeof(Float4)));
-        glEnableVertexAttribArray(3 + i);
-    }
-
-    // matrix buffer
-    glGenBuffers(1, &matrixBuffer);
-    glBindBuffer(GL_UNIFORM_BUFFER, matrixBuffer);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(Float4) * 64, NULL_PTR, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, matrixBuffer);
-    glUniformBlockBinding(shader_program, glGetUniformBlockIndex(shader_program, "Matrices"), 0);
-
-    //------------------------------------------------------------------------
-    //
+    gpu_vertex_setup_attribs();
     projection_loc = glGetUniformLocation(shader_program, "proj");
     viewport_loc = glGetUniformLocation(shader_program, "view");
-}
-
-void push_vertex_to_vertex_buffer(Vertex v)
-{
-    if ((vertex_vector.cap_in_bytes - vertex_vector.num_of_bytes) < sizeof(Vertex)) {
-        vertex_vector.grow(&vertex_vector);
-    }
-
-    memcpy(((u8 *)vertex_vector.buffer) + vertex_vector.num_of_bytes, &v, sizeof(Vertex));
-    vertex_vector.num_of_bytes += sizeof(Vertex);
-
-    // printf("the vertices are : %s\n", v.pos.position_elements == POS_ELEMNTS_XY ? "2D" : "3D");
-
-    GpuVertex g_v = prepare_vertex(&v);
-
-    if ((gpu_vertex_vector.cap_in_bytes - gpu_vertex_vector.num_of_bytes) < sizeof(GpuVertex)) {
-        gpu_vertex_vector.grow(&gpu_vertex_vector);
-    }
-    memcpy(((u8 *)gpu_vertex_vector.buffer) + gpu_vertex_vector.num_of_bytes, &g_v,
-           sizeof(GpuVertex));
-    gpu_vertex_vector.num_of_bytes += sizeof(GpuVertex);
-}
-
-void cpy_reg_state(u32 *bp_s, u32 *cp_s, u32 *xf_s)
-{
-    memcpy(&bp, bp_s, sizeof(bp));
-    memcpy(&cp, cp_s, sizeof(cp));
-    memcpy(&xf, xf_s, sizeof(xf));
-
-    render_current_state();
-
-    //... render
-
-    vertex_vector.num_of_bytes = 0;
-    gpu_vertex_vector.num_of_bytes = 0;
 }
