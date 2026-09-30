@@ -18,13 +18,14 @@ char *load_shader(char *path)
     long size = ftell(f);
     rewind(f);
 
-    char *buffer = malloc((size_t)size);
+    char *buffer = malloc((size_t)size + 1);
     if (!buffer) {
         fclose(f);
         abort();
     }
 
     fread(buffer, 1, (size_t)size, f);
+    buffer[size] = '\0';
 
     fclose(f);
 

@@ -15,6 +15,16 @@ enum {
     GPUV_POSMAT_SHIFT = 24, // Bits 24..31: posMatId
 };
 
+typedef union {
+    u32 buffer;
+    struct {
+        u8 pos_mat_idx;
+        u8 norm_mat_idx;
+        u8 tex1_mat_idx;
+        u8 tex2_mat_idx;
+    };
+} MatIndices;
+
 typedef struct {
     float pos[3];
     float normal[3];
@@ -22,10 +32,10 @@ typedef struct {
     float tangent[3];
     u8 color[2][4];
     float tex[8][2];
-    Float4 pos_mat[3];
     u32 flags;
     u32 tex_mat_idx[2];
-    Float3 norm_mat[3];
+    MatIndices mat_indices;
+
 } GpuVertex;
 
 _Static_assert(offsetof(GpuVertex, color) % 4 == 0, "align");

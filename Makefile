@@ -225,6 +225,33 @@ SHADER_OUTS := $(addprefix $(SHADER_DIR)/,$(notdir $(SHADER_SRCS)))
 
 vpath %.glsl $(sort $(dir $(SHADER_SRCS)))
 
+# Gemeinsame Bausteine (Structs, Funktionen) liegen unter shader/lib/ und
+# werden per
+#
+#   #include "lib/types.glsl"
+#
+# eingebunden, relativ zur einbindenden Datei. GLSL kennt kein #include,
+# tools/shader_include.c setzt die Dateien deshalb beim Build zu einer einzigen
+# zusammen. In build/shader/ liegt also immer schon das fertige Ergebnis, der
+# Emulator laedt weiterhin nur vert.glsl und frag.glsl.
+SHADER_LIBS    := $(shell find $(SRC_DIR) -type f -path '*/shader/lib/*.glsl' \
+                                          -not -path '$(SHADER_EXCLUDE)')
+SHADER_INCLUDE := $(BUILD)/tools/shader_include
+
+# glslangValidator kennt die Grenzen des echten Treibers nicht (z.B. maximal
+# 16 Vertex-Attribute unter macOS). tools/shader_check.c uebersetzt und linkt
+# das Shader-Paar deshalb zusaetzlich in einem unsichtbaren OpenGL-Kontext,
+# also genau so wie der Emulator zur Laufzeit. Schlaegt das fehl, bricht der
+# Build ab, bevor das Binary gelinkt wird.
+SHADER_CHECK      := $(BUILD)/tools/shader_check
+SHADER_CHECK_LIBS := -lglfw
+ifeq ($(UNAME_S),Darwin)
+    SHADER_CHECK_LIBS := -L$(GLFW_PREFIX)/lib -lglfw -framework OpenGL
+else
+    SHADER_CHECK_LIBS += -lGL
+endif
+SHADER_STAMP := $(SHADER_DIR)/.linked
+
 # ==== Regeln =================================================================
 .PHONY: all shaders asm run debug release lsp clean vendorclean distclean format compdb help test test-build test-vertex test-software
 
@@ -237,18 +264,33 @@ asm: $(ASM_OBJS)
 
 all: $(BIN) shaders compile_flags.txt
 
-shaders: $(SHADER_OUTS)
+shaders: $(SHADER_OUTS) $(SHADER_STAMP)
+
+$(SHADER_CHECK): tools/shader_check.c $(VENDOR_DIR)/glad/gl.o
+	@mkdir -p $(dir $@)
+	$(CC) -I$(INC_DIR) $^ $(SHADER_CHECK_LIBS) -o $@
+
+$(SHADER_STAMP): $(SHADER_OUTS) $(SHADER_CHECK)
+	$(SHADER_CHECK) $(SHADER_DIR)/vert.glsl $(SHADER_DIR)/frag.glsl
+	@touch $@
 
 # Stage aus dem Dateinamen ableiten: ".../vert.glsl" und ".../x.vert.glsl"
 # enden beide auf "vert.glsl".
 shader_stage = $(if $(filter %vert.glsl,$(1)),vert,frag)
 
-$(SHADER_OUTS): $(SHADER_DIR)/%.glsl: %.glsl
+$(SHADER_INCLUDE): tools/shader_include.c
 	@mkdir -p $(dir $@)
-	$(GLSLC) -S $(call shader_stage,$<) $<
-	cp $< $@
+	$(CC) $< -o $@
 
-$(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS) $(OAKNUT_OBJS)
+# Erst zusammensetzen, dann das Ergebnis pruefen: glslangValidator sieht damit
+# genau den Text, den spaeter auch der Treiber bekommt.
+$(SHADER_OUTS): $(SHADER_DIR)/%.glsl: %.glsl $(SHADER_LIBS) $(SHADER_INCLUDE)
+	@mkdir -p $(dir $@)
+	$(SHADER_INCLUDE) $< $@.tmp
+	$(GLSLC) -S $(call shader_stage,$<) $@.tmp
+	mv $@.tmp $@
+
+$(BIN): $(OBJS) $(ASM_OBJS) $(VENDOR_OBJS) $(OAKNUT_OBJS) | shaders
 	@mkdir -p $(dir $@)
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 

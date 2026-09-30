@@ -97,9 +97,11 @@ GpuVertex vertex_to_gpu(const Vertex *v)
         }
     }
 
-    memcpy(g.pos_mat, v->pm.mat, sizeof g.pos_mat);
-    memcpy(g.norm_mat, v->norm.normal_matrix.m, sizeof(Float3) * 3);
     flags |= (u32)v->pm.posMatId << GPUV_POSMAT_SHIFT;
+
+    // they use the same idx 🤷
+    g.mat_indices.pos_mat_idx = v->pm.posMatId;
+    g.mat_indices.norm_mat_idx = v->pm.posMatId;
 
     g.flags = flags;
     return g;
@@ -123,16 +125,10 @@ void gpu_vertex_setup_attribs(void)
         glVertexAttribPointer(6 + i, 4, GL_FLOAT, GL_FALSE, stride,
                               (void *)(offsetof(GpuVertex, tex) + i * 4 * sizeof(float)));
 
-    for (int i = 0; i < 3; i++)
-        glVertexAttribPointer(10 + i, 4, GL_FLOAT, GL_FALSE, stride,
-                              (void *)(offsetof(GpuVertex, pos_mat) + i * sizeof(Float4)));
+    glVertexAttribIPointer(10, 1, GL_UNSIGNED_INT, stride, OFS(flags));
+    glVertexAttribIPointer(11, 2, GL_UNSIGNED_INT, stride, OFS(tex_mat_idx));
+    glVertexAttribIPointer(12, 1, GL_UNSIGNED_INT, stride, OFS(mat_indices));
 
-    glVertexAttribIPointer(13, 1, GL_UNSIGNED_INT, stride, OFS(flags));
-    glVertexAttribIPointer(14, 2, GL_UNSIGNED_INT, stride, OFS(tex_mat_idx));
-    for (int i = 0; i < 3; i++)
-        glVertexAttribPointer(15 + i, 4, GL_FLOAT, GL_FALSE, stride,
-                              (void *)(offsetof(GpuVertex, norm_mat) + i * sizeof(Float3)));
-
-    for (int i = 0; i <= 14; i++)
+    for (int i = 0; i <= 12; i++)
         glEnableVertexAttribArray(i);
 }

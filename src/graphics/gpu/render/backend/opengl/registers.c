@@ -1,10 +1,44 @@
 #include "registers.h"
+#include "core/config/config.h"
+#include "graphics/gpu/render/xf_types.h"
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <string.h>
 
 static XF_Memory xf_mem;
 static XF_Registers xf_reg;
+
+static GLint xf_pos_loc, xf_norm_loc, proj_loc;
+
+static GLuint xf_regs_buffer;
+static GLuint xf_lights_buffer;
+
+static const u8 xf_reg_field_len[] = {1, 4, 1, 1, 1, 1, 1,  2, 2, 2, 2, 1,
+                                      5, 1, 1, 6, 6, 1, 24, 1, 8, 8, 8};
+
+#define XF_REG_COUNT (sizeof(XF_Registers) / sizeof(u32))
+static GLintptr xf_reg_offset[XF_REG_COUNT];
+
+static GLsizeiptr init_xf_reg_offsets(void)
+{
+    GLintptr offset = 0;
+    u32 reg = 0;
+
+    for (u32 f = 0; f < sizeof xf_reg_field_len; f++) {
+        const u32 len = xf_reg_field_len[f];
+
+        if (len == 1) {
+            xf_reg_offset[reg++] = offset;
+            offset += 4;
+        } else {
+            offset = (offset + 15) & ~(GLintptr)15;
+            for (u32 i = 0; i < len; i++, offset += 16)
+                xf_reg_offset[reg++] = offset;
+        }
+    }
+
+    return (offset + 15) & ~(GLintptr)15;
+}
 
 static void load_new_proj(void)
 {
@@ -39,9 +73,11 @@ static void load_new_proj(void)
         out.m[3][3] = 1.0f;
     }
 
-    glUniformMatrix4fv(projection_loc, 1, GL_TRUE, &out.m[0][0]);
+    glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &out.m[0][0]);
 }
 
+// GPU:
+// TODO: only upload on first primitive render and only upload dirty marked regs
 void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
 {
     if (reg_num < 0x680) {
@@ -52,6 +88,19 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
 
         u32 *p = &xf_reg.error;
         p[reg_num - 0x1000] = val;
+        glBindBuffer(GL_UNIFORM_BUFFER, xf_regs_buffer);
+        glBufferSubData(GL_UNIFORM_BUFFER, xf_reg_offset[reg_num - 0x1000], sizeof val, &val);
+    }
+
+    if (reg_num <= 0xFF) {
+        // posMat
+        glUniform4fv(xf_pos_loc, 64, &xf_mem.matrices[0][0]);
+    } else if (reg_num >= 0x400 && reg_num <= 0x45F) {
+        glUniform3fv(xf_norm_loc, 32, &xf_mem.normal_matrices[0][0]);
+    } else if (reg_num >= 0x600 && reg_num <= 0x67F) {
+        glBindBuffer(GL_UNIFORM_BUFFER, xf_lights_buffer);
+        glBufferSubData(GL_UNIFORM_BUFFER, xf_lights_buffer, sizeof(XF_Light) * 8,
+                        &xf_mem.lights[0]);
     }
 
     if (reg_num >= 0x1020 && reg_num <= 0x1026)
@@ -72,4 +121,28 @@ u32 *opengl_get_xf_buffer(void)
     memcpy(&buffer[0x1000], &xf_reg, sizeof(XF_Registers));
 
     return buffer;
+}
+
+void opengl_init_register(const GLuint shader_program)
+{
+    xf_pos_loc = glGetUniformLocation(shader_program, "xf_pos");
+    xf_norm_loc = glGetUniformLocation(shader_program, "xf_norm");
+    proj_loc = glGetUniformLocation(shader_program, "proj");
+
+    static const u8 zero[XF_REG_COUNT * 16];
+    const GLsizeiptr size = init_xf_reg_offsets();
+
+    glGenBuffers(1, &xf_regs_buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, xf_regs_buffer);
+    glBufferData(GL_UNIFORM_BUFFER, size, zero, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, xf_regs_buffer);
+    glUniformBlockBinding(shader_program,
+                          glGetUniformBlockIndex(shader_program, "XFRegistersBlock"), 0);
+
+    glGenBuffers(1, &xf_lights_buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, xf_lights_buffer);
+    glBufferData(GL_UNIFORM_BUFFER, size, zero, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, xf_lights_buffer);
+    glUniformBlockBinding(shader_program, glGetUniformBlockIndex(shader_program, "XFLightsBlock"),
+                          0);
 }

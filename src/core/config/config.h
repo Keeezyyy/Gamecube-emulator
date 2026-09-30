@@ -6,7 +6,6 @@
 #define RENDER_PRIMITIVES
 
 #define OPENGL_RENDERER
-
 #if defined(OPENGL_RENDERER) && defined(SOFTWARE_RENDERER)
 #error "nur eine renderer darf aktiv sein "
 #endif

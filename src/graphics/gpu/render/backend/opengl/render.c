@@ -1,7 +1,9 @@
 #include "render.h"
 #include "core/config/config.h"
+#include "graphics/gpu/render/backend/opengl/registers.h"
 #include "graphics/gpu/render/backend/opengl/shader/utils/shader.h"
 #include "graphics/gpu/render/backend/opengl/vertex_conversion.h"
+#include "graphics/gpu/render/xf_types.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <_abort.h>
 #include <glad/gl.h>
@@ -149,4 +151,6 @@ void init_opengl_renderer(void)
     gpu_vertex_setup_attribs();
     projection_loc = glGetUniformLocation(shader_program, "proj");
     viewport_loc = glGetUniformLocation(shader_program, "view");
+
+    opengl_init_register(shader_program);
 }
