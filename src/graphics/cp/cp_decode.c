@@ -10,7 +10,7 @@
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 #include "graphics/gpu/render/backend/software/pipeline.h"
 #endif
-#include "graphics/gpu/render/texture/texture.h"
+#include "graphics/gpu/render/backend/software/texture/texture.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include "graphics/pe.h"
 #include "graphics/gpu/vertex/vertex_loader.h"

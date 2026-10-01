@@ -1,7 +1,7 @@
 #include "cp.h"
 #include "bus/bus.h"
 #include "bus/interfaces/pi.h"
-#include "graphics/gpu/render/texture/texture.h"
+#include "graphics/gpu/render/backend/software/texture/texture.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #ifdef OPENGL_RENDERER
 #include "graphics/gpu/render/backend/opengl/render.h"

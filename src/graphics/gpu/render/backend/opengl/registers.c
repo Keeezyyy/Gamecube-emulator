@@ -1,7 +1,8 @@
 #include "registers.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
-#include "graphics/gpu/render/texture/texture.h"
+#include "graphics/gpu/render/backend/opengl/texture/texture.h"
+#include "graphics/gpu/render/backend/software/texture/texture.h"
 #include "graphics/gpu/render/xf_types.h"
 
 #include <string.h>
@@ -147,8 +148,11 @@ static void upload_layer(int layer, const uint32_t *pixels)
                     pixels);
 }
 
+static u32 texel_buffer[1024 * 1024];
 // GRAPHICS:
 // TODO: use opengl native shaders and shader options
+//
+// TODO: dont save textures in hash map or only in software renderer
 void reupload_texture_units(CPU *cpu)
 {
     for (u8 i = 0; i < 8; i++) {
@@ -156,13 +160,15 @@ void reupload_texture_units(CPU *cpu)
             continue;
 
         TextureUnit u;
+
         get_texture_unit_regs(&u, i, get_bp_register_pointer());
 
-        u32 width, height;
-        GXTexture t = decode_texture(cpu, get_bp_register_pointer(), u, &width, &height);
-        upload_layer(i, (u32 *)t.buffer);
+        opengl_encode_texture(cpu, &u, &texel_buffer[0]);
+        upload_layer(i, &texel_buffer[0]);
 
-        free_texture(t);
+        // TODO: dont save textures in hash map or only in software renderer
+        // free_texture(t);
+        dirty_texture_unit_bitmap &= ~BIT(i);
     }
 }
 

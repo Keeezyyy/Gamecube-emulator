@@ -5,13 +5,12 @@
 #include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/backend/software/post-processing/post-processing.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
-#include "graphics/gpu/render/texture/texture.h"
 #include <_string.h>
+#include "../texture/texture.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-
 
 enum { TEV_R = 0, TEV_G = 1, TEV_B = 2, TEV_A = 3 };
 

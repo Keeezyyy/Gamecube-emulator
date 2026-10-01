@@ -4,15 +4,14 @@
 #include "graphics/cp/cp.h"
 #include "graphics/gpu/render/backend/software/tev/tev.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
-#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
+#include "../texture/texture.h"
 #include "../framebuffer.h"
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 
 typedef struct {
     s32 x0, y0, x1, y1;
@@ -118,22 +117,6 @@ static s32 max3(s32 a, s32 b, s32 c)
     }
 }
 
-/*
-* Das ist das Werkzeug für alles Weitere (Z, Farben, Texturkoordinaten). Einmal pro Dreieck und
-Attribut rechnest du:
-
-  Kantenvektoren in Pixeln (float, nach Abzug des Scissor-Offsets):
-  ax = x2 − x1, ay = y2 − y1, bx = x3 − x1, by = y3 − y1
-  Doppelte Fläche: A = ax·by − bx·ay
-  Wertedifferenzen: F2 = f2 − f1, F3 = f3 − f1
-  Steigung in x: dfdx = (F2·by − F3·ay) / A
-  Steigung in y: dfdy = (F3·ax − F2·bx) / A
-
-  Der Wert an einem beliebigen Punkt (sx, sy) ist dann:
-
-  f = f1 + dfdx · (sx − x1) + dfdy · (sy − y1)
-
-                                          */
 static void interpolate_f32(s32 ax, s32 by, s32 bx, s32 ay, f32 f1, f32 f2, f32 f3, f32 *dfdx,
                             f32 *dfdy)
 {
