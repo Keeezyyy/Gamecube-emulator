@@ -8,6 +8,7 @@
 #include <_abort.h>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
+#include <stddef.h>
 
 static GLFWwindow *window;
 static GLuint frag_shader;
@@ -23,9 +24,12 @@ GLint projection_loc;
 static GLint vertex_offset;
 void opengl_render_primitive(CPU *cpu, Primitive *p)
 {
+    if (is_tex_unit_dirty())
+        reupload_texture_units(cpu);
+
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
 
-    if ((vertex_offset + p->vert_count) * sizeof(GpuVertex) > VERTEX_BUFFER_SIZE) {
+    if ((size_t)(vertex_offset + p->vert_count) * sizeof(GpuVertex) > VERTEX_BUFFER_SIZE) {
         glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
         vertex_offset = 0;
     }

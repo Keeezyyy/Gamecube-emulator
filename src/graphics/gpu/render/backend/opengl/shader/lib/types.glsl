@@ -52,4 +52,7 @@ uniform vec4 xf_pos[64];
 uniform vec4 xf_tex[64];  
 uniform vec3 xf_norm[32];
 
+uniform uint bp_regs[256];
+
+uniform usampler2DArray textures_buffers;
 

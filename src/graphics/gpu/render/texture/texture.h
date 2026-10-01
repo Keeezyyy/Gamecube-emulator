@@ -37,6 +37,8 @@ typedef struct {
 
 GXTexture decode_texture(CPU *cpu, const u32 *bp, TextureUnit u, u32 *width_o, u32 *height_o);
 
+void free_texture(GXTexture t);
+
 void get_hash_from_bp_stat(const u32 *bp, char *dest);
 
 void load_texture(const u8 tex_usage_bitmap, const char *hash);

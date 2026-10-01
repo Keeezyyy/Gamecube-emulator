@@ -1,17 +1,22 @@
 #include "registers.h"
 #include "core/config/config.h"
+#include "graphics/cp/cp.h"
+#include "graphics/gpu/render/texture/texture.h"
 #include "graphics/gpu/render/xf_types.h"
+
+#include <string.h>
+
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#include <string.h>
 
 static XF_Memory xf_mem;
 static XF_Registers xf_reg;
-
-static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc;
+static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc, bp_reg_loc;
 
 static GLuint xf_regs_buffer;
 static GLuint xf_lights_buffer;
+
+static GLuint texture_buffer;
 
 static const u8 xf_reg_field_len[] = {1, 4, 1, 1, 1, 1, 1,  2, 2, 2, 2, 1,
                                       5, 1, 1, 6, 6, 1, 24, 1, 8, 8, 8};
@@ -116,9 +121,51 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
         load_new_proj();
 }
 
+static u8 dirty_texture_unit_bitmap = 0;
+
 void opengl_write_to_bp(const u32 *bp, const u32 adr)
 {
+    glUniform1uiv(bp_reg_loc, 256, &bp[0]);
+
+    if (adr >= 0x80 && adr <= 0xBB) {
+        // texture unit registers
+
+        const u8 unit = ((adr >> 3) & 0x4) | (adr & 0x3);
+        dirty_texture_unit_bitmap |= BIT(unit);
+    }
 }
+
+bool is_tex_unit_dirty(void)
+{
+    return dirty_texture_unit_bitmap != 0;
+}
+
+static void upload_layer(int layer, const uint32_t *pixels)
+{
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture_buffer);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 1024, 1024, 1, GL_RGBA, GL_UNSIGNED_BYTE,
+                    pixels);
+}
+
+// GRAPHICS:
+// TODO: use opengl native shaders and shader options
+void reupload_texture_units(CPU *cpu)
+{
+    for (u8 i = 0; i < 8; i++) {
+        if (!BIT_CHECK(dirty_texture_unit_bitmap, i))
+            continue;
+
+        TextureUnit u;
+        get_texture_unit_regs(&u, i, get_bp_register_pointer());
+
+        u32 width, height;
+        GXTexture t = decode_texture(cpu, get_bp_register_pointer(), u, &width, &height);
+        upload_layer(i, (u32 *)t.buffer);
+
+        free_texture(t);
+    }
+}
+
 void opengl_write_to_cp(const u32 *cp, const u32 adr)
 {
 }
@@ -137,6 +184,7 @@ void opengl_init_register(const GLuint shader_program)
     xf_pos_loc = glGetUniformLocation(shader_program, "xf_pos");
     xf_tex_loc = glGetUniformLocation(shader_program, "xf_tex");
     xf_norm_loc = glGetUniformLocation(shader_program, "xf_norm");
+    bp_reg_loc = glGetUniformLocation(shader_program, "bp_regs");
     proj_loc = glGetUniformLocation(shader_program, "proj");
 
     static const u8 zero[XF_REG_COUNT * 16];
@@ -155,4 +203,14 @@ void opengl_init_register(const GLuint shader_program)
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, xf_lights_buffer);
     glUniformBlockBinding(shader_program, glGetUniformBlockIndex(shader_program, "XFLightsBlock"),
                           1);
+
+    // texture buffer binding
+    glGenTextures(1, &texture_buffer);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture_buffer);
+
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 1024, 1024, 8, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 NULL);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
 }

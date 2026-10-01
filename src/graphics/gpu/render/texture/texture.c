@@ -257,11 +257,18 @@ RGBA sample_texture(CPU *cpu, TextureUnit u, s32 texcoords[2], f32 lod)
             s_coord = apply_wrap(wrap_s, width, s_coord);
             t_coord = apply_wrap(wrap_t, height, t_coord);
 
-            return get_texel_from_texture(cpu, &u, s_coord, t_coord, &texture);
+            RGBA texel = get_texel_from_texture(cpu, &u, s_coord, t_coord, &texture);
+            free_texture(texture);
+            return texel;
         }
 
     } else {
     }
 
     return (RGBA){0};
+}
+
+void free_texture(GXTexture t)
+{
+    free((void *)t.buffer);
 }

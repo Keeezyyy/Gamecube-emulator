@@ -23,6 +23,12 @@ layout(location = 12) in uint aMatIndices;
 
 out vec4 vColor;
 
+out vec3[8] tex;
+out float[8] lod;
+out mat3x3 nbt;
+out vec4 light0;
+out vec4 light1;
+
 
 void main()
 {
@@ -40,12 +46,19 @@ void main()
     vec3 b = aBinormal * normMat;
     vec3 t = aTangent * normMat;
 
-    uint light0 = calc_light(pos, mat3x3(n,b,t), convert_normilized_vec4_to_rgba(aColor0), 0);
-    uint light1 = calc_light(pos, mat3x3(n,b,t), convert_normilized_vec4_to_rgba(aColor1), 1);
+    nbt = mat3x3(n,b,t);
+
+    uint colors[2] = uint[2](calc_light(pos, mat3x3(n,b,t), convert_normilized_vec4_to_rgba(aColor0), 0), calc_light(pos, mat3x3(n,b,t), convert_normilized_vec4_to_rgba(aColor1), 1));
+    light0 = pack_light(colors[0]);
+    light1 = pack_light(colors[1]);
 
 
-    vec3[8] tex = calc_tex_gen(pos, aPos, mat3x3(aNormal, aBinormal, aTangent), mat3x3(n,b,t), uint[2](light0, light1), aTexMatIdx, aFlags, vec4[4](aTex01, aTex23, aTex45, aTex67));
+    tex = calc_tex_gen(pos, aPos, mat3x3(aNormal, aBinormal, aTangent), mat3x3(n,b,t), colors, aTexMatIdx, aFlags, vec4[4](aTex01, aTex23, aTex45, aTex67));
+
     
+    for(uint i = 0; i<8; i++){
+      lod[i] = 0.0f;
+    }
     
 
   gl_Position = proj * vec4(pos, 1.0);

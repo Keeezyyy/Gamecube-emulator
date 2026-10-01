@@ -26,6 +26,17 @@ uint convert_normilized_vec4_to_rgba(vec4 v){
   return uint(packed);
 }
 
+vec4 pack_light(uint packed)
+{
+    vec4 v = vec4(
+        float( packed        & 0xFFu),
+        float((packed >>  8) & 0xFFu),
+        float((packed >> 16) & 0xFFu),
+        float((packed >> 24) & 0xFFu)
+    ) / 255.0;
+    return vec4(v);
+}
+
 
 vec4 add_lights(uint ctrl, vec3 eye, mat3x3 nbt, vec4 lit){
     vec4 lit_out  = lit;
