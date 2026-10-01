@@ -12,7 +12,8 @@
 
 static XF_Memory xf_mem;
 static XF_Registers xf_reg;
-static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc, bp_reg_loc;
+static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc, bp_reg_loc, tev_reg_start_loc,
+    tev_konst_loc;
 
 static GLuint xf_regs_buffer;
 static GLuint xf_lights_buffer;
@@ -121,10 +122,25 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
     if (reg_num >= 0x1020 && reg_num <= 0x1026)
         load_new_proj();
 }
+static inline s16 sign_extend11(u32 v)
+{
+    s32 x = (s32)(v & 0x7FF);
+    return (s16)((x & 0x400) ? x - 0x800 : x);
+}
 
 static u8 dirty_texture_unit_bitmap = 0;
 
-void opengl_write_to_bp(const u32 *bp, const u32 adr)
+typedef struct {
+    s16 rabg[4];
+} s16Color;
+
+static s16Color color_tev_reg_start[4];
+static s16Color color_tev_regs[4];
+static s16Color color_tev_konst[4];
+
+enum { TEV_R = 0, TEV_G = 1, TEV_B = 2, TEV_A = 3 };
+
+void opengl_write_to_bp(const u32 *bp, const u32 adr, const u32 value)
 {
     glUniform1uiv(bp_reg_loc, 256, &bp[0]);
 
@@ -133,6 +149,32 @@ void opengl_write_to_bp(const u32 *bp, const u32 adr)
 
         const u8 unit = ((adr >> 3) & 0x4) | (adr & 0x3);
         dirty_texture_unit_bitmap |= BIT(unit);
+    } else if (adr >= 0xE0 && adr <= 0xe7) {
+
+        const int idx = (adr - 0xE0) >> 1;
+        s16Color *dst = (value & (1u << 23)) ? &color_tev_konst[idx] : &color_tev_reg_start[idx];
+
+        const s16 low = sign_extend11(value);
+        const s16 high = sign_extend11(value >> 12);
+
+        if (adr & 1) {
+            dst->rabg[TEV_B] = low;
+            dst->rabg[TEV_G] = high;
+        } else {
+            dst->rabg[TEV_R] = low;
+            dst->rabg[TEV_A] = high;
+        }
+        i32 buffer[16] = {0};
+
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                buffer[(i * 4) + j] = color_tev_konst[i].rabg[j];
+        glUniform1iv(tev_konst_loc, 16, buffer);
+
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                buffer[(i * 4) + j] = color_tev_reg_start[i].rabg[j];
+        glUniform1iv(tev_reg_start_loc, 16, buffer);
     }
 }
 
@@ -192,6 +234,9 @@ void opengl_init_register(const GLuint shader_program)
     xf_norm_loc = glGetUniformLocation(shader_program, "xf_norm");
     bp_reg_loc = glGetUniformLocation(shader_program, "bp_regs");
     proj_loc = glGetUniformLocation(shader_program, "proj");
+
+    tev_reg_start_loc = glGetUniformLocation(shader_program, "tev_reg_start");
+    tev_konst_loc = glGetUniformLocation(shader_program, "tev_konst");
 
     static const u8 zero[XF_REG_COUNT * 16];
     const GLsizeiptr size = init_xf_reg_offsets();

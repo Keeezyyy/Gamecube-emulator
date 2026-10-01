@@ -28,6 +28,8 @@ out float[8] lod;
 out mat3x3 nbt;
 out vec4 light0;
 out vec4 light1;
+out vec4 col0;
+out vec4 col1;
 
 
 void main()
@@ -52,9 +54,11 @@ void main()
     light0 = pack_light(colors[0]);
     light1 = pack_light(colors[1]);
 
-
     tex = calc_tex_gen(pos, aPos, mat3x3(aNormal, aBinormal, aTangent), mat3x3(n,b,t), colors, aTexMatIdx, aFlags, vec4[4](aTex01, aTex23, aTex45, aTex67));
 
+
+    col0 = aColor0;
+    col1 = aColor1;
     
     for(uint i = 0; i<8; i++){
       lod[i] = 0.0f;

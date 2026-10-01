@@ -91,6 +91,22 @@ static void _rgba8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
 
 static void _ia8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
 {
+
+    u32 *pixels = dest;
+    int widthBlks = (width + 3) / 4;
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int base = ((y / 4) * widthBlks + (x / 4)) * 64;
+            int off = ((y % 4) * 4 + (x % 4)) * 2;
+
+            int i = (y * width + x) * 4;
+            pixels[i + 0] = src[base + off + 1];
+            pixels[i + 1] = src[base + 32 + off];
+            pixels[i + 2] = src[base + 32 + off + 1];
+            pixels[i + 3] = src[base + off];
+        }
+    }
 }
 
 void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest)
