@@ -98,9 +98,16 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
     } else if (reg_num >= 0x400 && reg_num <= 0x45F) {
         glUniform3fv(xf_norm_loc, 32, &xf_mem.normal_matrices[0][0]);
     } else if (reg_num >= 0x600 && reg_num <= 0x67F) {
+        u32 std140[8][32] = {0};
+        for (u32 l = 0; l < 8; l++) {
+            const u32 *src = (const u32 *)&xf_mem.lights[l];
+            for (u32 w = 0; w < 4; w++)
+                std140[l][w * 4] = src[w];
+            for (u32 v = 0; v < 4; v++)
+                memcpy(&std140[l][16 + v * 4], &src[4 + v * 3], 3 * sizeof(u32));
+        }
         glBindBuffer(GL_UNIFORM_BUFFER, xf_lights_buffer);
-        glBufferSubData(GL_UNIFORM_BUFFER, xf_lights_buffer, sizeof(XF_Light) * 8,
-                        &xf_mem.lights[0]);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof std140, std140);
     }
 
     if (reg_num >= 0x1020 && reg_num <= 0x1026)
@@ -142,7 +149,7 @@ void opengl_init_register(const GLuint shader_program)
     glGenBuffers(1, &xf_lights_buffer);
     glBindBuffer(GL_UNIFORM_BUFFER, xf_lights_buffer);
     glBufferData(GL_UNIFORM_BUFFER, size, zero, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, xf_lights_buffer);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, xf_lights_buffer);
     glUniformBlockBinding(shader_program, glGetUniformBlockIndex(shader_program, "XFLightsBlock"),
-                          0);
+                          1);
 }

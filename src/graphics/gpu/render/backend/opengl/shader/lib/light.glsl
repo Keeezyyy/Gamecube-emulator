@@ -27,7 +27,10 @@ uint convert_normilized_vec4_to_rgba(vec4 v){
 }
 
 
-uint add_lights(uint ctrl, vec3 eye, mat3x3 nbt, vec4 lit){
+vec4 add_lights(uint ctrl, vec3 eye, mat3x3 nbt, vec4 lit){
+    vec4 lit_out  = lit;
+    
+    
     uint mask = ((ctrl >> 2u) & 0xFu) | (((ctrl >> 11u) & 0xFu) << 4u);
     uint diff_fn = (ctrl >> 7) & 3u;
     uint attn_fn = (ctrl >> 9u) & 3u;
@@ -42,9 +45,9 @@ uint add_lights(uint ctrl, vec3 eye, mat3x3 nbt, vec4 lit){
 
         float attn;
         switch (attn_fn) {
-          case 1:
+          case 1u:
             ldir = normalize(ldir);
-            attn = dot(ldir, nbt[0]) >= 0.0f  ? max(0.0f, dot(ldir, nbt[0])) : 0.0f;
+            attn = dot(ldir, nbt[0]) >= 0.0f  ? max(0.0f, dot(xf_lights[l].dir, nbt[0])) : 0.0f;
 
             vec3 A = vec3(1.0f, attn, attn * attn);
             vec3 K = xf_lights[l].distatt;
@@ -54,16 +57,49 @@ uint add_lights(uint ctrl, vec3 eye, mat3x3 nbt, vec4 lit){
             float dist = dot(A, K);
             attn = dist != 0.0f ? max(0.0f, dot(A, xf_lights[l].cosatt)) / dist : 0.0f;
             break;
+          case 3u:
+            float d = length(ldir);
+            if(d > 0.0f)
+              ldir = (1.0f/d) * ldir;
+
+            float c = max(0.0f, dot(ldir, xf_lights[l].dir));
+            float cos_attn = xf_lights[l].cosatt[0] + xf_lights[l].cosatt[1] * c + xf_lights[l].cosatt[2] * c *c;
+            dist = xf_lights[l].distatt[0] + xf_lights[l].distatt[1] * d + xf_lights[l].distatt[2] * d *d;
+
+            attn = dist != 0.0f ? (max(0.0f, cos_attn) / dist) : (0.0f);
+            break;
+          default: 
+            if(length(ldir)>0.0f)
+              ldir = normalize(ldir);
+            else
+              ldir = nbt[0];
+            attn = 1.0f;
+            break;
+        }
+
+        float diff = 1.0f;
+        if(diff_fn != 0){
+          diff = dot(ldir, nbt[0]);
+          if(diff_fn !=1)
+            diff = max(0.0f, diff);
+        }
+
+        
+        uint col = reg_to_rgba(xf_lights[l].color);
+        for(uint i = 0; i<4;i++){
+            lit_out[i] += float((col>>(8*i))&0xFFu) * attn * diff;
         }
 
     }
-    return uint(0);
+    return lit_out;
 }
 
 uint calc_light(vec3 eye, mat3x3 nbt, uint color, uint i){
   uint out_color = 0;
 
   uint num_of_chans = xf_regs.num_channels & 3u;
+  if (i >= num_of_chans)
+    return 0u;
 
   uint mat_reg = reg_to_rgba(xf_regs.material_color[i]);
   uint amb_reg = reg_to_rgba(xf_regs.ambient_color[i]);
@@ -89,15 +125,21 @@ uint calc_light(vec3 eye, mat3x3 nbt, uint color, uint i){
         continue;
     }
 
-    uint amb = (ctrl & 1u)==1 ? color : amb_reg;
+    uint amb = ((ctrl >> 6u) & 1u)==1 ? color : amb_reg;
 
     vec4 lit = vec4(uvec4(amb & 0xFFu, (amb >> 8) & 0xFFu, (amb >> 16) & 0xFFu, (amb >> 24) & 0xFFu));
 
+    vec4 new_lit = add_lights(ctrl, eye, nbt, lit);
     
+
+    for (uint c = first; c < last; c++) {
+      uint l = uint(clamp(new_lit[c], 0.0f, 255.0f));
+      out_color |= ((((mat >>(c*8u)) & 0xFFu) * (l + (l>>7)))>>8) << c*8;
+    }
 
 
   }
 
-  return uint(0);
+  return uint(out_color);
 }
 
