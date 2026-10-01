@@ -47,3 +47,9 @@ layout(std140) uniform XFRegistersBlock {
 layout(std140) uniform XFLightsBlock {
     XFLight xf_lights[8];
 };
+
+uniform vec4 xf_pos[64];  
+uniform vec4 xf_tex[64];  
+uniform vec3 xf_norm[32];
+
+

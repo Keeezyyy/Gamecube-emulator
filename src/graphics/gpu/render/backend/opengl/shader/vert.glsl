@@ -2,11 +2,9 @@
 
 #include "lib/types.glsl"
 #include "lib/light.glsl"
+#include "lib/texture.glsl"
 
 uniform mat4 proj;
-uniform vec4 xf_pos[64];  
-uniform vec3 xf_norm[32];
-
 
 layout(location = 0)  in vec3  aPos;
 layout(location = 1)  in vec3  aNormal;
@@ -44,6 +42,9 @@ void main()
 
     uint light0 = calc_light(pos, mat3x3(n,b,t), convert_normilized_vec4_to_rgba(aColor0), 0);
     uint light1 = calc_light(pos, mat3x3(n,b,t), convert_normilized_vec4_to_rgba(aColor1), 1);
+
+
+    vec3[8] tex = calc_tex_gen(pos, aPos, mat3x3(aNormal, aBinormal, aTangent), mat3x3(n,b,t), uint[2](light0, light1), aTexMatIdx, aFlags, vec4[4](aTex01, aTex23, aTex45, aTex67));
     
     
 

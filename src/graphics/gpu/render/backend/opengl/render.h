@@ -10,9 +10,9 @@ enum {
     GPUV_FLAG_NBT = 1u << 2,
     GPUV_FLAG_COLOR0 = 1u << 3,
     GPUV_FLAG_COLOR1 = 1u << 4,
-    GPUV_TEX_SHIFT = 8,     // Bits  8..15: has_texture[i]
-    GPUV_TEXMAT_SHIFT = 16, // Bits 16..23: has_tex_mat_idx[i]
-    GPUV_POSMAT_SHIFT = 24, // Bits 24..31: posMatId
+    GPUV_TEX_SHIFT = 8,
+    GPUV_TEXMAT_SHIFT = 16,
+    GPUV_POSMAT_SHIFT = 24,
 };
 
 typedef union {

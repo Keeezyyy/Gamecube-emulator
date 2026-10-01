@@ -8,7 +8,7 @@
 static XF_Memory xf_mem;
 static XF_Registers xf_reg;
 
-static GLint xf_pos_loc, xf_norm_loc, proj_loc;
+static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc;
 
 static GLuint xf_regs_buffer;
 static GLuint xf_lights_buffer;
@@ -97,6 +97,8 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
         glUniform4fv(xf_pos_loc, 64, &xf_mem.matrices[0][0]);
     } else if (reg_num >= 0x400 && reg_num <= 0x45F) {
         glUniform3fv(xf_norm_loc, 32, &xf_mem.normal_matrices[0][0]);
+    } else if (reg_num >= 0x500 && reg_num <= 0x5FF) {
+        glUniform4fv(xf_tex_loc, 64, &xf_mem.post_matrices[0][0]);
     } else if (reg_num >= 0x600 && reg_num <= 0x67F) {
         u32 std140[8][32] = {0};
         for (u32 l = 0; l < 8; l++) {
@@ -133,6 +135,7 @@ u32 *opengl_get_xf_buffer(void)
 void opengl_init_register(const GLuint shader_program)
 {
     xf_pos_loc = glGetUniformLocation(shader_program, "xf_pos");
+    xf_tex_loc = glGetUniformLocation(shader_program, "xf_tex");
     xf_norm_loc = glGetUniformLocation(shader_program, "xf_norm");
     proj_loc = glGetUniformLocation(shader_program, "proj");
 
