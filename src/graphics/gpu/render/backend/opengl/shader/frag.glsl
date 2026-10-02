@@ -125,6 +125,52 @@ uint get_index_texture_index(int s, int t, uint tex_unit_idx, TevTextureUnit tex
 
   return 0u;
 }
+uint expand(uint v, uint bits)
+{
+    v &= (1u << bits) - 1u;
+    uint r = v << (8u - bits);
+    r |= r >> bits;
+    r |= r >> (2u * bits);   
+    return r & 0xFFu;
+}
+
+uint pack_rgba(uint r, uint g, uint b, uint a)
+{
+    return (r & 0xFFu) | ((g & 0xFFu) << 8) | ((b & 0xFFu) << 16) | ((a & 0xFFu) << 24);
+}
+
+uint decode_tlut_color(uint u16_color, uint format)
+{
+    uint color = u16_color & 0xFFFFu;
+
+    switch (format) {
+    case 0u: { // IA8
+        uint i = color & 0xFFu;
+        return pack_rgba(i, i, i, color >> 8);
+    }
+    case 1u: { // RGB565
+        return pack_rgba(expand(color >> 11, 5u),
+                         expand(color >> 5,  6u),
+                         expand(color,       5u),
+                         0xFFu);
+    }
+    case 2u: { // RGB5A3
+        if ((color >> 15) != 0u) {
+            return pack_rgba(expand(color >> 10, 5u),
+                             expand(color >> 5,  5u),
+                             expand(color,       5u),
+                             0xFFu);
+        } else {
+            return pack_rgba(expand(color >> 8,  4u),
+                             expand(color >> 4,  4u),
+                             expand(color,       4u),
+                             expand(color >> 12, 3u));
+        }
+    }
+    default:
+        return pack_rgba(0xFFu, 0x00u, 0xFFu, 0xFFu);
+    }
+}
 
 uint get_texel_from_texture(TevTextureUnit t_unit, uint tex_unit_idx, int s, int t, uint width, uint height){
   uint out_color = 0;
@@ -137,6 +183,16 @@ uint get_texel_from_texture(TevTextureUnit t_unit, uint tex_unit_idx, int s, int
   }else{
     uint format  =((t_unit.img0 >>20) & 0xFu);
     uint idx = get_index_texture_index(s, t, tex_unit_idx, t_unit, format);
+
+    uint tmem_adr = ((t_unit.lut & 0x3FFu) << 9u);
+
+    uint color = texelFetch(tev_tmem, int((tmem_adr + idx * 2u) / 4u)).r >> (16u * (idx & 1u));
+
+    uint endian_swap_color = 0;
+    endian_swap_color |= (color >> 8) & 0xFFu;
+    endian_swap_color |= (color & 0xFFu) <<8;
+
+    return decode_tlut_color(endian_swap_color, (t_unit.lut >> 10) & 0x3u);
 
   }
 

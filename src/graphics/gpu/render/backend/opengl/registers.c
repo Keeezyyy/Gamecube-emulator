@@ -1,10 +1,12 @@
 #include "registers.h"
 #include "core/config/config.h"
 #include "graphics/cp/cp.h"
+#include "graphics/gpu/render/backend/opengl/render.h"
 #include "graphics/gpu/render/backend/opengl/texture/texture.h"
 #include "graphics/gpu/render/backend/software/texture/texture.h"
 #include "graphics/gpu/render/xf_types.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include <glad/gl.h>
@@ -13,13 +15,17 @@
 static XF_Memory xf_mem;
 static XF_Registers xf_reg;
 static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc, bp_reg_loc, tev_reg_start_loc,
-    tev_konst_loc;
+    tev_konst_loc, tev_tmem_loc;
 
 static GLuint xf_regs_buffer;
 static GLuint xf_lights_buffer;
 static GLuint tev_texture_unit_buffer;
 
 static GLuint texture_buffer;
+
+#define TMEM_TLUT_SIZE 0x80000
+static GLuint tmem_buffer;
+static GLuint tmem_texture;
 
 static const u8 xf_reg_field_len[] = {1, 4, 1, 1, 1, 1, 1,  2, 2, 2, 2, 1,
                                       5, 1, 1, 6, 6, 1, 24, 1, 8, 8, 8};
@@ -185,9 +191,22 @@ void opengl_write_to_bp(const u32 *bp, const u32 adr, const u32 value)
     }
 }
 
+void opengl_upload_tmem_texture(CPU *cpu, const u32 ram_adr, const u32 tmem_adr,
+                                const u32 num_of_32_byte_blocks)
+{
+
+    const GLintptr offset = (GLintptr)(tmem_adr & 0x3FF) << 9;
+    GLsizeiptr size = (GLsizeiptr)num_of_32_byte_blocks * 32;
+    if (offset + size > TMEM_TLUT_SIZE)
+        size = TMEM_TLUT_SIZE - offset;
+
+    glBindBuffer(GL_TEXTURE_BUFFER, tmem_buffer);
+    glBufferSubData(GL_TEXTURE_BUFFER, offset, size, &cpu->bus->ram[ram_adr << 5]);
+}
+
 bool is_tex_unit_dirty(void)
 {
-    return dirty_texture_unit_bitmap != 0;
+    return dirty_texture_unit_bitmap != 0 || dirty_texture_mem_bitmap != 0;
 }
 
 static void upload_layer(int layer, const uint32_t *pixels, const u32 width, const u32 height)
@@ -202,8 +221,6 @@ static void upload_layer(int layer, const uint32_t *pixels, const u32 width, con
 static u32 texel_buffer[1024 * 1024];
 // GRAPHICS:
 // TODO: use opengl native shaders and shader options
-//
-// TODO: dont save textures in hash map or only in software renderer
 void reupload_texture_units(CPU *cpu)
 {
     for (u8 i = 0; i < 8; i++) {
@@ -261,6 +278,7 @@ void opengl_init_register(const GLuint shader_program)
 
     tev_reg_start_loc = glGetUniformLocation(shader_program, "tev_reg_start");
     tev_konst_loc = glGetUniformLocation(shader_program, "tev_konst");
+    tev_tmem_loc = glGetUniformLocation(shader_program, "tev_tmem");
 
     static const u8 zero[XF_REG_COUNT * 16];
     const GLsizeiptr size = init_xf_reg_offsets();
@@ -295,4 +313,16 @@ void opengl_init_register(const GLuint shader_program)
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
+    glUniform1i(glGetUniformLocation(shader_program, "textures_buffers"), 0);
+
+    glGenBuffers(1, &tmem_buffer);
+    glBindBuffer(GL_TEXTURE_BUFFER, tmem_buffer);
+    glBufferData(GL_TEXTURE_BUFFER, TMEM_TLUT_SIZE, NULL, GL_DYNAMIC_DRAW);
+
+    glGenTextures(1, &tmem_texture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_BUFFER, tmem_texture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32UI, tmem_buffer);
+    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(tev_tmem_loc, 1);
 }

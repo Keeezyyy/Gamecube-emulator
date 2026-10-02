@@ -142,7 +142,14 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
         }
         case 0x65: {
             // printf("TLUT finilize : 0x%08x\n", tlut_ram_adresse);
+
+#ifdef SOFTWARE_RENDERER
             load_tlut_into_tmem(cpu, tlut_ram_adresse, new_val & 0x3FF, (new_val >> 10) & 0x7FF);
+#endif
+#ifdef OPENGL_RENDERER
+            opengl_upload_tmem_texture(cpu, tlut_ram_adresse, new_val & 0x3FF,
+                                       (new_val >> 10) & 0x7FF);
+#endif /* ifdef OPENGL_RENDERER */
 
             break;
         }

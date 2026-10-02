@@ -98,6 +98,11 @@ void opengl_finish_frame(void)
     vertex_offset = 0;
 }
 
+GLuint opengl_get_shader_program(void)
+{
+    return shader_program;
+}
+
 void init_opengl_renderer(void)
 {
     if (!glfwInit()) {
