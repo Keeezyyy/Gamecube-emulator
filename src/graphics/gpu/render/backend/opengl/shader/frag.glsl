@@ -5,8 +5,6 @@
 uniform int[16] tev_konst;
 uniform int[16] tev_reg_start;
 
-uniform sampler2D prevFrame;
-
 in vec4 vColor;
 
 
@@ -595,12 +593,21 @@ void main() {
     c = tev_calc_core(conf, alpha_conf, input_color, prev, tev_regs);
   }
 
-  vec4 final_color = vec4(clamp(c[0], 0, 255), clamp(c[1], 0, 255), clamp(c[2], 0, 255), clamp(c[3], 0, 255)) / 255.0;
 
 
   uint new_z = _z_texture(tex_color, uint(gl_FragCoord.z * 16777215));
   gl_FragDepth = float(new_z) / 16777215.0;
 
 
-  color = vec4(final_color.rgba);
+
+  c[3] = clamp(c[3], 0, 255);
+
+    if (((bp_regs[0x42] >> 8) & 1u)==1) {
+        c[3] = int(uint(bp_regs[0x42] & 0xFFu));
+    }
+
+  vec4 final_color = vec4(clamp(c[0], 0, 255), clamp(c[1], 0, 255), clamp(c[2], 0, 255), clamp(c[3], 0, 255)) / 255.0;
+
+
+  color = final_color;
 }

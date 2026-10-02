@@ -6,7 +6,6 @@
 #include "graphics/gpu/render/backend/software/rasterize/rasterize.h"
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 
-
 typedef enum {
     U8 = 0,
     U16 = 1,

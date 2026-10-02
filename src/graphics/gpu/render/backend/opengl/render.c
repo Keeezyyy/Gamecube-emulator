@@ -55,6 +55,36 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
     glDepthFunc(GL_NEVER + ((zmode >> 1) & 7));
     glDepthMask((zmode >> 4) & 1);
 
+    static const GLenum blend_src[] = {GL_ZERO,      GL_ONE,
+                                       GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR,
+                                       GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                                       GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA};
+    static const GLenum blend_dst[] = {GL_ZERO,      GL_ONE,
+                                       GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR,
+                                       GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                                       GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA};
+    const u32 cmode = get_bp_register_pointer()[0x41];
+    const GLboolean color_update = (cmode >> 3) & 1;
+    glColorMask(color_update, color_update, color_update, (cmode >> 4) & 1);
+    if (cmode & 1) {
+        glDisable(GL_COLOR_LOGIC_OP);
+        glEnable(GL_BLEND);
+        if ((cmode >> 11) & 1) {
+            glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+            glBlendFunc(GL_ONE, GL_ONE);
+        } else {
+            glBlendEquation(GL_FUNC_ADD);
+            glBlendFunc(blend_src[(cmode >> 8) & 7], blend_dst[(cmode >> 5) & 7]);
+        }
+    } else if ((cmode >> 1) & 1) {
+        glDisable(GL_BLEND);
+        glEnable(GL_COLOR_LOGIC_OP);
+        glLogicOp(GL_CLEAR + ((cmode >> 12) & 0xF));
+    } else {
+        glDisable(GL_BLEND);
+        glDisable(GL_COLOR_LOGIC_OP);
+    }
+
     switch (p->t) {
     case GX_QUADS:
     case GX_QUADS_2:
@@ -89,12 +119,6 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
 
 void opengl_finish_frame(void)
 {
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, 640, 480, 0, 0, 640, 480, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    glfwSwapBuffers(window);
-
     if (glfwWindowShouldClose(window)) {
         RENDER_PRINT("[Render] : window was closed\n");
         glfwDestroyWindow(window);
@@ -106,14 +130,18 @@ void opengl_finish_frame(void)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glfwPollEvents();
 
-    glClear(GL_COLOR_BUFFER_BIT);
-
     glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
     vertex_offset = 0;
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, 640, 480, 0, 0, 640, 480, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glfwSwapBuffers(window);
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, 640, 480);
     glDepthMask(GL_TRUE);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
