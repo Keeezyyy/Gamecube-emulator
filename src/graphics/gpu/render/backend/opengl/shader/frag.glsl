@@ -22,13 +22,13 @@ layout(location = 0) out vec4 color;
 uint get_rast_color(uint color_type){
   switch(color_type){
 case 0:
-  return convert_normilized_vec4_to_rgba(col0);
+  return convert_normilized_vec4_to_rgba(light0);
 
   break;
 case 1:
-  return convert_normilized_vec4_to_rgba(col1);
+  return convert_normilized_vec4_to_rgba(light1);
   break;
-case 2:
+default:
   return uint(0);
   break;
   }
@@ -85,7 +85,7 @@ uint get_index_texture_index(int s, int t, uint tex_unit_idx, TevTextureUnit tex
     break;
   }
 
-  uint width_block = ((tex_unit.img0 & 0x3FFu )  + bw -1) / bw;
+  uint width_block = ((tex_unit.img0 & 0x3FFu ) + 1u + bw -1) / bw;
   uint blk = (t/bh) * width_block +(s/bw);
   uint off = (t%bh) * bw  + (s%bw);
 
@@ -94,31 +94,31 @@ uint get_index_texture_index(int s, int t, uint tex_unit_idx, TevTextureUnit tex
       uint adr = (blk * 32 + off / 2);
       uint off_in_u32 = adr % 4;
 
-      uint y = adr / 1024;
-      uint x = adr % 1024;
+      uint y = adr / 4096;
+      uint x = (adr / 4) % 1024;
 
 
       uint byte = texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu;
       return ((off & 1u) == 1) ? (uint(byte & 0xFu)) : uint(byte >> 4u);
   }else if (tex_format == 9){
-      uint adr = (blk * 32 + off / 2);
+      uint adr = (blk * 32 + off);
       uint off_in_u32 = adr % 4;
 
-      uint y = adr / 1024;
-      uint x = adr % 1024;
+      uint y = adr / 4096;
+      uint x = (adr / 4) % 1024;
 
 
       uint byte = texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu;
       return byte;
   }else{
-      uint adr = (blk * 32 + off / 2);
+      uint adr = (blk * 32 + off * 2);
       uint off_in_u32 = adr % 4;
 
-      uint y = adr / 1024;
-      uint x = adr % 1024;
+      uint y = adr / 4096;
+      uint x = (adr / 4) % 1024;
 
 
-      uint byte = ((texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu) << 8) | (texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu) & 0xFFu;
+      uint byte = ((texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu) << 8) | (texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32 + 1] & 0xFFu);
       return byte & 0x3FFFu;
 
   }
@@ -255,7 +255,7 @@ int[4] _get_color_constant(uint kc, uint ka){
   else if (ka < 16)
       out_color[3] = 0;
   else
-      out_color[3]  =tev_konst[((kc & 3u)*4) + ((kc - 16) >> 2u)];
+      out_color[3]  =tev_konst[((ka & 3u)*4) + ((ka - 16) >> 2u)];
 
 
   return out_color;
@@ -372,6 +372,155 @@ int[16] _get_color_inputs(uint ctrl, uint alpha_ctrl, int[4] prev, int[16] tev_r
 }
 
 
+struct CombineConfig {
+  uint bias;
+  uint operation;
+  uint clamp;
+  uint scale;
+  uint dest;
+};
+
+int[4] shrink_rgbas16(int[4] v){
+  for(int i = 0; i < 4; i++)
+    v[i] = v[i] & 0xFF;
+  return v;
+}
+
+int[4] expand_rgba8(int[4] v){
+  for(int i = 0; i < 4; i++)
+    v[i] = v[i] + (v[i] / 128);
+  return v;
+}
+
+int _clamp(int t, CombineConfig conf){
+  if(conf.clamp != 0u)
+    t = t < 0 ? 0 : t > 255 ? 255 : t;
+  else
+    t = t < -1024 ? -1024 : t > 1023 ? 1023 : t;
+
+  return t;
+}
+
+uint _cmp_value(int[4] v, uint width){
+  uint x = uint(v[0] & 0xFF);
+  if(width >= 1u)
+    x |= uint(v[1] & 0xFF) << 8;
+  if(width >= 2u)
+    x |= uint(v[2] & 0xFF) << 16;
+  return x;
+}
+
+bool _compare(uint a, uint b, CombineConfig conf){
+  return conf.operation == 0u ? a > b : a == b;
+}
+
+int _compare_channel(int a, int b, int c, int d, bool all, CombineConfig conf){
+  bool cond = conf.scale == 3u ? _compare(uint(a & 0xFF), uint(b & 0xFF), conf) : all;
+  return _clamp(d + (cond ? c : 0), conf);
+}
+
+int[3] mix_bias = int[3](0, 128, -128);
+
+int _mix(int a, int b, int c, int d, CombineConfig conf){
+  int t = a * (256 - c) + b * c;
+
+  if(conf.scale == 1u)
+    t *= 2;
+  else if(conf.scale == 2u)
+    t *= 4;
+
+  if(conf.scale != 3u)
+    t += conf.operation == 1u ? 127 : 128;
+
+  t >>= 8;
+
+  if(conf.operation == 1u)
+    t = -t;
+
+  int dd = d + mix_bias[conf.bias];
+  if(conf.scale == 1u)
+    dd *= 2;
+  else if(conf.scale == 2u)
+    dd *= 4;
+  t += dd;
+
+  if(conf.scale == 3u)
+    t >>= 1;
+
+  return _clamp(t, conf);
+}
+
+void _write_dest(uint dest, uint ch, int v, inout int[4] prev, inout int[16] tev_regs){
+  if(dest == 0u)
+    prev[ch] = v;
+  else
+    tev_regs[dest * 4u + ch] = v;
+}
+
+int[4] tev_calc_core(CombineConfig color_conf, CombineConfig alpha_conf, int[16] inputs, inout int[4] prev, inout int[16] tev_regs){
+  int[4] out_color = int[4](0, 0, 0, 0);
+
+  int[4] ia = shrink_rgbas16(int[4](inputs[0], inputs[1], inputs[2], inputs[3]));
+  int[4] ib = shrink_rgbas16(int[4](inputs[4], inputs[5], inputs[6], inputs[7]));
+  int[4] ic = shrink_rgbas16(int[4](inputs[8], inputs[9], inputs[10], inputs[11]));
+  int[4] id = int[4](inputs[12], inputs[13], inputs[14], inputs[15]);
+
+  int[4] c = ic;
+  ic = expand_rgba8(ic);
+
+  if(color_conf.bias == 3u){
+    bool all = _compare(_cmp_value(ia, color_conf.scale), _cmp_value(ib, color_conf.scale), color_conf);
+    out_color[0] = _compare_channel(ia[0], ib[0], c[0], id[0], all, color_conf);
+    out_color[1] = _compare_channel(ia[1], ib[1], c[1], id[1], all, color_conf);
+    out_color[2] = _compare_channel(ia[2], ib[2], c[2], id[2], all, color_conf);
+  }else{
+    out_color[0] = _mix(ia[0], ib[0], ic[0], id[0], color_conf);
+    out_color[1] = _mix(ia[1], ib[1], ic[1], id[1], color_conf);
+    out_color[2] = _mix(ia[2], ib[2], ic[2], id[2], color_conf);
+  }
+
+  if(alpha_conf.bias == 3u){
+    bool all = _compare(_cmp_value(ia, alpha_conf.scale), _cmp_value(ib, alpha_conf.scale), alpha_conf);
+    out_color[3] = _compare_channel(ia[3], ib[3], c[3], id[3], all, alpha_conf);
+  }else{
+    out_color[3] = _mix(ia[3], ib[3], ic[3], id[3], alpha_conf);
+  }
+
+  _write_dest(color_conf.dest, 0u, out_color[0], prev, tev_regs);
+  _write_dest(color_conf.dest, 1u, out_color[1], prev, tev_regs);
+  _write_dest(color_conf.dest, 2u, out_color[2], prev, tev_regs);
+  _write_dest(alpha_conf.dest, 3u, out_color[3], prev, tev_regs);
+
+  return out_color;
+}
+
+uint _z_texture(uint raw_tex, uint z){
+  uint _bias = bp_regs[0xF4] & 0xFFFFFFu;
+  uint fmt = bp_regs[0xF5] & 0x3u;
+  uint operation = (bp_regs[0xF5] >> 2) & 0x3u;
+
+  if(operation ==0)
+    return z;
+
+
+  uint t;
+  switch(fmt){
+    case 0:
+      t = raw_tex>>24;
+      break;
+    case 1:
+      t = ((raw_tex>>24)<<8) | ((raw_tex)& 0xFFu);
+        break;
+    default:
+      t =   ((((raw_tex)& 0xFFu))<<16) | ((((raw_tex>>8)& 0xFFu))<<8) |  ((((raw_tex>>16)& 0xFFu)));
+        break;
+  }
+
+  t+= _bias;
+
+  return ((operation == 1) ? z + t : t) & 0xFFFFFFu;
+}
+
 void main() {
   uint gen_mode = bp_regs[0];
   uint num_of_steps = ((gen_mode >> 10u) & 0xFu) + 1u;
@@ -421,12 +570,36 @@ void main() {
 
     int[16] input_color = _get_color_inputs(bp_regs[0xc0 + (2*i)], bp_regs[0xc1 + (2*i)], prev, tev_regs,tex_color, rast_color, konst );
 
+    uint reg = bp_regs[0xc0 + (2*i)];
+
+    uint _bias = (reg>>16) &0x3u;
+    uint operation = (reg>>18) &0x1u;
+    uint _clamp = (reg>>19) &0x1u;
+    uint scale = (reg>>20) &0x3u;
+    uint dest = (reg>>22) &0x3u;
 
 
+    uint alpha_reg = bp_regs[0xc1 + (2*i)];
+
+    uint alpha_bias = (alpha_reg>>16) &0x3u;
+    uint alpha_operation = (alpha_reg>>18) &0x1u;
+    uint alpha_clamp = (alpha_reg>>19) &0x1u;
+    uint alpha_scale = (alpha_reg>>20) &0x3u;
+    uint alpha_dest = (alpha_reg>>22) &0x3u;
+
+    CombineConfig conf = CombineConfig(_bias, operation, _clamp, scale, dest);
+    CombineConfig alpha_conf = CombineConfig(alpha_bias, alpha_operation, alpha_clamp, alpha_scale, alpha_dest);
+
+    c = tev_calc_core(conf, alpha_conf, input_color, prev, tev_regs);
   }
 
-    
-  
-  vec4 final_color = pack_light(tex_color);
-  color = vec4(final_color.rgb, 1.0);
+  vec4 final_color = vec4(clamp(c[0], 0, 255), clamp(c[1], 0, 255), clamp(c[2], 0, 255), clamp(c[3], 0, 255)) / 255.0;
+
+
+  uint new_z = _z_texture(tex_color, uint(gl_FragCoord.z * 16777215));
+
+  gl_FragDepth = float(new_z / 16777215);
+
+
+  color = vec4(final_color.rgba);
 }

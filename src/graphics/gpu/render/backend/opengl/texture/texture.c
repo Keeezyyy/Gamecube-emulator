@@ -95,11 +95,11 @@ static void _ia8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            int base = ((y / 4) * widthBlks + (x / 4)) * 64;
+            int base = ((y / 4) * widthBlks + (x / 4)) * 32;
             int off = ((y % 4) * 4 + (x % 4)) * 2;
 
-            pixels[y * TEXTURE_STRIDE + x] = pack_rgba(src[base + off + 1], src[base + 32 + off],
-                                                       src[base + 32 + off + 1], src[base + off]);
+            const u8 I = src[base + off + 1];
+            pixels[y * TEXTURE_STRIDE + x] = pack_rgba(I, I, I, src[base + off]);
         }
     }
 }
@@ -130,6 +130,7 @@ void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_widt
         _ia4_decode(&cpu->bus->ram[ram_adr << 5], width, height, dest);
         break;
     case TEXTURE_FORMAT_IA8:
+        _ia8_decode(&cpu->bus->ram[ram_adr << 5], width, height, dest);
         break;
     default: {
         if (tex_format == TEXTURE_FORMAT_C4 || tex_format == TEXTURE_FORMAT_C8 ||

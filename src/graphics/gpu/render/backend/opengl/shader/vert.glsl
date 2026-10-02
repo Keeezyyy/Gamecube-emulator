@@ -45,6 +45,8 @@ void main()
     mat3x3 normMat = mat3x3(xf_norm[norm_mat_idx], xf_norm[norm_mat_idx + 1u], xf_norm[norm_mat_idx + 2u]);
 
     vec3 n = aNormal * normMat;
+    if (length(n) > 0.0)
+      n = normalize(n);
     vec3 b = aBinormal * normMat;
     vec3 t = aTangent * normMat;
 
