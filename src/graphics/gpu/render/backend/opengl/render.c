@@ -20,6 +20,8 @@ static GLuint vertex_buffer;
 static GLint viewport_loc;
 GLint projection_loc;
 
+static GLuint fbo, colorTex;
+
 #define VERTEX_BUFFER_SIZE (U16_MAX * sizeof(Vertex))
 static GLint vertex_offset;
 void opengl_render_primitive(CPU *cpu, Primitive *p)
@@ -44,6 +46,14 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
     }
 
     glUnmapBuffer(GL_ARRAY_BUFFER);
+
+    const u32 zmode = get_bp_register_pointer()[0x40];
+    if (zmode & 1)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
+    glDepthFunc(GL_NEVER + ((zmode >> 1) & 7));
+    glDepthMask((zmode >> 4) & 1);
 
     switch (p->t) {
     case GX_QUADS:
@@ -79,6 +89,10 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
 
 void opengl_finish_frame(void)
 {
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, 640, 480, 0, 0, 640, 480, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     glfwSwapBuffers(window);
 
     if (glfwWindowShouldClose(window)) {
@@ -96,6 +110,11 @@ void opengl_finish_frame(void)
 
     glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
     vertex_offset = 0;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, 640, 480);
+    glDepthMask(GL_TRUE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 GLuint opengl_get_shader_program(void)
@@ -125,6 +144,25 @@ void init_opengl_renderer(void)
         glfwTerminate();
         abort();
     }
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    glGenTextures(1, &colorTex);
+    glBindTexture(GL_TEXTURE_2D, colorTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 640, 480, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTex, 0);
+
+    GLuint rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 640, 480);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        fprintf(stderr, "framebuffer error\n");
 
     // Shader
     //------------------------------------------------------------------------

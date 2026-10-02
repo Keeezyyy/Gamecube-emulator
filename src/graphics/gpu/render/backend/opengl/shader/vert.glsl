@@ -65,7 +65,10 @@ void main()
     for(uint i = 0; i<8; i++){
       lod[i] = 0.0f;
     }
-    
 
-  gl_Position = proj * vec4(pos, 1.0);
+
+    vec4 clip = proj * vec4(pos, 1.0);
+  float z_win = clip.z * xf_regs.viewport[2] + xf_regs.viewport[5] * clip.w;
+  clip.z = z_win / 16777215.0 * 2.0 - clip.w;
+  gl_Position = clip;
 }

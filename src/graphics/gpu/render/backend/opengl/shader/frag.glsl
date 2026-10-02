@@ -5,6 +5,8 @@
 uniform int[16] tev_konst;
 uniform int[16] tev_reg_start;
 
+uniform sampler2D prevFrame;
+
 in vec4 vColor;
 
 
@@ -597,8 +599,7 @@ void main() {
 
 
   uint new_z = _z_texture(tex_color, uint(gl_FragCoord.z * 16777215));
-
-  gl_FragDepth = float(new_z / 16777215);
+  gl_FragDepth = float(new_z) / 16777215.0;
 
 
   color = vec4(final_color.rgba);
