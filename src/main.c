@@ -12,6 +12,9 @@
 #include "cpu/translation/translation.h"
 #include "graphics/cp/cp.h"
 #include "graphics/vi.h"
+#ifdef OPENGL_RENDERER
+#include "graphics/gpu/render/backend/opengl/render.h"
+#endif /* ifdef OPENGL_RENDERER */
 #include "io/io.h"
 #include "utils/vector.h"
 
@@ -106,19 +109,13 @@ static void _threads(void)
     pthread_detach(main_thread);
 
 #ifdef OPENGL_RENDERER
+    opengl_create_context();
+#endif
+    pthread_t gpu_pipeline_cp_thread;
+    pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
+    pthread_detach(gpu_pipeline_cp_thread);
 
-    cp_thread(&cpu);
-#endif /* ifdef OPENGL_RENDERER */
-    // NOTE: chnage back later for framebuffer window drawing
-    /*
-      pthread_t gpu_pipeline_cp_thread;
-      pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
-      pthread_detach(gpu_pipeline_cp_thread);
-
-      io_thread(&cpu);
-    */
-
-    // for now to draw opengl window
+    io_thread(&cpu);
 }
 
 int main(int argc, char **argv)

@@ -86,6 +86,7 @@ static void test_input(void)
     recieve_input(dpad);
 }
 
+#define OUTPUT_ENABLE
 void io_thread(CPU *cpu)
 {
 #ifdef OUTPUT_ENABLE

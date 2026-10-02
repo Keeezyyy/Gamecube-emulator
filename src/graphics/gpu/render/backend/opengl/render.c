@@ -3,12 +3,13 @@
 #include "graphics/gpu/render/backend/opengl/registers.h"
 #include "graphics/gpu/render/backend/opengl/shader/utils/shader.h"
 #include "graphics/gpu/render/backend/opengl/vertex_conversion.h"
+#include "graphics/gpu/render/backend/software/framebuffer.h"
 #include "graphics/gpu/render/xf_types.h"
 #include "graphics/gpu/vertex/vertex_loader.h"
 #include <_abort.h>
-#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <stddef.h>
+#include <string.h>
 
 static GLFWwindow *window;
 static GLuint frag_shader;
@@ -117,18 +118,34 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
     vertex_offset += p->vert_count;
 }
 
-void opengl_finish_frame(void)
+static RGBA framebuffer[XFB_HEIGHT][XFB_WIDTH];
+
+static void opengl_copy_to_efb(CPU *cpu)
 {
-    if (glfwWindowShouldClose(window)) {
-        RENDER_PRINT("[Render] : window was closed\n");
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        abort();
+    RGBA(*xfb)[XFB_WIDTH] = (RGBA(*)[XFB_WIDTH])cpu->bus->xfb;
+
+    lock_xfb();
+    for (u32 y = 0; y < XFB_HEIGHT; y++) {
+        memcpy(xfb[y], framebuffer[XFB_HEIGHT - 1 - y], sizeof framebuffer[0]);
+        for (u32 x = 0; x < XFB_WIDTH; x++)
+            xfb[y][x].a = 0xFF;
     }
+    unlock_xfb();
+}
+
+void opengl_finish_frame(CPU *cpu)
+{
+    /*
+      if (glfwWindowShouldClose(window)) {
+          RENDER_PRINT("[Render] : window was closed\n");
+          glfwDestroyWindow(window);
+          glfwTerminate();
+          abort();
+      }
+      */
 
     glUseProgram(shader_program);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glfwPollEvents();
 
     glBufferData(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE, NULL_PTR, GL_DYNAMIC_DRAW);
     vertex_offset = 0;
@@ -136,7 +153,13 @@ void opengl_finish_frame(void)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, 640, 480, 0, 0, 640, 480, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    glfwSwapBuffers(window);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, framebuffer);
+
+    opengl_copy_to_efb(cpu);
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, 640, 480);
@@ -150,20 +173,29 @@ GLuint opengl_get_shader_program(void)
     return shader_program;
 }
 
-void init_opengl_renderer(void)
+void opengl_create_context(void)
 {
     if (!glfwInit()) {
         RENDER_PRINT("[ERRPR]: glfw init failed\n");
         abort();
     }
 
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     window = glfwCreateWindow(640, 480, "gc emu", NULL_PTR, NULL_PTR);
+    if (!window) {
+        RENDER_PRINT("[ERRPR]: glfw window creation failed\n");
+        glfwTerminate();
+        abort();
+    }
+}
 
+void init_opengl_renderer(void)
+{
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGL(glfwGetProcAddress)) {

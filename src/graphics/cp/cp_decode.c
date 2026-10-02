@@ -118,7 +118,7 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
 #ifdef OPENGL_RENDERER
             if (((new_val >> 14) & 1) &&
                 ((bp_regs[0x43] & 7) != 2 || ((bp_regs[0x49] >> 10) & 0x3FF) != 0))
-                opengl_finish_frame();
+                opengl_finish_frame(cpu);
 #endif /* ifdef OPENGL_RENDERER */
             GPU_PRINT("BP reg 0x52 write\n");
             break;

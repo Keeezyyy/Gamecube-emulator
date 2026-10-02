@@ -4,7 +4,6 @@
 #include "core/config/config.h"
 #include "graphics/gpu/vertex/primitive.h"
 #include <glad/gl.h>
-#include <GLFW/glfw3.h>
 
 enum {
     GPUV_FLAG_POS_3D = 1u << 0,
@@ -44,7 +43,8 @@ _Static_assert(offsetof(GpuVertex, color) % 4 == 0, "align");
 _Static_assert(sizeof(GpuVertex) % 4 == 0, "align");
 
 void opengl_render_primitive(CPU *cpu, Primitive *p);
-void opengl_finish_frame(void);
+void opengl_finish_frame(CPU *cpu);
+void opengl_create_context(void);
 void init_opengl_renderer(void);
 
 GLuint opengl_get_shader_program(void);
