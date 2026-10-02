@@ -7,6 +7,13 @@
 #include <math.h>
 #include <unistd.h>
 
+#define TEXTURE_STRIDE 1024
+
+static inline u32 pack_rgba(u8 r, u8 g, u8 b, u8 a)
+{
+    return (u32)r | ((u32)g << 8) | ((u32)b << 16) | ((u32)a << 24);
+}
+
 static void _ia4_decode(const u8 *src, u32 width, u32 height, u32 *dest)
 {
 
@@ -22,9 +29,8 @@ static void _ia4_decode(const u8 *src, u32 width, u32 height, u32 *dest)
                     if (x >= width || y >= height)
                         continue;
 
-                    int i = (y * width + x) * 4;
-                    pixels[i + 0] = pixels[i + 1] = pixels[i + 2] = (I & 0xF) * 0x11;
-                    pixels[i + 3] = I >> 4;
+                    const u8 c = (I & 0xF) * 0x11;
+                    pixels[y * TEXTURE_STRIDE + x] = pack_rgba(c, c, c, I >> 4);
                 }
             }
         }
@@ -44,8 +50,7 @@ static void _i8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
                     if (x >= width || y >= height)
                         continue;
 
-                    int i = (y * width + x) * 4;
-                    pixels[i + 0] = pixels[i + 1] = pixels[i + 2] = pixels[i + 3] = I;
+                    pixels[y * TEXTURE_STRIDE + x] = pack_rgba(I, I, I, I);
                 }
             }
         }
@@ -62,11 +67,7 @@ static void _i4_decode(const u8 *src, u32 width, u32 height, u32 *dest)
             int off = (y % 8) * 8 + (x % 8);
             u8 I = ((src[base + (off / 2)] >> (off % 2 == 1 ? 0 : 4)) & 0xF) * 0x11;
 
-            int i = (y * width + x) * 4;
-            pixels[i + 0] = I; // R
-            pixels[i + 1] = I; // G
-            pixels[i + 2] = I; // B
-            pixels[i + 3] = I; // A
+            pixels[y * TEXTURE_STRIDE + x] = pack_rgba(I, I, I, I);
         }
     }
 }
@@ -80,11 +81,8 @@ static void _rgba8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
             int base = ((y / 4) * widthBlks + (x / 4)) * 64;
             int off = ((y % 4) * 4 + (x % 4)) * 2;
 
-            int i = (y * width + x) * 4;
-            pixels[i + 0] = src[base + off + 1];
-            pixels[i + 1] = src[base + 32 + off];
-            pixels[i + 2] = src[base + 32 + off + 1];
-            pixels[i + 3] = src[base + off];
+            pixels[y * TEXTURE_STRIDE + x] = pack_rgba(src[base + off + 1], src[base + 32 + off],
+                                                       src[base + 32 + off + 1], src[base + off]);
         }
     }
 }
@@ -100,11 +98,8 @@ static void _ia8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
             int base = ((y / 4) * widthBlks + (x / 4)) * 64;
             int off = ((y % 4) * 4 + (x % 4)) * 2;
 
-            int i = (y * width + x) * 4;
-            pixels[i + 0] = src[base + off + 1];
-            pixels[i + 1] = src[base + 32 + off];
-            pixels[i + 2] = src[base + 32 + off + 1];
-            pixels[i + 3] = src[base + off];
+            pixels[y * TEXTURE_STRIDE + x] = pack_rgba(src[base + off + 1], src[base + 32 + off],
+                                                       src[base + 32 + off + 1], src[base + off]);
         }
     }
 }

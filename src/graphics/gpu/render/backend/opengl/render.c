@@ -89,7 +89,7 @@ void opengl_finish_frame(void)
     }
 
     glUseProgram(shader_program);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glfwPollEvents();
 
     glClear(GL_COLOR_BUFFER_BIT);

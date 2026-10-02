@@ -17,6 +17,7 @@ static GLint xf_pos_loc, xf_norm_loc, proj_loc, xf_tex_loc, bp_reg_loc, tev_reg_
 
 static GLuint xf_regs_buffer;
 static GLuint xf_lights_buffer;
+static GLuint tev_texture_unit_buffer;
 
 static GLuint texture_buffer;
 
@@ -186,7 +187,7 @@ bool is_tex_unit_dirty(void)
 static void upload_layer(int layer, const uint32_t *pixels)
 {
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture_buffer);
-    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 1024, 1024, 1, GL_RGBA, GL_UNSIGNED_BYTE,
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 1024, 1024, 1, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE,
                     pixels);
 }
 
@@ -211,6 +212,15 @@ void reupload_texture_units(CPU *cpu)
         // TODO: dont save textures in hash map or only in software renderer
         // free_texture(t);
         dirty_texture_unit_bitmap &= ~BIT(i);
+
+        TevTextureUnit t =
+            (TevTextureUnit){u.mode0, u.mode1, u.img0, u.img1, u.img2, u.img3, u.lut};
+
+        const GLintptr stride = sizeof(TevTextureUnit);
+        const GLintptr offset = i * stride;
+
+        glBindBuffer(GL_UNIFORM_BUFFER, tev_texture_unit_buffer);
+        glBufferSubData(GL_UNIFORM_BUFFER, offset, stride, &t);
     }
 }
 
@@ -255,12 +265,19 @@ void opengl_init_register(const GLuint shader_program)
     glUniformBlockBinding(shader_program, glGetUniformBlockIndex(shader_program, "XFLightsBlock"),
                           1);
 
+    glGenBuffers(1, &tev_texture_unit_buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, tev_texture_unit_buffer);
+    glBufferData(GL_UNIFORM_BUFFER, size, zero, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, tev_texture_unit_buffer);
+    glUniformBlockBinding(shader_program,
+                          glGetUniformBlockIndex(shader_program, "TevTextureUnitBlock"), 2);
+
     // texture buffer binding
     glGenTextures(1, &texture_buffer);
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture_buffer);
 
-    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 1024, 1024, 8, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                 NULL);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8UI, 1024, 1024, 8, 0, GL_RGBA_INTEGER,
+                 GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);

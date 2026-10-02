@@ -40,12 +40,19 @@ struct XFLight{
   vec3 dir;
 };
 
+struct TevTextureUnit{
+  uint mode0, mode1, img0, img1, img2, img3, lut;
+};
+
 layout(std140) uniform XFRegistersBlock {
     XFRegisters xf_regs;
 };
 
 layout(std140) uniform XFLightsBlock {
     XFLight xf_lights[8];
+};
+layout(std140) uniform TevTextureUnitBlock{
+  TevTextureUnit tex_units[8];
 };
 
 uniform vec4 xf_pos[64];  
