@@ -234,9 +234,150 @@ uint sample_texture(TevTextureUnit t, uint tex_unit_idx, uint tex_cord_idx){
 
 }
 
+int[8] konst_fractions = int[8](255, 223, 191, 159, 128, 96, 64, 32);
+
+int[4] _get_color_constant(uint kc, uint ka){
+  int[4] out_color;
+  if(kc < 8){
+    out_color[0] = out_color[1] = out_color[2] = konst_fractions[kc];
+  }else if(kc <12){
+    out_color[0] = out_color[1] = out_color[2] = 0;
+  }else if(kc <16){
+    out_color[0] = tev_konst[((kc-12) * 4)];
+    out_color[1] = tev_konst[((kc-12) * 4)+1];
+    out_color[2] = tev_konst[((kc-12) * 4)+2];
+  }else{
+    out_color[0] = out_color[1] = out_color[2] =tev_konst[((kc & 3u)*4) + ((kc - 16) >> 2u)];
+    }
+  
+  if (ka < 8)
+      out_color[3] = konst_fractions[ka];
+  else if (ka < 16)
+      out_color[3] = 0;
+  else
+      out_color[3]  =tev_konst[((kc & 3u)*4) + ((kc - 16) >> 2u)];
+
+
+  return out_color;
+}
+
+
+uint[4] rgb_num_shift = uint[4](12u, 8u, 4u, 0u);
+uint[4] a_num_shift = uint[4](13u, 10u, 7u, 4u);
+
+int color_channel(uint color, uint channel){
+  return int((color >> (8u * channel)) & 0xFFu);
+}
+
+int[16] _get_color_inputs(uint ctrl, uint alpha_ctrl, int[4] prev, int[16] tev_regs, uint tex_color, uint rast_color, int[4] konst){
+  int[16] inputs;
+
+  for(uint i = 0u; i < 4u; i++){
+    uint color_num = (ctrl >> rgb_num_shift[i]) & 0xFu;
+    uint alpha_num = (alpha_ctrl >> a_num_shift[i]) & 0x7u;
+    uint base = i * 4u;
+
+    switch(color_num){
+    case 0u:
+      inputs[base + 0u] = prev[0];
+      inputs[base + 1u] = prev[1];
+      inputs[base + 2u] = prev[2];
+      break;
+    case 1u:
+      inputs[base + 0u] = prev[3];
+      inputs[base + 1u] = prev[3];
+      inputs[base + 2u] = prev[3];
+      break;
+    case 2u:
+    case 4u:
+    case 6u:
+      inputs[base + 0u] = tev_regs[(color_num / 2u) * 4u + 0u];
+      inputs[base + 1u] = tev_regs[(color_num / 2u) * 4u + 1u];
+      inputs[base + 2u] = tev_regs[(color_num / 2u) * 4u + 2u];
+      break;
+    case 3u:
+    case 5u:
+    case 7u:
+      inputs[base + 0u] = tev_regs[((color_num - 1u) / 2u) * 4u + 3u];
+      inputs[base + 1u] = tev_regs[((color_num - 1u) / 2u) * 4u + 3u];
+      inputs[base + 2u] = tev_regs[((color_num - 1u) / 2u) * 4u + 3u];
+      break;
+    case 8u:
+      inputs[base + 0u] = color_channel(tex_color, 0u);
+      inputs[base + 1u] = color_channel(tex_color, 1u);
+      inputs[base + 2u] = color_channel(tex_color, 2u);
+      break;
+    case 9u:
+      inputs[base + 0u] = color_channel(tex_color, 3u);
+      inputs[base + 1u] = color_channel(tex_color, 3u);
+      inputs[base + 2u] = color_channel(tex_color, 3u);
+      break;
+    case 10u:
+      inputs[base + 0u] = color_channel(rast_color, 0u);
+      inputs[base + 1u] = color_channel(rast_color, 1u);
+      inputs[base + 2u] = color_channel(rast_color, 2u);
+      break;
+    case 11u:
+      inputs[base + 0u] = color_channel(rast_color, 3u);
+      inputs[base + 1u] = color_channel(rast_color, 3u);
+      inputs[base + 2u] = color_channel(rast_color, 3u);
+      break;
+    case 12u:
+      inputs[base + 0u] = 255;
+      inputs[base + 1u] = 255;
+      inputs[base + 2u] = 255;
+      break;
+    case 13u:
+      inputs[base + 0u] = 128;
+      inputs[base + 1u] = 128;
+      inputs[base + 2u] = 128;
+      break;
+    case 14u:
+      inputs[base + 0u] = konst[0];
+      inputs[base + 1u] = konst[1];
+      inputs[base + 2u] = konst[2];
+      break;
+    case 15u:
+      inputs[base + 0u] = 0;
+      inputs[base + 1u] = 0;
+      inputs[base + 2u] = 0;
+      break;
+    }
+
+    switch(alpha_num){
+    case 0u:
+      inputs[base + 3u] = prev[3];
+      break;
+    case 1u:
+    case 2u:
+    case 3u:
+      inputs[base + 3u] = tev_regs[alpha_num * 4u + 3u];
+      break;
+    case 4u:
+      inputs[base + 3u] = color_channel(tex_color, 3u);
+      break;
+    case 5u:
+      inputs[base + 3u] = color_channel(rast_color, 3u);
+      break;
+    case 6u:
+      inputs[base + 3u] = konst[3];
+      break;
+    case 7u:
+      inputs[base + 3u] = 0;
+      break;
+    }
+  }
+
+  return inputs;
+}
+
+
 void main() {
   uint gen_mode = bp_regs[0];
   uint num_of_steps = ((gen_mode >> 10u) & 0xFu) + 1u;
+
+  int[16] tev_regs = tev_reg_start;
+
 
   int[4] prev = int[4](tev_reg_start[0], tev_reg_start[1],tev_reg_start[2],tev_reg_start[3]);
 
@@ -268,11 +409,17 @@ void main() {
 
         tex_color = sample_texture(t, tex_unit, tex_cords);
         tex_color = swap_color(swap_index_texture_color, tex_color);
-        
       }
-
     }
 
+    uint color_constant = ((bp_regs[0xf6 + (i/2)]) >> (i%2 == 0 ? 4 : 14)) & 0x1Fu;
+    uint alpha_constant = ((bp_regs[0xf6 + (i/2)]) >> (i%2 == 0 ? 9 : 19)) & 0x1Fu;
+
+    
+    int[4] konst = _get_color_constant(color_constant, alpha_constant);
+
+
+    int[16] input_color = _get_color_inputs(bp_regs[0xc0 + (2*i)], bp_regs[0xc1 + (2*i)], prev, tev_regs,tex_color, rast_color, konst );
 
 
 
