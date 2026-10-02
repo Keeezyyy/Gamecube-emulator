@@ -104,13 +104,17 @@ static void _ia8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
     }
 }
 
-void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest)
+void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_width,
+                           u32 *upload_height)
 {
 
     const u32 ram_adr = (u->img3 & 0xFFFFFF);
     const u32 width = (u->img0 & 0x3FF) + 1;
     const u32 height = (((u->img0 >> 10) & 0x3FF) + 1);
     const u8 tex_format = ((u->img0 >> 20) & 0xF);
+
+    *upload_width = width;
+    *upload_height = height;
 
     switch (tex_format) {
     case TEXTURE_FORMAT_I8:
@@ -131,7 +135,20 @@ void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest)
         if (tex_format == TEXTURE_FORMAT_C4 || tex_format == TEXTURE_FORMAT_C8 ||
             tex_format == TEXTURE_FORMAT_C14X2) {
 
-            memcpy(dest, &cpu->bus->ram[ram_adr << 5], 1024 * 1024 * pow(2, (tex_format - 6)));
+            u32 bw = 4, bh = 4;
+            if (tex_format == TEXTURE_FORMAT_C4) {
+                bw = 8;
+                bh = 8;
+            } else if (tex_format == TEXTURE_FORMAT_C8) {
+                bh = 8;
+            }
+
+            const u32 bytes = ((width + bw - 1) / bw) * ((height + bh - 1) / bh) * 32;
+            const u32 row_bytes = TEXTURE_STRIDE * sizeof(u32);
+
+            memcpy(dest, &cpu->bus->ram[ram_adr << 5], bytes);
+            *upload_width = TEXTURE_STRIDE;
+            *upload_height = (bytes + row_bytes - 1) / row_bytes;
             return;
         }
         printf("texture format : 0x%x\n", tex_format);

@@ -109,6 +109,17 @@ uint get_index_texture_index(int s, int t, uint tex_unit_idx, TevTextureUnit tex
 
 
       uint byte = texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu;
+      return byte;
+  }else{
+      uint adr = (blk * 32 + off / 2);
+      uint off_in_u32 = adr % 4;
+
+      uint y = adr / 1024;
+      uint x = adr % 1024;
+
+
+      uint byte = ((texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu) << 8) | (texelFetch(textures_buffers, ivec3(x, y, tex_unit_idx), 0)[off_in_u32] & 0xFFu) & 0xFFu;
+      return byte & 0x3FFFu;
 
   }
 
@@ -124,6 +135,8 @@ uint get_texel_from_texture(TevTextureUnit t_unit, uint tex_unit_idx, int s, int
       out_color |= (texelFetch(textures_buffers, ivec3(s, t, tex_unit_idx), 0).b & 0xFFu) << 16;
       out_color |= (texelFetch(textures_buffers, ivec3(s, t, tex_unit_idx), 0).a & 0xFFu) << 24;
   }else{
+    uint format  =((t_unit.img0 >>20) & 0xFu);
+    uint idx = get_index_texture_index(s, t, tex_unit_idx, t_unit, format);
 
   }
 

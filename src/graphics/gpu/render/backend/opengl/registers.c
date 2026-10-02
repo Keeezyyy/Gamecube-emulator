@@ -130,6 +130,7 @@ static inline s16 sign_extend11(u32 v)
 }
 
 static u8 dirty_texture_unit_bitmap = 0;
+static u8 dirty_texture_mem_bitmap = 0;
 
 typedef struct {
     s16 rabg[4];
@@ -149,7 +150,12 @@ void opengl_write_to_bp(const u32 *bp, const u32 adr, const u32 value)
         // texture unit registers
 
         const u8 unit = ((adr >> 3) & 0x4) | (adr & 0x3);
-        dirty_texture_unit_bitmap |= BIT(unit);
+        if ((adr >= 0x80 && adr <= 0x87) || (adr >= 0xa0 && adr <= 0xa7)) {
+            dirty_texture_unit_bitmap |= BIT(unit);
+        } else {
+            dirty_texture_unit_bitmap |= BIT(unit);
+            dirty_texture_mem_bitmap |= BIT(unit);
+        }
     } else if (adr >= 0xE0 && adr <= 0xe7) {
 
         const int idx = (adr - 0xE0) >> 1;
@@ -184,11 +190,13 @@ bool is_tex_unit_dirty(void)
     return dirty_texture_unit_bitmap != 0;
 }
 
-static void upload_layer(int layer, const uint32_t *pixels)
+static void upload_layer(int layer, const uint32_t *pixels, const u32 width, const u32 height)
 {
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture_buffer);
-    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 1024, 1024, 1, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE,
-                    pixels);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 1024);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, width, height, 1, GL_RGBA_INTEGER,
+                    GL_UNSIGNED_BYTE, pixels);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 static u32 texel_buffer[1024 * 1024];
@@ -199,28 +207,34 @@ static u32 texel_buffer[1024 * 1024];
 void reupload_texture_units(CPU *cpu)
 {
     for (u8 i = 0; i < 8; i++) {
-        if (!BIT_CHECK(dirty_texture_unit_bitmap, i))
+        if (!BIT_CHECK(dirty_texture_unit_bitmap, i) && !BIT_CHECK(dirty_texture_mem_bitmap, i))
             continue;
 
         TextureUnit u;
 
         get_texture_unit_regs(&u, i, get_bp_register_pointer());
+        if (BIT_CHECK(dirty_texture_unit_bitmap, i)) {
+            TevTextureUnit t =
+                (TevTextureUnit){u.mode0, u.mode1, u.img0, u.img1, u.img2, u.img3, u.lut};
 
-        opengl_encode_texture(cpu, &u, &texel_buffer[0]);
-        upload_layer(i, &texel_buffer[0]);
+            const GLintptr stride = sizeof(TevTextureUnit);
+            const GLintptr offset = i * stride;
 
-        // TODO: dont save textures in hash map or only in software renderer
-        // free_texture(t);
-        dirty_texture_unit_bitmap &= ~BIT(i);
+            glBindBuffer(GL_UNIFORM_BUFFER, tev_texture_unit_buffer);
+            glBufferSubData(GL_UNIFORM_BUFFER, offset, stride, &t);
 
-        TevTextureUnit t =
-            (TevTextureUnit){u.mode0, u.mode1, u.img0, u.img1, u.img2, u.img3, u.lut};
+            dirty_texture_unit_bitmap &= ~BIT(i);
+        }
+        if (BIT_CHECK(dirty_texture_mem_bitmap, i)) {
 
-        const GLintptr stride = sizeof(TevTextureUnit);
-        const GLintptr offset = i * stride;
+            u32 upload_width, upload_height;
+            opengl_encode_texture(cpu, &u, &texel_buffer[0], &upload_width, &upload_height);
+            upload_layer(i, &texel_buffer[0], upload_width, upload_height);
 
-        glBindBuffer(GL_UNIFORM_BUFFER, tev_texture_unit_buffer);
-        glBufferSubData(GL_UNIFORM_BUFFER, offset, stride, &t);
+            // TODO: dont save textures in hash map or only in software renderer
+            // free_texture(t);
+            dirty_texture_mem_bitmap &= ~BIT(i);
+        }
     }
 }
 

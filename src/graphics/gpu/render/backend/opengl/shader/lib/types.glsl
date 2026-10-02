@@ -61,5 +61,7 @@ uniform vec3 xf_norm[32];
 
 uniform uint bp_regs[256];
 
+uniform uint tmem[0xFFFFF - 0x80000];
+
 uniform usampler2DArray textures_buffers;
 
