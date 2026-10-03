@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "cpu/cpu_types.h"
 #include "cpu/fpu.h"
+#include "graphics/gx_fifo.h"
 #include <stdio.h>
 
 static CPU *static_cpu_ptr;
@@ -148,9 +149,15 @@ u32 _quantize(u64 bits, u32 type, u32 scale_field)
 }
 void _helper_write_word_to_bus(u32 adr, u32 val)
 {
-    if (adr <= 0x817fffff + 1 && adr >= 0x80000000)
+    if (adr <= 0x817fffff + 1 && adr >= 0x80000000) {
+
         *(u32 *)((u8 *)&static_cpu_ptr->bus->ram[adr - 0x80000000]) = __builtin_bswap32(val);
-    static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 4);
+    } else if (adr == 0xCC008000) {
+        gx_write_to_fifo(static_cpu_ptr, val, 4);
+    } else {
+
+        static_cpu_ptr->bus->write(static_cpu_ptr->bus, adr, val, 4);
+    }
 }
 void _helper_write_byte_to_bus(u32 adr, u32 val)
 {

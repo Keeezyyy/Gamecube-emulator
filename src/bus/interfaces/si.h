@@ -2,6 +2,7 @@
 
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "io/io.h"
 
 #define SI_CMD_STATUS_REQ 0x00
 
@@ -44,4 +45,4 @@ u32 si_get_comcsr(void);
 
 void si_vblank_trigger(void);
 
-void recieve_input(const u8 dpad);
+void recieve_input(const ControllerInput);

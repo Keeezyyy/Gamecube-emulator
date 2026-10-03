@@ -28,11 +28,6 @@ void gx_write_to_fifo(CPU *cpu, u64 val, u32 size)
         fifo_buffer.buffer_8[buffer_ptr++] = (u8)(val >> ((size - 1 - i) * 8));
 
     if (buffer_ptr >= 32) {
-        // FIFO BUFFER IS FULL
-
-        // send_to_gpu()
-
-        // send to cp
         pi_recieve_gx_gather_piper(cpu, fifo_buffer.buffer_32);
 
         buffer_ptr -= 32;

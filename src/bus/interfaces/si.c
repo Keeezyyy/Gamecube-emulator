@@ -2,7 +2,9 @@
 #include "bus/interfaces/interface_utils.h"
 #include "bus/interfaces/pi.h"
 #include "core/config/config.h"
+#include "io/io.h"
 #include <assert.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -46,24 +48,34 @@ static void start_transfer(CPU *cpu)
 
     pi_update_interrupts(cpu);
 }
+static _Atomic u64 pad_state[NUM_OF_CHANNELS];
 
-void recieve_input(const u8 dpad)
+void recieve_input(const ControllerInput i)
 {
-    if (dpad == 0)
-        return;
+    u64 v;
+    memcpy(&v, &i, sizeof v);
+    atomic_store(&pad_state[0], v);
+}
 
-    printf("key presed\n");
-    memset(si_regs.SIIOBUF, 0, 32);
+static void si_poll_channel(int n)
+{
+    u64 v = atomic_load(&pad_state[n]);
+    ControllerInput p;
+    memcpy(&p, &v, sizeof p);
 
-    si_regs.SIIOBUF[0] = dpad;
+    si_regs.channel[n].INBUFH = (u32)p.btn_1 << 24 | (u32)(p.btn_2 | BIT_USEORIGIN) << 16 |
+                                (u32)p.stick_x << 8 | p.stick_y;
+    si_regs.channel[n].INBUFL =
+        (u32)p.c_stick_x << 24 | (u32)p.c_stick_y << 16 | (u32)p.l_analog << 8 | p.r_analog;
 
+    si_regs.SISR |= BIT(29 - 8 * n);
     si_regs.SICOMCSR |= BIT(28);
-    si_regs.SISR |= BIT(5);
 }
 
 void si_vblank_trigger(void)
 {
     for (int i = 0; i < NUM_OF_CHANNELS; i++) {
+        si_poll_channel(i);
         if ((si_regs.SIPOLL >> (3 - i)) & 1) {
             si_regs.channel[i] = channel_before_vblank[i];
             si_regs.SISR &= ~BIT(4 + (8 * i));

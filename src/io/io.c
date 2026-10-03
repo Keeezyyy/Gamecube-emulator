@@ -9,8 +9,10 @@
 #include "graphics/gpu/render/backend/software/transform/transform.h"
 
 #include <_abort.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include <stdbool.h>
 #include <sys/_pthread/_pthread_cond_t.h>
@@ -67,35 +69,77 @@ static void _output_info(CPU *cpu)
     cycle_counter_local = cycles;
 }
 
+static bool is_set = false;
 static float lX, lY, rX, rY;
+
+static ControllerInput last_state;
+
+#define DEADZONE 0.15f
 
 static void test_input(void)
 {
-    for (int button = 0; button < 18; button++) {
-        if (IsGamepadButtonPressed(0, button)) {
-        }
-    }
+    ControllerInput i = {0};
 
-    float leftX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-    float leftY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+    float leftX = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) + 1) / 2;
+    float leftY = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) + 1) / 2;
 
-    float rightX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-    float rightY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+    float rightX = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X) + 1) / 2;
+    float rightY = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y) + 1) / 2;
 
-    u8 dpad = 0;
-    if (IsKeyPressed(KEY_W)) {
-        dpad |= BIT(3);
+    float lt = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) + 1) / 2;
+    float rt = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) + 1) / 2;
+
+    if (fabsf(leftX) < DEADZONE)
+        leftX = 0.0f;
+    if (fabsf(leftY) < DEADZONE)
+        leftY = 0.0f;
+
+    if (fabsf(rightX) < DEADZONE)
+        rightX = 0.0f;
+    if (fabsf(rightY) < DEADZONE)
+        rightY = 0.0f;
+
+    if (fabsf(lt) < DEADZONE)
+        lt = 0.0f;
+    if (fabsf(rt) < DEADZONE)
+        rt = 0.0f;
+
+    i.stick_x = (u8)(leftX * 255);
+    i.stick_y = (u8)(255 - leftY * 255);
+
+    i.c_stick_x = (u8)(rightX * 255);
+    i.c_stick_y = (u8)(255 - rightY * 255);
+
+    i.l_analog = (u8)(lt * 255);
+    i.r_analog = (u8)(rt * 255);
+
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_1))
+        i.btn_2 |= BIT_Z;
+
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN))
+        i.btn_2 |= BIT_D_DOWN;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))
+        i.btn_2 |= BIT_D_LEFT;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))
+        i.btn_2 |= BIT_D_RIGHT;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP))
+        i.btn_2 |= BIT_D_UP;
+
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
+        i.btn_1 |= BIT_A;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT))
+        i.btn_1 |= BIT_B;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT))
+        i.btn_1 |= BIT_X;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_UP))
+        i.btn_1 |= BIT_Y;
+
+    if (memcmp(&i, &last_state, sizeof(ControllerInput)) == 0) {
+        return;
     }
-    if (IsKeyPressed(KEY_S)) {
-        dpad |= BIT(2);
-    }
-    if (IsKeyPressed(KEY_D)) {
-        dpad |= BIT(1);
-    }
-    if (IsKeyPressed(KEY_A)) {
-        dpad |= BIT(0);
-    }
-    recieve_input(dpad);
+    memcpy(&last_state, &i, sizeof(ControllerInput));
+
+    recieve_input(i);
 }
 
 #define OUTPUT_ENABLE

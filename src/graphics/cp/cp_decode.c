@@ -79,7 +79,8 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
     GPU_PRINT("BP LOAD [0x%02x] = 0x%06x\n", reg, new_val);
 
 #if defined(OPENGL_RENDERER)
-    opengl_write_to_bp(bp_regs, reg, new_val);
+    if (new_val != old)
+        opengl_write_to_bp(bp_regs, reg, new_val);
 #elif defined(SOFTWARE_RENDERER)
     if (reg >= 0xE0 && reg <= 0xe7) {
         tev_write_color_reg(reg, new_val);

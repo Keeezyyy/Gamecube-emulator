@@ -47,6 +47,15 @@ typedef struct {
 #define TRANSLATION_BLOCK_TYPE_RETURN_FROM_INTERRUPT 2
 
 typedef struct {
+    u32 *cond_a_ret;
+    u32 cond_a_branch_to_pc;
+
+    u32 *cond_b_ret;
+    u32 cond_b_branch_to_pc;
+
+} TranslationBlockConditionialBranchInfo;
+
+typedef struct {
 
     TranslationBlockCore core;
 
