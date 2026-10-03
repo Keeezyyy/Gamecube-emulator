@@ -67,6 +67,8 @@ static void _output_info(CPU *cpu)
     cycle_counter_local = cycles;
 }
 
+static float lX, lY, rX, rY;
+
 static void test_input(void)
 {
     for (int button = 0; button < 18; button++) {

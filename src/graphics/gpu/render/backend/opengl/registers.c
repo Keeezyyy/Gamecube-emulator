@@ -27,6 +27,8 @@ static GLuint texture_buffer;
 static GLuint tmem_buffer;
 static GLuint tmem_texture;
 
+static GLsizeiptr xf_regs_std140_size;
+
 static const u8 xf_reg_field_len[] = {1, 4, 1, 1, 1, 1, 1,  2, 2, 2, 2, 1,
                                       5, 1, 1, 6, 6, 1, 24, 1, 8, 8, 8};
 
@@ -124,7 +126,12 @@ void check_for_xf_reg_dirty(void)
             glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof std140, std140);
             break;
         case XF_DIRTY_REGS:
-            glUniform4fv(xf_tex_loc, 64, &xf_mem.post_matrices[0][0]);
+            u8 std140_xf_regs[XF_REG_COUNT * 16];
+            const u32 *src = &xf_reg.error;
+            for (u32 r = 0; r < XF_REG_COUNT; r++)
+                memcpy(&std140_xf_regs[xf_reg_offset[r]], &src[r], sizeof(u32));
+            glBindBuffer(GL_UNIFORM_BUFFER, xf_regs_buffer);
+            glBufferSubData(GL_UNIFORM_BUFFER, 0, xf_regs_std140_size, std140_xf_regs);
             break;
         }
         xf_regs_dirty_bitmap &= ~BIT(i);
@@ -140,11 +147,9 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
         p[reg_num] = val;
 
     } else if (reg_num >= 0x1000 && reg_num <= 0x1057) {
-
         u32 *p = &xf_reg.error;
         p[reg_num - 0x1000] = val;
-        glBindBuffer(GL_UNIFORM_BUFFER, xf_regs_buffer);
-        glBufferSubData(GL_UNIFORM_BUFFER, xf_reg_offset[reg_num - 0x1000], sizeof val, &val);
+        xf_regs_dirty_bitmap |= BIT(XF_DIRTY_REGS);
     }
 
     if (reg_num <= 0xFF) {
@@ -314,6 +319,7 @@ void opengl_init_register(const GLuint shader_program)
 
     static const u8 zero[XF_REG_COUNT * 16];
     const GLsizeiptr size = init_xf_reg_offsets();
+    xf_regs_std140_size = size;
 
     glGenBuffers(1, &xf_regs_buffer);
     glBindBuffer(GL_UNIFORM_BUFFER, xf_regs_buffer);
