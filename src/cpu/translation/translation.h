@@ -60,6 +60,8 @@ typedef struct {
     u32 guest_instructions_count;
     u64 hash;
 
+    u64 cache_hits;
+
     // for linking tb´s together
     /*
       uint16_t jmp_offset[2];

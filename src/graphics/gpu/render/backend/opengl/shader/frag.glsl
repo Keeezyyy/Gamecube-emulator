@@ -521,6 +521,19 @@ uint _z_texture(uint raw_tex, uint z){
   return ((operation == 1) ? z + t : t) & 0xFFFFFFu;
 }
 
+ bool _alpha_cmp(uint op, int a, int ref) {
+    switch (op) {
+      case 0u: return false;      
+      case 1u: return a <  ref;   
+      case 2u: return a == ref;   
+      case 3u: return a <= ref;   
+      case 4u: return a >  ref;   
+      case 5u: return a != ref;   
+      case 6u: return a >= ref;   
+      default: return true;      
+    }
+  }
+
 void main() {
   uint gen_mode = bp_regs[0];
   uint num_of_steps = ((gen_mode >> 10u) & 0xFu) + 1u;
@@ -607,6 +620,17 @@ void main() {
     }
 
   vec4 final_color = vec4(clamp(c[0], 0, 255), clamp(c[1], 0, 255), clamp(c[2], 0, 255), clamp(c[3], 0, 255)) / 255.0;
+
+  uint ac = bp_regs[0xF3];
+  bool r0 = _alpha_cmp((ac >> 16) & 7u, c[3], int(ac & 0xFFu));
+  bool r1 = _alpha_cmp((ac >> 19) & 7u, c[3], int((ac >> 8) & 0xFFu));
+  uint logic = (ac >> 22) & 3u;   
+  bool pass = logic == 0u ? (r0 && r1)
+            : logic == 1u ? (r0 || r1)
+            : logic == 2u ? (r0 != r1)
+            :               (r0 == r1);
+  if (!pass)
+    discard;
 
 
   color = final_color;

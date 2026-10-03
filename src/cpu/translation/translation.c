@@ -16,7 +16,7 @@ KHASH_MAP_INIT_INT64(tb_map, TranslationBlock *)
 
 static khash_t(tb_map) * t;
 
-#define TB_CACHE_ENTRIES 5
+#define TB_CACHE_ENTRIES 3
 
 static TranslationBlock *translation_block_cache[TB_CACHE_ENTRIES];
 static TranslationBlock *translation_block_cache_scratch[TB_CACHE_ENTRIES];
@@ -49,6 +49,7 @@ TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
             continue;
         if (translation_block_cache[i]->pc_at_start == cpu->state.pc &&
             translation_block_cache[i]->msr_at_start == cpu->state.msr) {
+            translation_block_cache[i]->cache_hits++;
             return translation_block_cache[i];
         }
     }
@@ -128,7 +129,9 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     *(uintptr_t *)&code = (uintptr_t)block->core.code;
     code();
 
-    // shift out the least used one in the cache
+    if (translation_block_cache[0] == block)
+        return;
+
     memcpy(&translation_block_cache_scratch[1], &translation_block_cache[0],
            (TB_CACHE_ENTRIES - 1) * sizeof(void *));
 
