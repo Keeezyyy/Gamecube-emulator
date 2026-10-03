@@ -185,4 +185,5 @@ void init_cpu(CPU *self, Disc *disc, Bus *bus)
     init_translation(disc);
     static_cpu_ptr = self;
     set_cpu_helper(self);
+    decrementor_init();
 }

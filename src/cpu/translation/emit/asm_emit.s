@@ -127,9 +127,15 @@ _emit_mfspr:
           str x3, [x1]
           ret          
         _emit_mfspr_start:
-          ldr w3, [x1, w2, uxtw 2]
 
-          str w3, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+          PUSH_32 w0
+          mov w0, w1
+          mov w3, 14
+          CALL_HELPER_FUNCTION w3
+          POP_32 w1
+          str w0, [GUEST_REGISTER_POINTER, w1, uxtw 2]
+
+
         _emit_mfspr_after:
 
 //TODO: change endianess in asm code rather than in bus.c 
@@ -252,8 +258,10 @@ _emit_mtspr:
           str x3, [x1]
           ret          
         _emit_mtspr_start:
-          LOAD_REGISTER w0, w4
-          str w4, [x1, w2, uxtw 2] 
+          LOAD_REGISTER w0, w1
+          mov w0, w2
+          mov w3, 13
+          CALL_HELPER_FUNCTION w3
         _emit_mtspr_after:
 
 

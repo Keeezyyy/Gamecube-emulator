@@ -62,8 +62,6 @@ void report_cycle_count(u32 cycle_count)
 {
     u64 next = cpu_ptr->cpu_cycles + cycle_count;
 
-    update_decrementor(cpu_ptr, cpu_ptr->cpu_cycles, next);
-
     u64 elapsed_ticks = next / 12 - cpu_ptr->cpu_cycles / 12;
     cpu_ptr->cpu_cycles = next;
 

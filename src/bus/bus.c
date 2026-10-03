@@ -205,6 +205,10 @@ static u64 _read(Bus *self, u32 adr, u32 size)
         assert((u64)(adr - IPL_BASE) + size <= (u64)self->ipl_size);
         return be_load((u8 *)self->ipl + (adr - IPL_BASE), size);
     }
+    if ((adr & 0x0F000000) == 0x08000000) { // TODO: for now
+        const bool is_z = adr & BIT(22);
+        return is_z ? 0x00FFFFFF : 0x00000000;
+    }
 
     if (adr >= 0xCC003000 && adr < 0xCC004000) {
         return pi_read(self->cpu, adr, size);
@@ -254,6 +258,9 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
 
     if (in_ipl(self, adr)) {
         DEBUG_PRINT("[BUS] write to IPL rom at 0x%08x ignored\n", adr);
+        return;
+    }
+    if ((adr & 0x0F000000) == 0x08000000) { // TODO: for now
         return;
     }
     if (adr >= 0xCC008000 && adr < 0xe0000000) {

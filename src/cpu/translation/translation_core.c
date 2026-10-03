@@ -1063,13 +1063,10 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             curr_instruction = emit_load_u32(curr_instruction, 0, (u64)regD);
             if (spr == SPR_XER) {
-                curr_instruction = emit_load_u64(curr_instruction, 1, (u64)&cpu->state.xer);
-                curr_instruction = emit_load_u32(curr_instruction, 2, 0);
+                curr_instruction = emit_load_u32(curr_instruction, 1, 0);
             } else {
-                curr_instruction =
-                    emit_load_u64(curr_instruction, 1, (u64)&cpu->special_purpose_registers);
 
-                curr_instruction = emit_load_u32(curr_instruction, 2, (u64)spr);
+                curr_instruction = emit_load_u32(curr_instruction, 1, (u64)spr);
             }
 
             const u32 *main_block, *main_block_end;
@@ -1116,6 +1113,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
                 curr_instruction = emit_load_u32(
                     curr_instruction, 2,
                     spr == SPR_TBL_WRITE ? SPR_TBL : (spr == SPR_TBU_WRITE ? SPR_TBU : spr));
+                //????????
             }
 
             const u32 *main_block, *main_block_end;

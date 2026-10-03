@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "cpu/cpu_types.h"
 #include "cpu/fpu.h"
+#include "cpu/spr.h"
 #include "graphics/gx_fifo.h"
 #include <stdio.h>
 
@@ -277,6 +278,29 @@ void _helper_fpu(u32 insn, u32 pse)
     fpu_execute(static_cpu_ptr, insn, pse != 0);
 }
 
+static void _write_spr(u32 reg_num, u32 val)
+{
+
+    static_cpu_ptr->special_purpose_registers.buf[reg_num] = val;
+
+    switch (reg_num) {
+    case SPR_DECREMENTOR:
+        update_decrementor(static_cpu_ptr);
+        break;
+    default:
+        break;
+    }
+}
+static u32 _read_spr(u32 reg_num)
+{
+    switch (reg_num) {
+    case SPR_DECREMENTOR:
+        return decrementor_read(static_cpu_ptr);
+    default:
+        return static_cpu_ptr->special_purpose_registers.buf[reg_num];
+    }
+}
+
 void set_cpu_helper(CPU *self)
 {
     static_cpu_ptr = self;
@@ -293,4 +317,15 @@ void set_cpu_helper(CPU *self)
     self->helper_functions[10] = (u64)&_helper_quantized_store;
     self->helper_functions[11] = (u64)&_helper_write_switch_from_exception;
     self->helper_functions[12] = (u64)&_helper_fpu;
+    self->helper_functions[13] = (u64)&_write_spr;
+    self->helper_functions[14] = (u64)&_read_spr;
 }
+
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
+// TODO: make mfspr and msrmr lazy and counter register updtate on read and write !!!
