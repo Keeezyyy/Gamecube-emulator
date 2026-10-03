@@ -69,6 +69,16 @@ static void _output_info(CPU *cpu)
 
 static void test_input(void)
 {
+    for (int button = 0; button < 18; button++) {
+        if (IsGamepadButtonPressed(0, button)) {
+        }
+    }
+
+    float leftX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+    float leftY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+
+    float rightX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+    float rightY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
 
     u8 dpad = 0;
     if (IsKeyPressed(KEY_W)) {

@@ -29,6 +29,7 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
 {
     if (is_tex_unit_dirty())
         reupload_texture_units(cpu);
+    check_for_xf_reg_dirty();
 
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
 

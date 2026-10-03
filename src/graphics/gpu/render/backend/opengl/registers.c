@@ -90,6 +90,47 @@ static void load_new_proj(void)
     glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &out.m[0][0]);
 }
 
+static u64 xf_regs_dirty_bitmap = 0;
+
+void check_for_xf_reg_dirty(void)
+{
+    if (xf_regs_dirty_bitmap == 0)
+        return;
+    for (int i = 0; i < XF_DIRTY_COUNT; i++) {
+        u64 bit_map = xf_regs_dirty_bitmap & BIT(i);
+        if (bit_map == 0)
+            continue;
+
+        switch ((XFDirtyStates)i) {
+        case XF_DIRTY_POS_MAT:
+            glUniform4fv(xf_pos_loc, 64, &xf_mem.matrices[0][0]);
+            break;
+        case XF_DIRTY_NORMAL_MAT:
+            glUniform3fv(xf_norm_loc, 32, &xf_mem.normal_matrices[0][0]);
+            break;
+        case XF_DIRTY_POST_MAT:
+            glUniform4fv(xf_tex_loc, 64, &xf_mem.post_matrices[0][0]);
+            break;
+        case XF_DIRTY_LIGHTS:
+            u32 std140[8][32] = {0};
+            for (u32 l = 0; l < 8; l++) {
+                const u32 *src = (const u32 *)&xf_mem.lights[l];
+                for (u32 w = 0; w < 4; w++)
+                    std140[l][w * 4] = src[w];
+                for (u32 v = 0; v < 4; v++)
+                    memcpy(&std140[l][16 + v * 4], &src[4 + v * 3], 3 * sizeof(u32));
+            }
+            glBindBuffer(GL_UNIFORM_BUFFER, xf_lights_buffer);
+            glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof std140, std140);
+            break;
+        case XF_DIRTY_REGS:
+            glUniform4fv(xf_tex_loc, 64, &xf_mem.post_matrices[0][0]);
+            break;
+        }
+        xf_regs_dirty_bitmap &= ~BIT(i);
+    }
+}
+
 // GPU:
 // TODO: only upload on first primitive render and only upload dirty marked regs
 void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
@@ -108,22 +149,13 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val)
 
     if (reg_num <= 0xFF) {
         // posMat
-        glUniform4fv(xf_pos_loc, 64, &xf_mem.matrices[0][0]);
+        xf_regs_dirty_bitmap |= BIT(XF_DIRTY_POS_MAT);
     } else if (reg_num >= 0x400 && reg_num <= 0x45F) {
-        glUniform3fv(xf_norm_loc, 32, &xf_mem.normal_matrices[0][0]);
+        xf_regs_dirty_bitmap |= BIT(XF_DIRTY_NORMAL_MAT);
     } else if (reg_num >= 0x500 && reg_num <= 0x5FF) {
-        glUniform4fv(xf_tex_loc, 64, &xf_mem.post_matrices[0][0]);
+        xf_regs_dirty_bitmap |= BIT(XF_DIRTY_POST_MAT);
     } else if (reg_num >= 0x600 && reg_num <= 0x67F) {
-        u32 std140[8][32] = {0};
-        for (u32 l = 0; l < 8; l++) {
-            const u32 *src = (const u32 *)&xf_mem.lights[l];
-            for (u32 w = 0; w < 4; w++)
-                std140[l][w * 4] = src[w];
-            for (u32 v = 0; v < 4; v++)
-                memcpy(&std140[l][16 + v * 4], &src[4 + v * 3], 3 * sizeof(u32));
-        }
-        glBindBuffer(GL_UNIFORM_BUFFER, xf_lights_buffer);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof std140, std140);
+        xf_regs_dirty_bitmap |= BIT(XF_DIRTY_LIGHTS);
     }
 
     if (reg_num >= 0x1020 && reg_num <= 0x1026)

@@ -21,3 +21,13 @@ void opengl_write_to_xf_reg(const u32 reg_num, const u32 val);
 u32 *opengl_get_xf_buffer(void);
 
 void opengl_init_register(const GLuint shader_program);
+void check_for_xf_reg_dirty(void);
+
+typedef enum {
+    XF_DIRTY_POS_MAT,
+    XF_DIRTY_NORMAL_MAT,
+    XF_DIRTY_POST_MAT,
+    XF_DIRTY_LIGHTS,
+    XF_DIRTY_REGS,
+    XF_DIRTY_COUNT,
+} XFDirtyStates;
