@@ -60,18 +60,9 @@ static void run_event(CPU *cpu)
 
 void report_cycle_count(u32 cycle_count)
 {
-    u64 next = cpu_ptr->cpu_cycles + cycle_count;
 
-    u64 elapsed_ticks = next / 12 - cpu_ptr->cpu_cycles / 12;
-    cpu_ptr->cpu_cycles = next;
-
-    u64 time_base = ((u64)cpu_ptr->special_purpose_registers.buf[269] << 32 |
-                     cpu_ptr->special_purpose_registers.buf[268]) +
-                    elapsed_ticks;
-    cpu_ptr->special_purpose_registers.buf[268] = time_base & U32_MAX;
-    cpu_ptr->special_purpose_registers.buf[269] = time_base >> 32;
-
-    if (next >= next_deadline)
+    cpu_ptr->cpu_cycles += cycle_count;
+    if (cpu_ptr->cpu_cycles >= next_deadline)
         run_event(cpu_ptr);
 }
 

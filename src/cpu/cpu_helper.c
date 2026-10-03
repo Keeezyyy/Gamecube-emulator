@@ -4,6 +4,7 @@
 #include "cpu/spr.h"
 #include "graphics/gx_fifo.h"
 #include <stdio.h>
+#include <sys/stat.h>
 
 static CPU *static_cpu_ptr;
 typedef struct {
@@ -287,6 +288,10 @@ static void _write_spr(u32 reg_num, u32 val)
     case SPR_DECREMENTOR:
         update_decrementor(static_cpu_ptr);
         break;
+    case SPR_TIME_BASE_H:
+    case SPR_TIME_BASE_L:
+        time_base_write(static_cpu_ptr, reg_num, val);
+        break;
     default:
         break;
     }
@@ -296,6 +301,9 @@ static u32 _read_spr(u32 reg_num)
     switch (reg_num) {
     case SPR_DECREMENTOR:
         return decrementor_read(static_cpu_ptr);
+    case SPR_TIME_BASE_H:
+    case SPR_TIME_BASE_L:
+        return time_base_read(static_cpu_ptr, reg_num);
     default:
         return static_cpu_ptr->special_purpose_registers.buf[reg_num];
     }
