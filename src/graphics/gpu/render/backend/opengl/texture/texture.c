@@ -124,6 +124,74 @@ static void _rgb5a3_decode(const u8 *src, u32 width, u32 height, u32 *dest)
         }
     }
 }
+static void _rgb565_decode(const u8 *src, u32 width, u32 height, u32 *dest)
+{
+
+    u32 *pixels = dest;
+    int widthBlks = (width + 3) / 4;
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int base = ((y / 4) * widthBlks + (x / 4)) * 32;
+            int off = ((y % 4) * 4 + (x % 4)) * 2;
+
+            const u16 I = *(const u16 *)(&src[base + off]);
+            pixels[y * TEXTURE_STRIDE + x] =
+                pack_rgba(I & 0x1F, (I >> 5) & 0x3F, (I >> 11) & 0x1F, 0xFF);
+        }
+    }
+}
+static inline u8 ex5(u16 v)
+{
+    return (v << 3) | (v >> 2);
+}
+static inline u8 ex6(u16 v)
+{
+    return (v << 2) | (v >> 4);
+}
+
+static void _cmpr_decode(const u32 *src, u32 w, u32 h, u32 *dest)
+{
+
+    for (int ty = 0; ty < h; ty += 8)
+        for (int tx = 0; tx < w; tx += 8)
+            for (int sb = 0; sb < 4; sb++, src += 2) {
+                u32 cols = src[0];
+                u32 bits = src[1];
+
+                u16 c0 = cols >> 16, c1 = cols & 0xFFFF;
+
+                u8 r[4], g[4], b[4], a[4] = {255, 255, 255, 255};
+                r[0] = ex5(c0 >> 11);
+                g[0] = ex6((c0 >> 5) & 63);
+                b[0] = ex5(c0 & 31);
+                r[1] = ex5(c1 >> 11);
+                g[1] = ex6((c1 >> 5) & 63);
+                b[1] = ex5(c1 & 31);
+                if (c0 > c1) {
+                    r[2] = (5 * r[0] + 3 * r[1]) >> 3;
+                    g[2] = (5 * g[0] + 3 * g[1]) >> 3;
+                    b[2] = (5 * b[0] + 3 * b[1]) >> 3;
+                    r[3] = (3 * r[0] + 5 * r[1]) >> 3;
+                    g[3] = (3 * g[0] + 5 * g[1]) >> 3;
+                    b[3] = (3 * b[0] + 5 * b[1]) >> 3;
+                } else {
+                    r[2] = (r[0] + r[1]) / 2;
+                    g[2] = (g[0] + g[1]) / 2;
+                    b[2] = (b[0] + b[1]) / 2;
+                    r[3] = g[3] = b[3] = 0;
+                    a[3] = 0;
+                }
+
+                int bx = tx + (sb & 1) * 4, by = ty + (sb >> 1) * 4;
+                for (int n = 0; n < 16; n++, bits <<= 2) {
+                    int i = bits >> 30;
+                    int px = bx + (n & 3), py = by + (n >> 2);
+                    if (px < w && py < h)
+                        dest[py * w + px] = (u32)r[i] << 24 | g[i] << 16 | b[i] << 8 | a[i];
+                }
+            }
+}
 
 void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_width,
                            u32 *upload_height)
@@ -155,6 +223,12 @@ void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_widt
         break;
     case TEXTURE_FORMAT_RGB5A3:
         _rgb5a3_decode(&cpu->bus->ram[ram_adr << 5], width, height, dest);
+        break;
+    case TEXTURE_FORMAT_RGB565:
+        _rgb565_decode(&cpu->bus->ram[ram_adr << 5], width, height, dest);
+        break;
+    case TEXTURE_FORMAT_CMPR:
+        _cmpr_decode((u32 *)&cpu->bus->ram[ram_adr << 5], width, height, dest);
         break;
     default: {
         if (tex_format == TEXTURE_FORMAT_C4 || tex_format == TEXTURE_FORMAT_C8 ||

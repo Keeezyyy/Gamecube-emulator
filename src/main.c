@@ -60,7 +60,7 @@ static int _init(void)
 
     init_disc(&disc);
 
-    if (disc.load_rom(&disc, "./roms/pm.iso") != 0) {
+    if (disc.load_rom(&disc, "./roms/rom.iso") != 0) {
 
         return 1;
     }
