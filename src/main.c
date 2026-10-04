@@ -10,6 +10,7 @@
 #include "cpu/cpu.h"
 #include "cpu/cpu_types.h"
 #include "cpu/translation/translation.h"
+#include "devices/memory_card.h"
 #include "graphics/cp/cp.h"
 #include "graphics/vi.h"
 #ifdef OPENGL_RENDERER
@@ -52,6 +53,11 @@ static void print_clock(int sig)
 }
 #endif
 
+static void _init_deviced(void)
+{
+    init_mem_card(MEMCARD_SIZE_128MB);
+}
+
 static int _init(void)
 {
 
@@ -60,7 +66,7 @@ static int _init(void)
 
     init_disc(&disc);
 
-    if (disc.load_rom(&disc, "./roms/rom.iso") != 0) {
+    if (disc.load_rom(&disc, "./roms/test1.iso") != 0) {
 
         return 1;
     }
@@ -125,6 +131,8 @@ int main(int argc, char **argv)
         _free();
         return 1;
     }
+
+    _init_deviced();
 
     cpu.boot(&cpu);
 

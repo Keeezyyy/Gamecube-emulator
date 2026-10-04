@@ -2,6 +2,14 @@
 
 #include "cpu/cpu_types.h"
 
+typedef struct {
+    u64 EXInCSR;
+    u64 EXInMAR;
+    u64 EXInLENGTH;
+    u64 EXInCR;
+    u64 EXInDATA;
+} PACKED RegistersPerChannel;
+
 #define EXIINTMASK_OFF 0
 #define EXIINT_OFF 1
 #define TCINTMASK_OFF 2
@@ -34,6 +42,8 @@
 
 u64 exi_read(CPU *cpu, u32 adr, u32 size);
 void exi_write(CPU *cpu, u32 adr, u64 val, u32 size);
+void exi_push_data(CPU *cpu, RegistersPerChannel *r, const u32 *data, const u16 length);
+void exi_transfer_finished(CPU *cpu);
 
 void init_exi(void);
 u32 exi_get_csr(u8 channel);

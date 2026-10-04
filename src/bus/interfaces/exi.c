@@ -3,19 +3,13 @@
 #include "bus/interfaces/pi.h"
 #include "bus/ipl.h"
 #include "core/config/config.h"
+#include "devices/memory_card.h"
 #include <_abort.h>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #define CH0_IPL 1
-
-typedef struct {
-    u64 EXInCSR;
-    u64 EXInMAR;
-    u64 EXInLENGTH;
-    u64 EXInCR;
-    u64 EXInDATA;
-} PACKED RegistersPerChannel;
 
 static struct {
     RegistersPerChannel channels[3];
@@ -24,7 +18,9 @@ static struct {
 
 void init_exi(void)
 {
-    exi_registers.channels[1].EXInCSR = 0;
+
+    // BIT 12 -> External device (Memory card)
+    exi_registers.channels[1].EXInCSR = BIT(12);
 }
 static u32 ch0_dev_1_imm;
 
@@ -62,13 +58,33 @@ u64 exi_read(CPU *cpu, u32 adr, u32 size)
     return 0;
 }
 
+void exi_push_data(CPU *cpu, RegistersPerChannel *r, const u32 *data, const u16 length)
+{
+    if (((r->EXInCR >> 2) & 0x3) != 0)
+        assert(!"wrong exi push operadtion\n");
+
+    if ((r->EXInCR >> 1) & 1) {
+        // DMA
+        memset(&cpu->bus->ram[r->EXInMAR], 0, r->EXInLENGTH);
+        memcpy(&cpu->bus->ram[r->EXInMAR], data, length);
+    } else {
+        r->EXInDATA = *data;
+    }
+}
+
+void exi_transfer_finished(CPU *cpu)
+{
+    exi_registers.channels[0].EXInCSR |= TCINT;
+    pi_update_interrupts(cpu);
+}
+
 void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
 {
     u8 ch_index = (adr - 0xCC006800) / 0x14;
     u32 offset = (adr - 0xCC006800) % 0x14;
     u8 current_chip_selected = (exi_registers.channels[ch_index].EXInCSR >> 4) & 0x5;
 
-    EXI_PRINT("[EXI] write : adr : 0x%08x, val : 0x%08x\n", adr, (u32)val);
+    printf("[EXI] write : adr : 0x%08x, val : 0x%08x\n", adr, (u32)val);
 
     if (ch_index == 2) {
         return; // for console debugging
@@ -113,18 +129,22 @@ void exi_write(CPU *cpu, u32 adr, u64 val, u32 size)
         }
 
     case 0x0C:
-        if (current_chip_selected == CH0_IPL && ch_index == 0 && val & 1) {
-            // ipl write
-            exi_registers.channels[0].EXInCR = val & 0x3E;
+        if (val & 1) {
+            if (current_chip_selected == CH0_IPL && ch_index == 0) {
+                // ipl write
+                exi_registers.channels[0].EXInCR = val & 0x3E;
 
-            if (((val >> 1) & 1) == 1) {
-                EXI_PRINT("[EXI] start IPL dma\n");
-                ipl_start_dma_transfer(cpu->bus);
-                exi_registers.channels[0].EXInCSR |= TCINT;
-                pi_update_interrupts(cpu);
-            } else {
-                EXI_PRINT("[EXI] start IPL imma\n");
-                ipl_start_imm_data(cpu->bus);
+                if (((val >> 1) & 1) == 1) {
+                    EXI_PRINT("[EXI] start IPL dma\n");
+                    ipl_start_dma_transfer(cpu->bus);
+                    exi_transfer_finished(cpu);
+                } else {
+                    EXI_PRINT("[EXI] start IPL imma\n");
+                    ipl_start_imm_data(cpu->bus);
+                }
+            }
+            if (ch_index == 1 && current_chip_selected == 0) {
+                memory_card_exi_transer(cpu, &exi_registers.channels[1]);
             }
 
             return;

@@ -139,7 +139,7 @@ void di_start_dma(CPU *cpu)
     DI_PRINT("[DI] DVD DMA : 0x%08x\n", di_dma_regs.DICMDBUF0);
     u32 cmd = (di_dma_regs.DICMDBUF0);
     u8 op = (cmd >> 24) & 0xFF;
-    printf("cmd : 0x%08x, op : 0x%02x\n", cmd, op);
+    DI_PRINT("cmd : 0x%08x, op : 0x%02x\n", cmd, op);
     switch (op) {
     case 0xA8: {
         if ((cmd & 0xFF) == 0x0) {
@@ -148,8 +148,8 @@ void di_start_dma(CPU *cpu)
             const u32 len = di_dma_regs.DICMDBUF2;
             const u32 adr_virtual = di_dma_regs.DIMAR;
 
-            printf("[DVD_READ] : disk adr : 0x%08x, len : 0x%08x, dest_adr_virtual : 0x%08x\n",
-                   disk_offset, len, adr_virtual);
+            DI_PRINT("[DVD_READ] : disk adr : 0x%08x, len : 0x%08x, dest_adr_virtual : 0x%08x\n",
+                     disk_offset, len, adr_virtual);
 
             _read_dvd(cpu, disk_offset, len, adr_virtual);
             di_dma_regs.DICR |= BIT(0);

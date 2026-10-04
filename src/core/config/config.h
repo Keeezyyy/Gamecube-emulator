@@ -10,7 +10,7 @@
 #error "nur eine renderer darf aktiv sein "
 #endif
 
-#define MI_DEBUG
+// #define MI_DEBUG
 #ifdef DEBUG_ALL_INTERFACES
 #define DI_DEBUG
 #define SI_DEBUG
@@ -19,6 +19,7 @@
 #define PI_DEBUG
 
 #endif // DEBUG_ALL_INTERFACES
+#define EXI_DEBUG
 
 #define u8 uint8_t
 #define u16 uint16_t
