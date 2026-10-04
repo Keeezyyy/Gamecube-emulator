@@ -3,22 +3,16 @@
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 typedef struct PERegs {
-    /* +0x00 */
     volatile uint16_t ZCONF;
 
-    /* +0x02 */
     volatile uint16_t ALPHACONF;
 
-    /* +0x04 */
     volatile uint16_t DSTALPHACONF;
 
-    /* +0x06 */
     volatile uint16_t ALPHAMODE;
 
-    /* +0x08 */
     volatile uint16_t ALPHAREAD;
 
-    /* +0x0A */
     volatile uint16_t CTRL;
 } PACKED PERegs;
 
@@ -28,6 +22,6 @@ u16 pe_get_ctrl(void);
 
 #define PE_INTERRUPT_TOKEN 0
 #define PE_INTERRUPT_FINISH 1
-void pe_set_interrupt(CPU *cpu, const u8 interrupt_source);
+void pe_set_interrupt(CPU *cpu);
 
-void pe_set_token(u32 token);
+void pe_set_token(u32 t, CPU *cpu, bool set_interrupt);

@@ -27,15 +27,9 @@ u64 pi_read(CPU *cpu, u32 adr, u32 size)
     if (adr == 0xcc003004) {
         return cpu->exception.interrupt_mask_register;
     }
-    if (adr == 0xcc00302c) {
-        return 0x20000000;
-    }
-    if (adr == 0xcc003024) {
-        return 0x0;
-    }
 
-    assert(!"read pi not implemented\n");
-    return 0;
+    assert(size == 4);
+    return *(u32 *)&((u8 *)&pi_regs.PI_FIFO_BASE)[adr - 0xcc00300C];
 }
 
 static u16 processor_interface_control_register = 0;

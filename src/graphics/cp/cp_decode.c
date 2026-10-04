@@ -90,19 +90,22 @@ static void load_bp_reg(CPU *cpu, u32 cmd)
     if (reg == 0x45 || reg == 0x47 || reg == 0x48 || reg == 0x52 || reg == 0x55 || reg == 0x56 ||
         reg == 0x57 || reg == 0x63 || reg == 0x64 || reg == 0x65 || reg == 0x66) {
         switch (reg) {
-        case BP_SET_DRAW_DONE: {
-            pe_set_interrupt(cpu, PE_INTERRUPT_FINISH);
+        case 0x45: {
+            pe_set_interrupt(cpu);
             GPU_PRINT("[GPU] : GX_DawDone\n");
             GPU_PRINT("----------------------------------------------------------------------------"
                       "-----\n");
             break;
         }
-        case BP_SET_PE_TOKEN: {
-            assert(!"pe token");
+        case 0x47: {
+            pe_set_token(new_val, cpu, false);
+            break;
+        }
+        case 0x48: {
+            pe_set_token(new_val, cpu, true);
             break;
         }
         case 0x52: {
-            // 0x52 TRIGGER_EFB_COPY GX_CopyDisp/CopyTex startet Kopie (+Clear)
 #ifdef SOFTWARE_RENDERER
             if (((new_val >> 14) & 1)) {
                 copy_efb_to_xfb(cpu);
