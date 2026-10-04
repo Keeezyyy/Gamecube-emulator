@@ -103,6 +103,27 @@ static void _ia8_decode(const u8 *src, u32 width, u32 height, u32 *dest)
         }
     }
 }
+static void _rgb5a3_decode(const u8 *src, u32 width, u32 height, u32 *dest)
+{
+
+    u32 *pixels = dest;
+    int widthBlks = (width + 3) / 4;
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int base = ((y / 4) * widthBlks + (x / 4)) * 32;
+            int off = ((y % 4) * 4 + (x % 4)) * 2;
+
+            const u16 I = *(const u16 *)(&src[base + off]);
+            if ((I >> 15) & 1)
+                pixels[y * TEXTURE_STRIDE + x] =
+                    pack_rgba(I & 0x1F, (I >> 5) & 0x1F, (I >> 10) & 0x1F, 0xFF);
+            else
+                pixels[y * TEXTURE_STRIDE + x] =
+                    pack_rgba(I & 0xF, (I >> 4) & 0xF, (I >> 8) & 0xF, (I >> 12) & 0x7);
+        }
+    }
+}
 
 void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_width,
                            u32 *upload_height)
@@ -132,6 +153,9 @@ void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_widt
     case TEXTURE_FORMAT_IA8:
         _ia8_decode(&cpu->bus->ram[ram_adr << 5], width, height, dest);
         break;
+    case TEXTURE_FORMAT_RGB5A3:
+        _rgb5a3_decode(&cpu->bus->ram[ram_adr << 5], width, height, dest);
+        break;
     default: {
         if (tex_format == TEXTURE_FORMAT_C4 || tex_format == TEXTURE_FORMAT_C8 ||
             tex_format == TEXTURE_FORMAT_C14X2) {
@@ -153,7 +177,7 @@ void opengl_encode_texture(CPU *cpu, TextureUnit *u, u32 *dest, u32 *upload_widt
             return;
         }
         printf("texture format : 0x%x\n", tex_format);
-        assert(!"texutre format isnt implemented\n");
+        // assert(!"texutre format isnt implemented\n");
     }
     }
 }
