@@ -78,6 +78,7 @@ static ControllerInput last_state;
 
 static void test_input(void)
 {
+
     ControllerInput i = {0};
 
     float leftX = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) + 1) / 2;
@@ -88,6 +89,45 @@ static void test_input(void)
 
     float lt = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) + 1) / 2;
     float rt = (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) + 1) / 2;
+
+    if (IsKeyDown(KEY_A))
+        leftX = 0.0f;
+    if (IsKeyDown(KEY_D))
+        leftX = 1.0f;
+    if (IsKeyDown(KEY_W))
+        leftY = 0.0f;
+    if (IsKeyDown(KEY_S))
+        leftY = 1.0f;
+
+    if (IsKeyDown(KEY_LEFT))
+        rightX = 0.0f;
+    if (IsKeyDown(KEY_RIGHT))
+        rightX = 1.0f;
+    if (IsKeyDown(KEY_UP))
+        rightY = 0.0f;
+    if (IsKeyDown(KEY_DOWN))
+        rightY = 1.0f;
+
+    if (IsKeyDown(KEY_Q))
+        i.btn_2 |= BIT_Z;
+
+    if (IsKeyDown(KEY_DOWN))
+        i.btn_2 |= BIT_D_DOWN;
+    if (IsKeyDown(KEY_LEFT))
+        i.btn_2 |= BIT_D_LEFT;
+    if (IsKeyDown(KEY_RIGHT))
+        i.btn_2 |= BIT_D_RIGHT;
+    if (IsKeyDown(KEY_UP))
+        i.btn_2 |= BIT_D_UP;
+
+    if (IsKeyDown(KEY_J))
+        i.btn_1 |= BIT_A;
+    if (IsKeyDown(KEY_K))
+        i.btn_1 |= BIT_B;
+    if (IsKeyDown(KEY_L))
+        i.btn_1 |= BIT_X;
+    if (IsKeyDown(KEY_I))
+        i.btn_1 |= BIT_Y;
 
     if (fabsf(leftX) < DEADZONE)
         leftX = 0.0f;
@@ -133,7 +173,6 @@ static void test_input(void)
         i.btn_1 |= BIT_X;
     if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_UP))
         i.btn_1 |= BIT_Y;
-
     if (memcmp(&i, &last_state, sizeof(ControllerInput)) == 0) {
         return;
     }

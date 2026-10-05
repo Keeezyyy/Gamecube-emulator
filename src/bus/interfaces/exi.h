@@ -40,10 +40,18 @@ typedef struct {
 #define EXT (1u << EXT_OFF)
 #define ROMDIS (1u << ROMDIS_OFF)
 
+#define EXI_CR_TSTART (1u << 0)
+#define EXI_CR_DMA (1u << 1)
+#define EXI_CR_RW(cr) (((u32)(cr) >> 2) & 0x3)
+#define EXI_CR_TLEN(cr) ((((u32)(cr) >> 4) & 0x3) + 1)
+
+#define EXI_RW_READ 0
+#define EXI_RW_WRITE 1
+
 u64 exi_read(CPU *cpu, u32 adr, u32 size);
 void exi_write(CPU *cpu, u32 adr, u64 val, u32 size);
-void exi_push_data(CPU *cpu, RegistersPerChannel *r, const u32 *data, const u16 length);
-void exi_transfer_finished(CPU *cpu);
+u32 exi_push_data(CPU *cpu, RegistersPerChannel *r, const u8 *data, u32 length);
+u32 exi_pull_data(CPU *cpu, RegistersPerChannel *r, u8 *data, u32 length);
 
 void init_exi(void);
 u32 exi_get_csr(u8 channel);

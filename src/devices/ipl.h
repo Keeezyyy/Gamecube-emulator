@@ -8,6 +8,9 @@
 #define CMD_SECONDS_SINCE_REQUEST 0x20000000
 #define CMD_FONT_REQUEST 0x07f3c000
 
+#define EXI_CHANNEL 0
+#define EXI_CHIP 1
+
 typedef struct OSSram {
     u16 checkSum;
     u16 checkSumInv;

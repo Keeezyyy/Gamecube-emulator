@@ -1,6 +1,6 @@
 #pragma once
 #include "bus/bus.h"
-#include "bus/ipl.h"
+#include "./devices/ipl.h"
 #include "cpu/cpu_types.h"
 
 #define INTERRUPT_SOURCE_PI_ERROR 0

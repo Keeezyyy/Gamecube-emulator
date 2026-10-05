@@ -7,6 +7,7 @@
 #include "bus/interfaces/si.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
+#include "devices/ipl.h"
 #include "disc/disc.h"
 #include "graphics/gx_fifo.h"
 #include "graphics/cp/cp.h"

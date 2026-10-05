@@ -55,7 +55,7 @@ static void print_clock(int sig)
 
 static void _init_deviced(void)
 {
-    init_mem_card(MEMCARD_SIZE_128MB);
+    init_mem_card(MEMCARD_SIZE_128MBIT);
 }
 
 static int _init(void)

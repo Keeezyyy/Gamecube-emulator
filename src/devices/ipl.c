@@ -44,7 +44,7 @@ void set_ipl_dma_size(u32 size)
 static u32 imm_data;
 void ipl_start_imm_data(Bus *bus)
 {
-    //printf("current command : 0x%08x\n", current_command);
+    // printf("current command : 0x%08x\n", current_command);
     switch (current_command) {
     case CMD_SECONDS_SINCE_REQUEST: {
 
