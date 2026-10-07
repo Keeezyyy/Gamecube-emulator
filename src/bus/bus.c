@@ -262,6 +262,7 @@ static void _write(Bus *self, u32 adr, u64 val, u32 size)
         return;
     }
     if ((adr & 0x0F000000) == 0x08000000) { // TODO: for now
+        printf("write to fb\n");
         return;
     }
     if (adr >= 0xCC008000 && adr < 0xe0000000) {

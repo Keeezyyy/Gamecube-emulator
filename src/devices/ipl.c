@@ -57,8 +57,6 @@ void ipl_start_imm_data(Bus *bus)
 void ipl_start_dma_transfer(Bus *bus)
 {
     if (current_command < 0x20000000) {
-
-        // ROM-Reads kommen aus dem echten Bootrom, nicht aus dem DOL
         u32 ipl_adr = ((current_command >> 6) & 0x1FFFFFF);
         assert((u64)ipl_adr + dma_length <= bus->ipl_rom_size);
         memcpy(&((u8 *)bus->ram)[physical_adr], &((u8 *)bus->ipl_rom)[ipl_adr], dma_length);

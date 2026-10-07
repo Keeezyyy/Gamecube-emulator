@@ -55,6 +55,7 @@ static void memory_card_execute(void)
     case MEMORY_CARD_CMD_GET_ID: {
         u32 id = ((u32)card.capacity & 0xFF) | (((u32)card.latency & 0x7) << 8) |
                  (((u32)card.sector_size & 0x7) << 11);
+        printf("writing id : 0x%08x\n", id);
         memory_card_respond_u32(id);
         break;
     }

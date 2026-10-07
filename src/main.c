@@ -1,4 +1,5 @@
 
+#include <_abort.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,7 +59,7 @@ static void _init_deviced(void)
     init_mem_card(MEMCARD_SIZE_128MBIT);
 }
 
-static int _init(void)
+int _init(const char *path)
 {
 
     init_scheduler(&cpu);
@@ -66,7 +67,7 @@ static int _init(void)
 
     init_disc(&disc);
 
-    if (disc.load_rom(&disc, "./roms/test1.iso") != 0) {
+    if (disc.load_rom(&disc, path) != 0) {
 
         return 1;
     }
@@ -75,6 +76,7 @@ static int _init(void)
     // NOTE: might implement encryption
 
     if (b.load_ipl(&b, "./roms/ngc_pal_ipl.dol") != 0) {
+        // if (b.load_ipl(&b, "./testing/customipl/customipl.dol") != 0) {
         return 1;
     }
     /*
@@ -117,6 +119,7 @@ static void _threads(void)
 #ifdef OPENGL_RENDERER
     opengl_create_context();
 #endif
+
     pthread_t gpu_pipeline_cp_thread;
     pthread_create(&gpu_pipeline_cp_thread, NULL, (void *)cp_thread, &cpu);
     pthread_detach(gpu_pipeline_cp_thread);
@@ -126,8 +129,12 @@ static void _threads(void)
 
 int main(int argc, char **argv)
 {
+    if (argc != 2) {
+        printf("usage : ./app [PATH_TO_ROM]\n");
+        abort();
+    }
 
-    if (_init() != 0) {
+    if (_init(argv[1]) != 0) {
         _free();
         return 1;
     }

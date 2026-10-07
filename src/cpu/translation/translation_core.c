@@ -1,3 +1,4 @@
+#include "bus/interfaces/pi.h"
 #include "core/config/config.h"
 #include "cpu/cpu_types.h"
 #include "cpu/fpu.h"
@@ -20,6 +21,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <oaknut_enc.h>
 
 #define CORRECT_ENDIAN(x) (_endian32(x, false))
 
@@ -990,7 +993,25 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
 
             *termination_type = TERMINATING_TYPE_CONDITINIAL_BRANCH;
             return curr_instruction;
+        } else if (_get_field(insn, 21, 30) == OPC_MCRF_EXT) {
+            const u32 crfD = _get_field(insn, 6, 8);
+            const u32 crfS = _get_field(insn, 11, 13);
+            if (g_print_debug)
+                printf("[0x%08x] : mcrf %d, %d \n", pc_buffer[pc_buffer_counter], crfD, crfS);
+
+            u32 *curr_instruction = code_buffer;
+
+            curr_instruction = emit_load_u64(curr_instruction, 2, (u64)&cpu->state.cr);
+            *curr_instruction++ = oak_enc_LDR_w_xsp(1, 2);
+            *curr_instruction++ = oak_enc_UBFX_w_w_imm_imm(0, 1, 28 - (4 * crfS), 4);
+            *curr_instruction++ = oak_enc_BFI_w_w_imm_imm(1, 0, 28 - (4 * crfD), 4);
+            *curr_instruction++ = oak_enc_STR_w_xsp(1, 2);
+
+            *pc_after_instruction += 4;
+
+            return curr_instruction;
         } else {
+            printf("op . 0x%02x, ex : 0x%08x\n", op, _get_field(insn, 21, 30));
             assert(!"not implemeted 2.\n");
         }
     }
@@ -3067,7 +3088,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             curr_instruction = emit_load_u32(curr_instruction, 2, (u64)sr);
 
             const u32 *main_block, *main_block_end;
-            emit_mfspr(&main_block, &main_block_end);
+            emit_mfsr(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
             *pc_after_instruction += 4;
@@ -3087,7 +3108,7 @@ static u32 *_translate_instruction(u32 insn, CPU *cpu, u32 *pc_after_instruction
             curr_instruction = emit_load_u32(curr_instruction, 2, (u64)sr);
 
             const u32 *main_block, *main_block_end;
-            emit_mtspr(&main_block, &main_block_end);
+            emit_mtsr(&main_block, &main_block_end);
             curr_instruction = write_to_buffer(curr_instruction, {main_block, main_block_end});
 
             *pc_after_instruction += 4;

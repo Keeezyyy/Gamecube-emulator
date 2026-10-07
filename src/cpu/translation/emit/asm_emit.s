@@ -1847,6 +1847,33 @@ _emit_mtsrin:
         _emit_mtsrin_after:
 
 
+// mfsr/mtsr: w0 = GPR, x1 = &sr[0], w2 = SR-Nummer (fest im Befehl)
+.globl _emit_mfsr
+_emit_mfsr:
+          adr x2, _emit_mfsr_start
+          adr x3, _emit_mfsr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret
+        _emit_mfsr_start:
+        ldr w3, [x1, w2, uxtw 2]
+        str w3, [GUEST_REGISTER_POINTER, w0, uxtw 2]
+        _emit_mfsr_after:
+
+
+.globl _emit_mtsr
+_emit_mtsr:
+          adr x2, _emit_mtsr_start
+          adr x3, _emit_mtsr_after
+          str x2, [x0]
+          str x3, [x1]
+          ret
+        _emit_mtsr_start:
+        LOAD_REGISTER w0, w4
+        str w4, [x1, w2, uxtw 2]
+        _emit_mtsr_after:
+
+
 
 .globl _emit_lbzu
 _emit_lbzu:

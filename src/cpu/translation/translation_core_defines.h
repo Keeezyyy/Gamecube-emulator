@@ -98,6 +98,7 @@
 #define OPC_EXTSBX_EXT 954
 #define OPC_EXTSHX_EXT 922
 #define OPC_CMPL_EXT 32
+#define OPC_MCRF_EXT 0
 #define OPC_DCBF_EXT 86
 #define OPC_ICBI_EXT 982
 #define OPC_DCBI_EXT 470

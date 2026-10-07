@@ -1,29 +1,20 @@
-Gamecube emulator with dynamic recompilation(qemu arch)
+#GameCube emulator for ARM64 architecture with OpenGL renderer
 
-
-
-CPU is 80% done and runs at 175MHz (36% of original)
-For now rendering is purely on host cpu
-![MIT License](media/progress-screenshot-04.gif)
-
-
-
-//Animal crossing is loading and running at ~2fps with the software renderer
-![MIT License](media/progress-screenshot-05.png)
+**Launches a couple of games at ~20% of the original CPU speed**
+![MIT License](media/progress-screenshot-06.gif)
 
 TODO RENDER:
-  - [ ] transformation
-      - [ ] frac in pos
-  - [ ] Texture mapping 
-  - [ ] color channels 
-  - [ ] effects
-  - [ ] post processing 
+  - [x] transformation
+      - [x] frac in pos
+  - [x] Texture mapping 
+  - [x] color channels 
+  - [x] effects
+  - [x] post processing 
 
 TODO Optimization
  - [ ] tb-chainging
  - [ ] global memory maanager (allocate in bigger chunks)
-
- - [x] use another thread for the command processor
+ - [ ] cpu paging
 
 
 

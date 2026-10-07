@@ -24,6 +24,13 @@ void cp_write(CPU *cpu, u32 adr, u32 val, u32 size)
 
     // printf("cp write : adr : 0x%08x, val : 0x%08x\n", adr, val);
 
+    if (adr == CP_DEBUG_PORT) {
+        putchar((int)(val & 0xFF));
+        if ((val & 0xFF) == '\n')
+            fflush(stdout);
+        return;
+    }
+
     if (adr == 0xCC000004) {
         if (val & 1) {
             cp_regs.SR &= ~0x1;

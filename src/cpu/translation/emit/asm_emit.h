@@ -92,6 +92,8 @@ extern void emit_lmw(u32 **start, u32 **end);
 extern void emit_bcctr(u32 **start, u32 **end);
 extern void emit_mfsrin(u32 **start, u32 **end);
 extern void emit_mtsrin(u32 **start, u32 **end);
+extern void emit_mfsr(u32 **start, u32 **end);
+extern void emit_mtsr(u32 **start, u32 **end);
 extern void emit_lfdu(u32 **start, u32 **end);
 extern void emit_lfdx(u32 **start, u32 **end);
 extern void emit_lfdux(u32 **start, u32 **end);

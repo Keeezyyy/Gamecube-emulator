@@ -348,6 +348,17 @@ release:
 	$(MAKE) BUILD_TYPE=release all
 
 # ==== Run ====================================================================
+# Zusaetzliche Goals nach run/debug werden als Argumente durchgereicht:
+#   make run 5 rom.iso   ==   make run ARGS="5 rom.iso"
+# (Optionen mit '-' frisst make selbst, dafuer weiterhin ARGS= nutzen.)
+ifneq ($(filter run debug,$(firstword $(MAKECMDGOALS))),)
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  ifneq ($(RUN_ARGS),)
+    ARGS += $(RUN_ARGS)
+    .PHONY: $(RUN_ARGS)
+    $(eval $(RUN_ARGS):;@:)
+  endif
+endif
 
 run: $(BIN) shaders
 	./$(BIN) $(ARGS)

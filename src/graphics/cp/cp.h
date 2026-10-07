@@ -6,6 +6,7 @@
 #include <sys/_pthread/_pthread_mutex_t.h>
 
 #define CP_CONTROL_REGISTER 0xCC000002
+#define CP_DEBUG_PORT 0xCC000FEE
 
 #define OPCODE_NOP 0x00
 #define OPCODE_INVL_VC 0x48

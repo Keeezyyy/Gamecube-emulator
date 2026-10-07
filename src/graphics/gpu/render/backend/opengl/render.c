@@ -25,6 +25,31 @@ static GLuint fbo, colorTex;
 
 #define VERTEX_BUFFER_SIZE (U16_MAX * sizeof(Vertex))
 static GLint vertex_offset;
+
+static void _apply_cull_mode(const u8 cull_mode)
+{
+    // GRAPHICS:
+    // TODO:fix
+    return;
+    switch (cull_mode) {
+    case 0:
+        glDisable(GL_CULL_FACE);
+        break;
+    case 1:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        break;
+    case 2:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+        break;
+    case 3:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT_AND_BACK);
+        break;
+    }
+}
+
 void opengl_render_primitive(CPU *cpu, Primitive *p)
 {
     if (is_tex_unit_dirty())
@@ -57,10 +82,14 @@ void opengl_render_primitive(CPU *cpu, Primitive *p)
     glDepthFunc(GL_NEVER + ((zmode >> 1) & 7));
     glDepthMask((zmode >> 4) & 1);
 
+    const u32 gen_mode = get_bp_register_pointer()[0x0];
+    _apply_cull_mode((gen_mode >> 14) & 0x3);
+
     static const GLenum blend_src[] = {GL_ZERO,      GL_ONE,
                                        GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR,
                                        GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
                                        GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA};
+
     static const GLenum blend_dst[] = {GL_ZERO,      GL_ONE,
                                        GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR,
                                        GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
