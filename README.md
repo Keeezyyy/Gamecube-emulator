@@ -1,4 +1,4 @@
-#GameCube emulator for ARM64 architecture with OpenGL renderer
+# GameCube emulator for ARM64 architecture with OpenGL renderer
 
 **Launches a couple of games at ~20% of the original CPU speed**
 ![MIT License](media/progress-screenshot-06.gif)
