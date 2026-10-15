@@ -16,11 +16,6 @@ KHASH_MAP_INIT_INT64(tb_map, TranslationBlock *)
 
 static khash_t(tb_map) * t;
 
-#define TB_CACHE_ENTRIES 3
-
-static TranslationBlock *translation_block_cache[TB_CACHE_ENTRIES];
-static TranslationBlock *translation_block_cache_scratch[TB_CACHE_ENTRIES];
-
 void init_translation(Disc *disc)
 {
     t = kh_init(tb_map);
@@ -36,24 +31,29 @@ static inline u64 get_hash_from_state(const u32 pc, const u32 msr)
     return (u64)pc << 32 | msr;
 }
 
-void _empty(u64 pc)
-{
+#define DIRECT_MAP_CACHE_BIT_LENGTH 12
+#define DIRECT_MAP_CACHE_SIZE (1 << DIRECT_MAP_CACHE_BIT_LENGTH)
 
-    printf("run tb block for pc : 0x%016llx\n", pc);
-}
+static TranslationBlock *direct_cache[DIRECT_MAP_CACHE_SIZE];
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
-    for (int i = 0; i < TB_CACHE_ENTRIES; i++) {
-        if (translation_block_cache[i] == NULL_PTR)
-            continue;
-        if (translation_block_cache[i]->pc_at_start == cpu->state.pc &&
-            translation_block_cache[i]->msr_at_start == cpu->state.msr) {
-            translation_block_cache[i]->cache_hits++;
-            return translation_block_cache[i];
-        }
+
+    const u16 cache_idx = cpu->state.pc & (DIRECT_MAP_CACHE_SIZE - 1);
+
+    TranslationBlock *cache_entry = direct_cache[cache_idx];
+
+    if (cache_entry != NULL_PTR && cache_entry->pc_at_start == cpu->state.pc &&
+        cache_entry->msr_at_start == cpu->state.msr) {
+        // cache hit
+        return cache_entry;
     }
+
     const khiter_t k = kh_get(tb_map, t, get_hash_from_state(cpu->state.pc, cpu->state.msr));
+
+    if (k != kh_end(t))
+        direct_cache[cache_idx] = kh_value(t, k);
+
     return k == kh_end(t) ? NULL : kh_value(t, k);
 }
 
@@ -103,9 +103,11 @@ void invalidate_tb(u32 adr_start, u32 adr_end)
 
         if ((adr_start <= tb->pc_at_start && adr_end >= tb->pc_at_start) ||
             (adr_start <= tb->pc_at_end && adr_end >= tb->pc_at_end)) {
-            for (int i = 0; i < TB_CACHE_ENTRIES; i++)
-                if (translation_block_cache[i] == tb)
-                    translation_block_cache[i] = NULL;
+
+            const u16 cache_idx = tb->pc_at_start & (DIRECT_MAP_CACHE_SIZE - 1);
+
+            if (direct_cache[cache_idx] == tb)
+                direct_cache[cache_idx] = NULL_PTR;
 
             free_tb(tb);
             kh_del(tb_map, t, k);
@@ -129,14 +131,6 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     *(uintptr_t *)&code = (uintptr_t)block->core.code;
     code();
 
-    if (translation_block_cache[0] == block)
-        return;
-
-    memcpy(&translation_block_cache_scratch[1], &translation_block_cache[0],
-           (TB_CACHE_ENTRIES - 1) * sizeof(void *));
-
-    translation_block_cache[0] = block;
-
-    memcpy(&translation_block_cache[1], &translation_block_cache_scratch[1],
-           (TB_CACHE_ENTRIES - 1) * sizeof(void *));
+    const u16 cache_idx = block->pc_at_start & (DIRECT_MAP_CACHE_SIZE - 1);
+    direct_cache[cache_idx] = block;
 }
