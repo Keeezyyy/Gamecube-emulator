@@ -33,14 +33,14 @@ static inline u64 get_hash_from_state(const u32 pc, const u32 msr)
 
 #define DIRECT_MAP_CACHE_BIT_LENGTH 12
 #define DIRECT_MAP_CACHE_SIZE (1 << DIRECT_MAP_CACHE_BIT_LENGTH)
+#define DIRECT_MAP_CACHE_ALIGN_PC(x) (x >> 2)
 
 static TranslationBlock *direct_cache[DIRECT_MAP_CACHE_SIZE];
 
 TranslationBlock *tb_lookup(CPU *cpu, CpuMode cpu_mode)
 {
 
-    const u16 cache_idx = cpu->state.pc & (DIRECT_MAP_CACHE_SIZE - 1);
-
+    const u16 cache_idx = DIRECT_MAP_CACHE_ALIGN_PC(cpu->state.pc) & (DIRECT_MAP_CACHE_SIZE - 1);
     TranslationBlock *cache_entry = direct_cache[cache_idx];
 
     if (cache_entry != NULL_PTR && cache_entry->pc_at_start == cpu->state.pc &&
@@ -104,7 +104,8 @@ void invalidate_tb(u32 adr_start, u32 adr_end)
         if ((adr_start <= tb->pc_at_start && adr_end >= tb->pc_at_start) ||
             (adr_start <= tb->pc_at_end && adr_end >= tb->pc_at_end)) {
 
-            const u16 cache_idx = tb->pc_at_start & (DIRECT_MAP_CACHE_SIZE - 1);
+            const u16 cache_idx =
+                DIRECT_MAP_CACHE_ALIGN_PC(tb->pc_at_start) & (DIRECT_MAP_CACHE_SIZE - 1);
 
             if (direct_cache[cache_idx] == tb)
                 direct_cache[cache_idx] = NULL_PTR;
@@ -121,6 +122,7 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     // block->core.code);
 
     assert(block->core.code != NULL);
+    assert(block->pc_at_start % 4 == 0);
 
     if (block->type & TRANSLATION_BLOCK_TYPE_FLOATING_POINT_OPERATIONS) {
         run_tb_with_fpu(block->core.code, &cpu->fpu);
@@ -131,6 +133,7 @@ void run_tb(TranslationBlock *block, CPU *cpu)
     *(uintptr_t *)&code = (uintptr_t)block->core.code;
     code();
 
-    const u16 cache_idx = block->pc_at_start & (DIRECT_MAP_CACHE_SIZE - 1);
+    const u16 cache_idx =
+        DIRECT_MAP_CACHE_ALIGN_PC(block->pc_at_start) & (DIRECT_MAP_CACHE_SIZE - 1);
     direct_cache[cache_idx] = block;
 }
